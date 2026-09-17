@@ -1,0 +1,1931 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BrainCo 赛事统分后台管理 · Demo</title>
+<style>
+:root{
+  --bg:#f4f6f9;--panel:#fff;--line:#e4e8ee;--txt:#1b2027;--muted:#6b7280;
+  --brand:#185FA5;--brand-d:#124a80;--ok:#2f6b0f;--warn:#9a6410;--err:#a32d2d;
+  --okbg:#eaf3de;--warnbg:#faeeda;--errbg:#fcebeb;--soft:#f7f9fc;
+}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
+.layout{display:flex;min-height:100vh}
+.side{width:228px;flex:0 0 228px;background:#0e1a2b;color:#c7d3e3;padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 6px 16px;border-bottom:1px solid #1e2f47;margin-bottom:14px}
+.brand .dot{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#2f7fd1,#5b4bc4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex:0 0 30px}
+.brand b{display:block;color:#fff;font-size:14px;line-height:1.3}
+.brand span{font-size:11.5px;color:#7d8ea6}
+.ngroup{font-size:11px;color:#61728c;letter-spacing:.06em;padding:12px 8px 6px}
+.ni{display:block;padding:9px 12px;border-radius:8px;color:#c7d3e3;cursor:pointer;margin-bottom:3px;font-size:13.5px;user-select:none}
+.ni:hover{background:#182a42;color:#fff}
+.ni.on{background:#1b63ab;color:#fff;font-weight:500}
+.side .foot{margin-top:18px;padding:10px 12px;border-radius:8px;background:#132339;font-size:11.5px;color:#7d8ea6;line-height:1.7}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{background:#fff;border-bottom:1px solid var(--line);padding:12px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:8;flex-wrap:wrap}
+.top h1{font-size:15px;margin:0;font-weight:600}
+.top .sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;background:#eef4fb;color:#1c5288;border:1px solid #d8e6f5}
+.pill i{width:7px;height:7px;border-radius:50%;background:#3fae5a;display:inline-block}
+.wrap{padding:20px 22px 40px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+.card h2{font-size:14px;margin:0 0 12px;font-weight:600}
+.card h2 small{font-weight:400;color:var(--muted);font-size:12.5px;margin-left:8px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g12{grid-template-columns:260px minmax(0,1fr)}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .lb{font-size:12.5px;color:var(--muted)}
+.kpi .nm{font-size:24px;font-weight:600;letter-spacing:-.01em;margin-top:2px}
+.kpi .ft{font-size:12px;color:var(--muted);margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{color:var(--muted);font-weight:500;background:var(--soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fbfcfe}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.btn{padding:6px 12px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:var(--txt)}
+.btn:hover{border-color:#c3ccd8}
+.btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn.primary:hover{background:var(--brand-d)}
+.btn.danger{color:var(--err);border-color:#f0c9c9}
+.btn.sm{padding:3px 9px;font-size:12px;border-radius:7px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+input,select,textarea{font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff;color:var(--txt)}
+input:focus,select:focus,textarea:focus{outline:2px solid #cfe2f6;border-color:var(--brand)}
+textarea{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+input[type=range]{padding:0;border:none;background:transparent}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.tight{gap:6px}
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;background:#eef2f7;color:#4a5768}
+.tag.ok{background:var(--okbg);color:var(--ok)}
+.tag.warn{background:var(--warnbg);color:var(--warn)}
+.tag.err{background:var(--errbg);color:var(--err)}
+.tag.b{background:#e8f1fb;color:#1c5288}
+.list{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.li{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13.5px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.li:last-child{border-bottom:none}
+.li:hover{background:var(--soft)}
+.li.on{background:#eaf2fb;border-left:3px solid var(--brand);padding-left:9px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.hint{font-size:12.5px;color:var(--muted);line-height:1.7}
+.note{background:var(--soft);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:8px;padding:10px 12px;font-size:12.5px;color:#41506a;line-height:1.7}
+.drop{display:block;border:2px dashed #c3ccd8;border-radius:12px;padding:26px 20px;text-align:center;cursor:pointer;background:#fbfcfe}
+.drop:hover{border-color:var(--brand);background:#f4f9fe}
+.drop b{display:block;font-size:14px;color:var(--brand);margin-bottom:4px}
+.drop span{font-size:12.5px;color:var(--muted)}
+.slot{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;min-height:96px;cursor:pointer}
+.slot:hover{border-color:#a9c6e6}
+.slot.sel{border-color:var(--brand);box-shadow:0 0 0 2px #d9e8f7}
+.slot.extra{border-color:#f0c9a0;background:#fffaf3}
+.slot.empty{border:1px dashed #c3ccd8;background:#fbfcfe;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12.5px;min-height:96px}
+.slot.empty:hover{border-color:var(--brand);color:var(--brand)}
+.screen-box{background:#0d1b2a;border-radius:12px;padding:16px 20px;color:#e8eef6}
+.screen-box .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #22384f;padding-bottom:9px;margin-bottom:10px;font-size:13px}
+.screen-box .hd b{font-size:15px;color:#fff}
+.screen-row{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px dashed #1d3145;font-size:13.5px}
+.screen-row:last-child{border-bottom:none}
+.screen-row .rk{width:32px;text-align:center;font-weight:700;color:#8fd0ff}
+.screen-row .tm{flex:1.4;font-weight:600;color:#fff}
+.screen-row .sc{flex:2.4;color:#a9bed4;font-size:12.5px}
+.screen-row .aw{flex:0.9;text-align:right;color:#ffd479;font-size:12.5px}
+.screen-foot{text-align:center;font-size:11.5px;color:#6d8399;padding-top:9px;border-top:1px solid #1d3145;margin-top:8px}
+.range{display:flex;align-items:center;gap:10px}
+.range b{min-width:40px;text-align:right;font-variant-numeric:tabular-nums}
+.thumb{text-align:center;font-size:11.5px;color:var(--muted);margin-top:2px;display:flex;justify-content:space-between}
+.vres{margin-top:10px;font-size:12.5px;line-height:1.8}
+.vres .e{color:var(--err)}
+.vres .w{color:var(--warn)}
+.vres .k{color:var(--ok)}
+.snap{padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:12.5px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
+.pub{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 24px}
+.pub h3{margin:0 0 4px;font-size:17px;text-align:center;font-weight:600}
+.pub .sub{text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:16px}
+.award1{color:#a32d2d;font-weight:500}
+.award2{color:#9a6410;font-weight:500}
+.award3{color:#2f6b0f;font-weight:500}
+@media(max-width:1080px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g12,.g2,.g3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============================================================
+   BrainCo 赛事统分后台管理 · 单文件 Demo
+   参考开源：SRComp(compstate 配置治理/榜单)、CodaLab(competition.yaml 声明式赛项)、
+             ICPC CCS(contest.json + 实时 standings)、The Purple Standard(任务原语)
+   数据模型对齐：赛事统分系统_配置Schema_v1.json / 三赛项种子数据.json
+   ============================================================ */
+var KEY='brainco_scoring_admin_v1';
+var REF_TIME=120;                 // 时间奖励基准时长（秒），demo 常量，实际由赛制给定
+var TIERS={'一等奖':0.1,'二等奖':0.2,'三等奖':0.3};
+
+var VIEW='dash';
+var CUR_EVENT='brain_planet';     // 赛项与规则页当前编辑赛项
+var SCORE_EVENT='brain_planet';   // 裁判打分页当前赛项
+var CUR_TEAM=null;                // 打分页当前队伍
+var RANK_EVENT='brain_planet';    // 榜单页当前赛项
+var PUB_EVENT='brain_planet';     // 公示页当前赛项
+var PUB_ANON=false;
+
+/* ---------- 后端连接配置 ---------- */
+var BACKEND_URL='/api/v1';        // 同域部署时相对路径即可；独立部署可改为 http://localhost:8080/api/v1
+var BACKEND_KEY='brainco_backend_v1';
+var backendMode=false;            // 是否优先连接后端
+var backendStatus='unknown';      // unknown / online / offline / error
+var backendBusy=false;            // 是否正在同步
+var lastSyncAt='';                // 上次成功同步时间（RFC3339）
+function loadBackendMode(){try{backendMode=localStorage.getItem(BACKEND_KEY+'_mode')==='1';}catch(e){backendMode=false;}}
+function saveBackendMode(){try{localStorage.setItem(BACKEND_KEY+'_mode',backendMode?'1':'0');}catch(e){}}
+function loadLastSyncAt(){try{lastSyncAt=localStorage.getItem(BACKEND_KEY+'_lastSyncAt')||'';}catch(e){lastSyncAt='';}}
+function saveLastSyncAt(ts){try{lastSyncAt=ts||'';localStorage.setItem(BACKEND_KEY+'_lastSyncAt',lastSyncAt);}catch(e){}}
+loadBackendMode();loadLastSyncAt();
+backendStatus=backendMode?'unknown':'offline';
+
+/* ---------- 工具 ---------- */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function clone(o){return JSON.parse(JSON.stringify(o));}
+function uid(p){return p+Math.random().toString(36).slice(2,7);}
+function download(name,text,mime){
+  var b=new Blob([text],{type:mime||'text/plain;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
+}
+function nowStr(){var d=new Date();function p(n){return n<10?'0'+n:''+n;}return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
+
+/* ---------- 种子数据 ---------- */
+function seedData(){
+  return {
+    schemaVersion:'1.0',
+    configVersion:'v1.0 · 2026-09-16',
+    snapshots:[],
+    importLogs:[],
+    published:{},
+    seats:[
+      {id:'s1',name:'赛台 1'},
+      {id:'s2',name:'赛台 2'},
+      {id:'s3',name:'赛台 3'},
+      {id:'s4',name:'赛台 4'}
+    ],
+    slots:[
+      {id:'sl1',seatId:'s1',period:'上午',time:'09:00–12:00',eventId:'brain_planet',group:'小学组',type:'normal',teams:['bp1','bp2'],snapshot:null},
+      {id:'sl2',seatId:'s2',period:'上午',time:'09:00–12:00',eventId:'brain_planet',group:'初中组',type:'normal',teams:['bp3','bp4'],snapshot:null},
+      {id:'sl3',seatId:'s3',period:'上午',time:'09:00–12:00',eventId:'mars_rescue',group:'小学组',type:'normal',teams:['mr1','mr2'],snapshot:null},
+      {id:'sl4',seatId:'s4',period:'上午',time:'09:00–12:00',eventId:'mars_rescue',group:'初中组',type:'normal',teams:['mr3'],snapshot:null},
+      {id:'sl5',seatId:'s1',period:'下午',time:'14:00–17:00',eventId:'future_city',group:'小学组',type:'normal',teams:['fc1','fc2'],snapshot:null},
+      {id:'sl6',seatId:'s2',period:'下午',time:'14:00–17:00',eventId:'future_city',group:'初中组',type:'normal',teams:['fc3','fc4'],snapshot:null},
+      {id:'sl7',seatId:'s3',period:'下午',time:'14:00–17:00',eventId:'future_city',group:'小学组',type:'extra',teams:[],
+       snapshot:[{no:'9001',name:'新星队',school:'成都教装展学校',coach:'陈老师'}]}
+    ],
+    auditLogs:[
+      {ts:'2026-09-17 09:12',operator:'运营 A',action:'改配置',target:'脑机星球 · 专注力任务权重',before:'0.4',after:'0.5',reason:'赛前规则复核'},
+      {ts:'2026-09-17 09:30',operator:'运营 A',action:'调赛台',target:'赛台 3 · 上午场次',before:'队伍顺序分配',after:'按就近重排（均衡各台人数）',reason:'现场到队人数不均'},
+      {ts:'2026-09-17 10:05',operator:'运营 B',action:'弃赛',target:'极客队（1004）',before:'active',after:'withdrawn',reason:'选手临时退赛'},
+      {ts:'2026-09-17 10:20',operator:'裁判长 C',action:'改分',target:'追光队（1002）· 第二轮 搭建任务',before:'75',after:'81',reason:'申诉复核，裁判长授权修改'}
+    ],
+    screen:{interval:60,pageSize:10,pinned:null},
+    events:[
+      { id:'brain_planet', name:'脑机星球', groups:['小学组','初中组'], customFormula:null,
+        tasks:[
+          {id:'focus',name:'专注力任务',type:'numeric',maxScore:100,weight:0.5,control:'slider'},
+          {id:'build',name:'搭建任务',type:'numeric',maxScore:100,weight:0.5,control:'slider'}
+        ],
+        scoreRule:{template:'weighted_sum',params:{}},
+        bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
+        penaltyRule:{template:'per_card',params:{yellow:5,red:15}},
+        rankRule:{tieBreak:['score','time'],awardTiers:clone(TIERS)} },
+      { id:'mars_rescue', name:'火星救援', groups:['小学组','初中组'], customFormula:null,
+        tasks:[
+          {id:'base',name:'救援主任务',type:'numeric',maxScore:100,weight:1.0,control:'slider'}
+        ],
+        scoreRule:{template:'weighted_sum',params:{}},
+        bonusRules:[
+          {template:'count_bonus',params:{taskId:'energy',perUnit:5,cap:null}},
+          {template:'count_bonus',params:{taskId:'bridge',perUnit:5,cap:null}},
+          {template:'time_bonus',params:{perSecond:0.5,cap:10}}
+        ],
+        penaltyRule:{template:'per_card',params:{yellow:5,red:15}},
+        rankRule:{tieBreak:['score','time'],awardTiers:clone(TIERS)} },
+      { id:'future_city', name:'未来之城', groups:['小学组','初中组'], customFormula:null,
+        tasks:[
+          {id:'task_a',name:'任务A（待补）',type:'numeric',maxScore:100,weight:0.6,control:'slider'},
+          {id:'task_b',name:'任务B（待补）',type:'numeric',maxScore:100,weight:0.4,control:'slider'}
+        ],
+        scoreRule:{template:'weighted_sum',params:{}},
+        bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
+        penaltyRule:{template:'per_card',params:{yellow:5,red:15}},
+        rankRule:{tieBreak:['score','time'],awardTiers:clone(TIERS)} }
+    ],
+    teams:[
+      {id:'bp1',no:'1001',name:'星河队',school:'杭州实验小学',coach:'张老师',eventId:'brain_planet',group:'小学组',members:'张一 / 李二',status:'active',source:'manual'},
+      {id:'bp2',no:'1002',name:'追光队',school:'杭州第二实验小学',coach:'孙老师',eventId:'brain_planet',group:'小学组',members:'王三 / 赵四',status:'active',source:'manual'},
+      {id:'bp3',no:'1003',name:'晨曦队',school:'',coach:'李老师',eventId:'brain_planet',group:'初中组',members:'孙五 / 周六',status:'active',source:'manual'},
+      {id:'bp4',no:'1004',name:'极客队',school:'杭州实验小学',coach:'周老师',eventId:'brain_planet',group:'初中组',members:'吴七 / 郑八',status:'active',source:'manual'},
+      {id:'mr1',no:'2001',name:'火星一号',school:'青岛实验学校',coach:'陈老师',eventId:'mars_rescue',group:'小学组',members:'冯九 / 陈十',status:'active',source:'manual'},
+      {id:'mr2',no:'2002',name:'风暴队',school:'青岛实验学校',coach:'吴老师',eventId:'mars_rescue',group:'小学组',members:'褚一 / 卫二',status:'active',source:'manual'},
+      {id:'mr3',no:'2003',name:'探索者队',school:'青岛实验学校',coach:'郑老师',eventId:'mars_rescue',group:'初中组',members:'蒋三 / 沈四',status:'active',source:'manual'},
+      {id:'fc1',no:'4001',name:'创想队',school:'成都教装展学校',coach:'陈老师',eventId:'future_city',group:'小学组',members:'韩五 / 杨六 / 朱七',status:'active',source:'manual'},
+      {id:'fc2',no:'4002',name:'领航队',school:'成都教装展学校',coach:'刘老师',eventId:'future_city',group:'小学组',members:'秦八 / 尤九 / 许十',status:'active',source:'manual'},
+      {id:'fc3',no:'4003',name:'智造队',school:'成都教装展学校',coach:'张老师',eventId:'future_city',group:'初中组',members:'何一 / 吕二 / 施三',status:'active',source:'manual'},
+      {id:'fc4',no:'4004',name:'破晓队',school:'成都教装展学校',coach:'王老师',eventId:'future_city',group:'初中组',members:'孔四 / 曹五 / 严六',status:'active',source:'manual'}
+    ],
+    scores:{
+      bp1:{tasks:{focus:88,build:92},time:96,yellow:0,red:0,signed:true},
+      bp2:{tasks:{focus:76,build:81},time:104,yellow:1,red:0,signed:true},
+      bp3:{tasks:{focus:93,build:89},time:88,yellow:0,red:0,signed:true},
+      bp4:{tasks:{focus:70,build:75},time:112,yellow:2,red:0,signed:false},
+      mr1:{tasks:{base:85,energy:6,bridge:2},time:98,yellow:0,red:0,signed:true},
+      mr2:{tasks:{base:79,energy:4,bridge:3},time:106,yellow:1,red:0,signed:true},
+      mr3:{tasks:{base:91,energy:8,bridge:1},time:92,yellow:0,red:0,signed:false},
+      fc1:{tasks:{task_a:82,task_b:78},time:120,yellow:0,red:0,signed:false},
+      fc2:{tasks:{task_a:88,task_b:84},time:101,yellow:0,red:0,signed:false}
+    }
+  };
+}
+
+/* ---------- 状态持久化 ---------- */
+var S;
+function load(){
+  try{var raw=localStorage.getItem(KEY);if(raw){var d=JSON.parse(raw);if(d&&d.events&&d.teams)return d;}}catch(e){}
+  return seedData();
+}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+  if(backendMode && !backendBusy){backendSyncSoon();}
+}
+function resetSeed(){if(confirm('重置为内置三赛项种子数据？当前改动将丢失。')){S=seedData();save();CUR_TEAM=null;render();}}
+
+/* ---------- 后端适配层（P5：连接后端 + 离线兜底） ---------- */
+// 设计原则：
+// 1. S 仍是前端单一事实来源，localStorage 始终兜底保存。
+// 2. backendMode=true 时，页面加载后尝试从后端拉取全量数据覆盖 S。
+// 3. 本地变更后 save() 会触发 backendSyncSoon()，把成绩批量上行到后端。
+// 4. 后端不可用时自动降级提示，不断网也能继续操作（数据在本地）。
+
+function backendFetch(path,opts){
+  opts=opts||{};
+  var url=BACKEND_URL+path;
+  var init={method:opts.method||'GET',headers:{'Accept':'application/json'}};
+  if(opts.body){
+    init.headers['Content-Type']='application/json';
+    init.body=JSON.stringify(opts.body);
+  }
+  var ctrl=null;
+  if(typeof AbortController!=='undefined'){ctrl=new AbortController();init.signal=ctrl.signal;}
+  var timer=setTimeout(function(){if(ctrl)ctrl.abort();},opts.timeout||5000);
+  return fetch(url,init).then(function(r){
+    clearTimeout(timer);
+    return r.json().then(function(j){return {ok:r.ok,status:r.status,body:j};});
+  }).catch(function(err){
+    clearTimeout(timer);
+    throw err;
+  });
+}
+
+function setBackendStatus(st,msg){
+  backendStatus=st;
+  var el=document.getElementById('backend-status');
+  if(el)el.innerHTML=backendStatusHtml(st,msg);
+}
+function backendStatusHtml(st,msg){
+  var map={'online':['#eaf3de','#2f6b0f','已连接后端'],'offline':['#faeeda','#9a6410','离线兜底'],'error':['#fcebeb','#a32d2d','后端异常'],'unknown':['#eef2f7','#4a5768','检测中']};
+  var c=map[st]||map['unknown'];
+  return '<span class="pill" style="background:'+c[0]+';border-color:'+c[0]+';color:'+c[1]+'">'+c[2]+(msg?': '+esc(msg):'')+'</span>';
+}
+
+var backendSyncTimer=null;
+function backendSyncSoon(){if(backendSyncTimer)return;backendSyncTimer=setTimeout(function(){backendSyncTimer=null;backendSync();},800);}
+
+function backendSync(){
+  if(!backendMode || backendBusy)return;
+  backendBusy=true;setBackendStatus('unknown','同步中');
+  var scores=[];
+  S.teams.forEach(function(t){
+    var rec=S.scores[t.id];
+    if(rec && rec.signed){
+      var item={eventId:t.eventId,no:t.no,roundNo:1,clientId:'web-demo',tasks:rec.tasks||{},time:rec.time||0,signed:!!rec.signed};
+      item.yellow=rec.yellow||0;
+      item.red=rec.red||0;
+      scores.push(item);
+    }
+  });
+  backendFetch('/sync',{method:'POST',body:{lastSyncAt:lastSyncAt,scores:scores},timeout:8000})
+  .then(function(r){
+    if(r.ok && r.body && r.body.code===0){
+      if(r.body.data && r.body.data.serverTime)saveLastSyncAt(r.body.data.serverTime);
+      setBackendStatus('online',r.body.data?('已同步 '+r.body.data.succeeded+' 条'):'');
+    }else{
+      var m=(r.body&&r.body.message)||('HTTP '+r.status);
+      setBackendStatus('error',m);
+    }
+  }).catch(function(e){
+    setBackendStatus('offline','后端不可达，已存本地');
+  }).finally(function(){backendBusy=false;});
+}
+
+function backendPushEvent(){
+  if(!backendMode || backendBusy)return;
+  var ev=find(CUR_EVENT);if(!ev)return;
+  backendBusy=true;setBackendStatus('unknown','保存赛项中');
+  backendFetch('/events/'+ev.id,{method:'PUT',body:Object.assign({},ev,{reason:'前端规则调整'}),timeout:8000})
+  .then(function(r){
+    if(r.ok && r.body && r.body.code===0){
+      setBackendStatus('online','赛项已保存');
+    }else{
+      var m=(r.body&&r.body.message)||('HTTP '+r.status);
+      setBackendStatus('error','保存赛项失败：'+m);
+    }
+  }).catch(function(e){
+    setBackendStatus('offline','后端不可达，已存本地');
+  }).finally(function(){backendBusy=false;});
+}
+
+function backendPushTeams(){
+  if(!backendMode || backendBusy)return;
+  var ev=find(CUR_EVENT);if(!ev)return;
+  var localTeams=S.teams.filter(function(t){return t.eventId===ev.id;});
+  if(!localTeams.length){alert('当前赛项没有队伍可推送');return;}
+  backendBusy=true;setBackendStatus('unknown','推送队伍中');
+  backendFetch('/events/'+ev.id+'/teams?limit=10000')
+  .then(function(r){
+    if(!r.ok || !r.body || r.body.code!==0){throw new Error((r.body&&r.body.message)||'HTTP '+r.status);}
+    var existing={};
+    (r.body.data&&r.body.data.teams||[]).forEach(function(t){existing[t.team_no||t.no]=true;});
+    var toCreate=localTeams.filter(function(t){return !existing[t.no];});
+    if(!toCreate.length){setBackendStatus('online','队伍已同步');backendBusy=false;return;}
+    return Promise.all(toCreate.map(function(t){
+      return backendFetch('/events/'+ev.id+'/teams',{method:'POST',body:{
+        no:t.no,name:t.name,school:t.school||'',coach:t.coach||'',group:t.group||'',members:t.members||''
+      },timeout:8000});
+    })).then(function(rs){
+      var ok=0,fail=0;
+      rs.forEach(function(res){if(res.ok && res.body && res.body.code===0)ok++;else fail++;});
+      setBackendStatus('online','推送 '+ok+' 支，失败 '+fail+' 支');
+    });
+  }).catch(function(e){
+    setBackendStatus('offline','后端不可达，已存本地');
+  }).finally(function(){backendBusy=false;});
+}
+
+function backendPushSchedule(){
+  if(!backendMode || backendBusy)return;
+  if(!S.seats.length && !S.slots.length){alert('没有赛台或场次可推送');return;}
+  backendBusy=true;setBackendStatus('unknown','推送赛程中');
+  Promise.all([backendFetch('/seats?limit=1000'),backendFetch('/slots?limit=1000')])
+  .then(function(rs){
+    var seatRes=rs[0],slotRes=rs[1];
+    if(!seatRes.ok || !seatRes.body || seatRes.body.code!==0){throw new Error('读取赛台失败');}
+    if(!slotRes.ok || !slotRes.body || slotRes.body.code!==0){throw new Error('读取场次失败');}
+    var backendSeats=(seatRes.body.data&&seatRes.body.data.seats)||[];
+    var backendSlots=(slotRes.body.data&&slotRes.body.data.slots)||[];
+    var seatMap={}; // 本地 seat.name -> 后端 seat.id
+    backendSeats.forEach(function(s){seatMap[s.name]=s.id;});
+    var seatCreates=S.seats.filter(function(s){return !seatMap[s.name];}).map(function(s,i){
+      return backendFetch('/seats',{method:'POST',body:{name:s.name,sortOrder:i},timeout:8000});
+    });
+    return Promise.all(seatCreates).then(function(seatRs){
+      seatRs.forEach(function(res){
+        if(res.ok && res.body && res.body.code===0){
+          var data=res.body.data;seatMap[data.name]=data.id;
+        }
+      });
+      var slotKey=function(s){return (s.seatId||'')+'|'+s.period;}; // 本地 slot 用本地 seatId
+      var backendSlotKeys={};
+      backendSlots.forEach(function(s){backendSlotKeys[(s.seatId||'')+'|'+s.period]=true;});
+      var slotCreates=[];
+      S.slots.forEach(function(sl){
+        var backendSeatId=seatMap[seatName(sl.seatId)];
+        if(!backendSeatId)return;
+        if(backendSlotKeys[backendSeatId+'|'+sl.period])return;
+        slotCreates.push(backendFetch('/slots',{method:'POST',body:{
+          seatId:backendSeatId,period:sl.period,time:sl.time,eventId:sl.eventId,group:sl.group,type:sl.type||'normal'
+        },timeout:8000}));
+      });
+      return Promise.all(slotCreates);
+    }).then(function(slotRs){
+      var ok=slotRs.filter(function(r){return r.ok && r.body && r.body.code===0;}).length;
+      var fail=slotRs.length-ok;
+      setBackendStatus('online','赛程推送 '+ok+' 成功 '+fail+' 失败');
+    });
+  }).catch(function(e){
+    setBackendStatus('offline','后端不可达，已存本地');
+  }).finally(function(){backendBusy=false;});
+}
+
+function loadFromBackend(){
+  if(!backendMode)return;
+  backendBusy=true;setBackendStatus('unknown','加载中');
+  Promise.all([
+    backendFetch('/events'),
+    backendFetch('/seats'),
+    backendFetch('/slots'),
+    backendFetch('/audit-logs?limit=1000'),
+    backendFetch('/import-logs?limit=1000')
+  ]).then(function(rs){
+    var evRes=rs[0], seatRes=rs[1], slotRes=rs[2], auditRes=rs[3], impRes=rs[4];
+    if(!evRes.ok || !evRes.body || evRes.body.code!==0){throw new Error(evRes.body&&evRes.body.message||'赛项加载失败');}
+    // 基础数据映射
+    var events=(evRes.body.data&&evRes.body.data.events)||[];
+    S.events=events;
+    S.seats=(seatRes.body.data&&seatRes.body.data.seats)||[];
+    S.slots=(slotRes.body.data&&slotRes.body.data.slots)||[];
+    S.auditLogs=(auditRes.body.data&&auditRes.body.data.logs)||[];
+    S.importLogs=(impRes.body.data&&impRes.body.data.logs)||[];
+    // 队伍 + 成绩
+    S.teams=[];S.scores={};
+    var teamReqs=events.map(function(ev){return backendFetch('/events/'+ev.id+'/teams?limit=10000');});
+    return Promise.all(teamReqs).then(function(teamRs){
+      var scoreReqs=[];
+      teamRs.forEach(function(tr,idx){
+        var ev=events[idx];
+        var teams=(tr.body.data&&tr.body.data.teams)||[];
+        teams.forEach(function(t){
+          // 后端 Team 字段名：id / event_id / team_no / name / school / coach / group_code / status / members / source
+          var tm={id:'tm_'+t.id, eventId:ev.id, no:t.team_no||t.no, name:t.name, school:t.school||'', coach:t.coach||'', group:t.group_code||t.group, members:t.members||'', status:t.status||'active', source:t.source||'api'};
+          S.teams.push(tm);
+          scoreReqs.push({req:backendFetch('/teams/'+t.id+'/scores?limit=10'),teamId:tm.id});
+        });
+      });
+      return Promise.all(scoreReqs.map(function(x){return x.req.then(function(r){return {teamId:x.teamId,res:r};});}));
+    }).then(function(scoreRs){
+      scoreRs.forEach(function(item){
+        var recs=(item.res.body.data&&item.res.body.data.scores)||[];
+        var best=null;
+        recs.forEach(function(r){
+          var tm=S.teams.find(function(t){return t.id===item.teamId;});
+          var ev=tm?events.find(function(e){return e.id===tm.eventId;}):null;
+          var rec={tasks:r.task_values||{},time:r.duration_sec||0,yellow:r.yellow||0,red:r.red||0,signed:!!r.signed};
+          var total=ev?computeTotal(ev,rec).total:0;
+          if(!best || total>best.total || (total===best.total && rec.time<best.time)){
+            best={tasks:r.task_values||{},time:rec.time,yellow:rec.yellow,red:rec.red,signed:rec.signed};
+          }
+        });
+        if(best)S.scores[item.teamId]=best;
+      });
+      saveLocalOnly();setBackendStatus('online','已加载');render();
+    });
+  }).catch(function(e){
+    setBackendStatus('offline','后端不可达，使用本地数据');
+  }).finally(function(){backendBusy=false;});
+}
+
+function saveLocalOnly(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+function toggleBackendMode(){
+  backendMode=!backendMode;saveBackendMode();
+  if(backendMode){loadFromBackend();}else{setBackendStatus('offline','已关闭后端连接');render();}
+}
+function refreshBackend(){if(backendMode)loadFromBackend();}
+function backendHealthCheck(){
+  backendFetch('/healthz',{timeout:3000}).then(function(r){
+    if(r.ok && r.body && r.body.code===0 && r.body.data && r.body.data.database==='ok'){
+      if(backendMode && !backendBusy)setBackendStatus('online','');
+    }else{
+      if(backendMode)setBackendStatus('error','健康检查异常');
+    }
+  }).catch(function(){if(backendMode)setBackendStatus('offline','后端不可达');});
+}
+
+/* ---------- 计分引擎（替代原 Excel 公式，对应引擎改造设计 compute_total） ---------- */
+function getInputItems(ev){
+  var items=(ev.tasks||[]).map(function(t){return clone(t);});
+  (ev.bonusRules||[]).forEach(function(b){
+    if(b.template==='count_bonus'&&b.params&&b.params.taskId){
+      var tid=b.params.taskId;
+      if(!items.some(function(i){return i.id===tid;})){
+        items.push({id:tid,name:tid+'（计数项）',type:'count',weight:b.params.perUnit,control:'counter'});
+      }
+    }
+  });
+  return items;
+}
+function taskRawScore(t,val){
+  if(val===''||val==null)return null;
+  if(t.type==='enum'){var m=t.enumMap||{};return Object.prototype.hasOwnProperty.call(m,val)?Number(m[val]):0;}
+  if(t.type==='count')return (Number(val)||0)*(Number(t.weight)||0);
+  return Number(val)||0;
+}
+function computeTotal(ev,rec){
+  rec=rec||{};
+  var st=rec.tasks||{};
+  var tpl=(ev.scoreRule&&ev.scoreRule.template)||'weighted_sum';
+  var tasks=ev.tasks||[];
+  var base=0,scored=0;
+  if(tpl==='weighted_sum'){
+    tasks.forEach(function(t){
+      var raw=taskRawScore(t,st[t.id]);
+      if(raw==null)return;
+      scored++;
+      var norm=(t.type==='numeric'&&t.maxScore)?raw/t.maxScore*100:raw;
+      base+=norm*(Number(t.weight)||0);
+    });
+  }else if(tpl==='sum'){
+    tasks.forEach(function(t){var raw=taskRawScore(t,st[t.id]);if(raw==null)return;scored++;base+=raw;});
+  }else{
+    var vals=tasks.map(function(t){return taskRawScore(t,st[t.id]);}).filter(function(v){return v!=null;});
+    scored=vals.length;
+    base=vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:0;
+  }
+  var bonus=0;
+  (ev.bonusRules||[]).forEach(function(b){
+    var p=b.params||{};
+    if(b.template==='time_bonus'){
+      var t=Number(rec.time)||0;
+      if(t>0){var v=(REF_TIME-t)*(Number(p.perSecond)||0);if(v<0)v=0;if(p.cap!=null)v=Math.min(v,Number(p.cap));bonus+=v;}
+    }else if(b.template==='count_bonus'&&p.taskId){
+      var c=Number(st[p.taskId])||0;var w=c*(Number(p.perUnit)||0);if(p.cap!=null)w=Math.min(w,Number(p.cap));bonus+=w;
+    }
+  });
+  var penalty=0;
+  if(ev.penaltyRule&&ev.penaltyRule.template==='per_card'){
+    var q=ev.penaltyRule.params||{};
+    penalty=(Number(rec.yellow)||0)*(Number(q.yellow)||0)+(Number(rec.red)||0)*(Number(q.red)||0);
+  }
+  return {total:Math.max(0,base+bonus-penalty),base:base,bonus:bonus,penalty:penalty,
+          complete:tasks.length>0&&scored===tasks.length};
+}
+function standings(evId){
+  var ev=S.events.find(function(e){return e.id===evId;});
+  if(!ev)return [];
+  var rows=S.teams.filter(function(t){return t.eventId===evId;}).map(function(t){
+    var r=S.scores[t.id]||{};
+    var c=computeTotal(ev,r);
+    return {team:t,total:c.total,base:c.base,bonus:c.bonus,penalty:c.penalty,complete:c.complete,time:Number(r.time)||0};
+  });
+  var tb=(ev.rankRule&&ev.rankRule.tieBreak)||['score','time'];
+  rows.sort(function(a,b){
+    if(b.total!==a.total)return b.total-a.total;
+    for(var i=0;i<tb.length;i++){
+      if(tb[i]==='time'&&a.time!==b.time)return a.time-b.time;
+    }
+    return a.team.name.localeCompare(b.team.name,'zh');
+  });
+  var n=rows.length,tiers=(ev.rankRule&&ev.rankRule.awardTiers)||{};
+  var idx=0;
+  Object.keys(tiers).forEach(function(name){
+    var cnt=Math.ceil(n*(Number(tiers[name])||0));
+    for(var i=0;i<cnt&&idx<n;i++,idx++)rows[idx].award=name;
+  });
+  rows.forEach(function(r,i){
+    r.rank=i+1;
+    r.tie=(i>0&&rows[i-1].total===r.total);
+  });
+  return rows;
+}
+function validateEvent(ev){
+  var errs=[],warns=[];
+  var tpl=(ev.scoreRule&&ev.scoreRule.template)||'';
+  var wsum=(ev.tasks||[]).reduce(function(s,t){return s+(Number(t.weight)||0);},0);
+  if(tpl==='weighted_sum'&&Math.abs(wsum-1)>0.001)warns.push('numeric 任务权重之和 = '+wsum.toFixed(2)+'，weighted_sum 下建议 = 1.0');
+  var seen={};
+  (ev.tasks||[]).forEach(function(t){
+    if(seen[t.id])errs.push('任务 id 重复：'+t.id);
+    seen[t.id]=1;
+    if(!t.name)errs.push('存在未命名的任务');
+    if(t.type==='enum'&&(!t.enumMap||!Object.keys(t.enumMap).length))errs.push('enum 任务「'+t.name+'」缺少等级映射 enumMap');
+  });
+  (ev.bonusRules||[]).forEach(function(b,i){
+    if(b.template==='count_bonus'){
+      var tid=b.params&&b.params.taskId;
+      if(!tid)errs.push('奖励规则 #'+(i+1)+' 未指定 taskId');
+      else{
+        var okAny=(ev.bonusRules||[]).some(function(x){return x.params&&x.params.taskId===tid;})||(ev.tasks||[]).some(function(t){return t.id===tid;});
+        if(!okAny)errs.push('奖励规则 #'+(i+1)+' 引用的任务「'+tid+'」不存在');
+      }
+    }
+  });
+  var tierSum=Object.keys(ev.rankRule&&ev.rankRule.awardTiers||{}).reduce(function(a,k){return a+Number(ev.rankRule.awardTiers[k]||0);},0);
+  if(tierSum>1.0001)warns.push('奖项占比之和 = '+tierSum.toFixed(2)+'，建议 ≤ 1.0');
+  if(tierSum===0)warns.push('奖项占比全为 0，榜单将不分配奖项');
+  if(ev.customFormula!=null)errs.push('customFormula 必须为 null（本期 A 档不支持自定义公式）');
+  return {errs:errs,warns:warns};
+}
+
+/* ---------- 渲染 ---------- */
+function render(){
+  document.getElementById('app').innerHTML=
+    '<div class="layout">'+sidebar()+
+      '<div class="main">'+topbar()+
+        '<div class="wrap">'+viewHtml()+'</div>'+
+      '</div>'+
+    '</div>';
+}
+function sidebar(){
+  var groups=[
+    ['运营管理',[['dash','总览'],['events','赛项与规则'],['seats','赛台与赛程'],['teams','队伍管理'],['import','WRC 报名导入']]],
+    ['现场执行',[['score','裁判打分'],['rank','实时榜单'],['screen','现场大屏']]],
+    ['结果与合规',[['publish','公示与导出'],['audit','操作审计']]]
+  ];
+  var nav=groups.map(function(g){
+    return '<div class="ngroup">'+g[0]+'</div>'+g[1].map(function(it){
+      return '<div class="ni'+(VIEW===it[0]?' on':'')+'" onclick="nav(\''+it[0]+'\')">'+it[1]+'</div>';
+    }).join('');
+  }).join('');
+  return '<aside class="side">'+
+    '<div class="brand"><div class="dot">N</div><div><b>NeuroMaster</b><span>赛事统分后台</span></div></div>'+
+    nav+
+    '<div class="foot">'+(backendMode?'已启用后端连接<br>数据优先来自服务端<br>断网自动使用本地缓存':'离线可用<br>数据存本机浏览器')+'<br><br>单文件 · 零依赖</div>'+
+  '</aside>';
+}
+function topbar(){
+  var titles={dash:'赛事总览',events:'赛项与规则配置',seats:'赛台与赛程编排',import:'WRC 报名导入',teams:'队伍管理',score:'裁判打分录入',rank:'实时榜单',screen:'现场大屏（分页轮播）',publish:'公示与导出',audit:'全操作审计'};
+  var localPill='<span class="pill"><i></i>离线可用 · 本地已保存</span>';
+  var backendToggle='<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;margin-left:8px">'+
+    '<input type="checkbox" '+(backendMode?'checked':'')+' onchange="toggleBackendMode()" style="width:auto">'+
+    '连接后端</label>';
+  var refreshBtn=backendMode?'<button class="btn sm" onclick="refreshBackend()" '+(backendBusy?'disabled':'')+'>刷新</button>':'';
+  return '<div class="top">'+
+    '<h1>'+titles[VIEW]+'</h1>'+
+    localPill+
+    '<span id="backend-status">'+backendStatusHtml(backendStatus,'')+'</span>'+
+    backendToggle+
+    refreshBtn+
+    '<span class="pill" style="background:#f3f0fd;border-color:#e0d9f8;color:#4a3aa8">配置版本 '+esc(S.configVersion)+'</span>'+
+    '<span class="sp"></span>'+
+    '<button class="btn sm" onclick="exportConfig()">导出配置文件</button>'+
+    '<button class="btn sm danger" onclick="resetSeed()">重置种子</button>'+
+  '</div>';
+}
+function viewHtml(){
+  if(VIEW==='dash')return viewDash();
+  if(VIEW==='events')return viewEvents();
+  if(VIEW==='seats')return viewSeats();
+  if(VIEW==='import')return viewImport();
+  if(VIEW==='teams')return viewTeams();
+  if(VIEW==='score')return viewScore();
+  if(VIEW==='rank')return viewRank();
+  if(VIEW==='screen')return viewScreen();
+  if(VIEW==='publish')return viewPublish();
+  if(VIEW==='audit')return viewAudit();
+  return '';
+}
+function nav(v){VIEW=v;render();}
+
+/* ---------- 视图 1：总览 ---------- */
+function viewDash(){
+  var totalTeams=S.teams.length;
+  var scored=S.teams.filter(function(t){return S.scores[t.id]&&S.scores[t.id].signed;}).length;
+  var notPub=S.events.filter(function(e){return !S.published[e.id];}).length;
+  var kpi=function(lb,nm,ft){return '<div class="kpi"><div class="lb">'+lb+'</div><div class="nm">'+nm+'</div><div class="ft">'+ft+'</div></div>';};
+
+  var rows=S.events.map(function(e){
+    var tms=S.teams.filter(function(t){return t.eventId===e.id;});
+    var sc=tms.filter(function(t){return S.scores[t.id]&&S.scores[t.id].signed;}).length;
+    var v=validateEvent(e);
+    var st=v.errs.length?'<span class="tag err">配置有误</span>':(v.warns.length?'<span class="tag warn">待复核</span>':'<span class="tag ok">配置就绪</span>');
+    var pv=S.published[e.id]?'<span class="tag b">已公示</span>':'<span class="tag">未公示</span>';
+    return '<tr>'+
+      '<td><b>'+esc(e.name)+'</b><div class="small muted">'+esc(e.id)+'</div></td>'+
+      '<td>'+esc((e.groups||[]).join(' / '))+'</td>'+
+      '<td>'+getInputItems(e).length+'</td>'+
+      '<td>'+esc(tplName(e.scoreRule&&e.scoreRule.template))+'</td>'+
+      '<td class="num">'+tms.length+'</td>'+
+      '<td class="num">'+sc+'</td>'+
+      '<td>'+st+'</td><td>'+pv+'</td>'+
+    '</tr>';
+  }).join('');
+
+  return '<div class="grid g4">'+
+      kpi('赛项数',S.events.length,'每个赛项一套评分表')+
+      kpi('队伍总数',totalTeams,'含待打分队伍')+
+      kpi('已签字确认',scored,'成绩可归档')+
+      kpi('待公示赛事',notPub,'大屏与公示页同源同步')+
+    '</div>'+
+  '<div class="card" style="margin-top:16px"><h2>赛项状态总览 <small>配置 → 报名 → 打分 → 公示</small></h2>'+
+    '<table><thead><tr><th>赛项</th><th>组别</th><th>计分项</th><th>计分模板</th><th class="num">队伍</th><th class="num">已签字</th><th>配置校验</th><th>公示</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>'+
+  '</div>'+
+  '<div class="card"><h2>设计说明 <small>这套后台的设计取舍</small></h2>'+
+    '<div class="note">'+
+      '<b>① 规则自由配</b>：赛项、任务、得分、奖项全部写在配置里 —— 换赛项只需换配置，打分引擎不用改。<br>'+
+      '<b>② 评分方式就三类</b>：数值评分、计数得分、等级评分 —— 任何赛项的评分项都能用这三类描述。<br>'+
+      '<b>③ 配置可留档回滚</b>：改配置前先存快照，出问题一键回滚。<br>'+
+      '<b>④ 报名统一从 WRC 来</b>：官网导出 → 变更比对 → 合并入库；已有成绩的队伍不会被冲掉，退赛只标记不删除。<br>'+
+      '<b>⑤ 成绩算法可解释</b>：基础分 + 加分 − 扣分，同分按用时裁决，规则全在赛项配置里，随时可查。'+
+    '</div>'+
+  '</div>';
+}
+/* 中文映射层：界面只出现中文，英文键仅用于内部存储与导出 JSON */
+var TASK_TYPES={numeric:'数值评分',count:'计数得分',enum:'等级评分'};
+var TASK_TYPE_HINT={numeric:'裁判给 0–满分 的连续分',count:'按数量 × 每单位分',enum:'选等级，按等级取分'};
+var CONTROL_NAMES={slider:'滑块（0–满分）',number:'数字输入',counter:'计数器（增减）',select:'下拉选择'};
+var BONUS_NAMES={time_bonus:'时间奖励（越快加分）',count_bonus:'计数奖励（按数量加分）',none:'无奖励'};
+var TIE_NAMES={score:'得分高者优先',time:'用时少者优先'};
+var IMPORT_ACT={insert:'新增',update:'更新',skip:'跳过',conflict:'冲突'};
+function tplName(t){return {weighted_sum:'加权求和',sum:'直接求和',average:'取平均值'}[t]||t||'—';}
+function taskTypeName(t){return TASK_TYPES[t]||t||'—';}
+function bonusName(t){return BONUS_NAMES[t]||t||'—';}
+function tieName(arr){return (arr||[]).map(function(k){return TIE_NAMES[k]||k;}).join(' → ')||'—';}
+function importActName(a){return IMPORT_ACT[a]||a;}
+function controlOptions(cur){
+  var keys=['slider','number','counter','select'];
+  var html=keys.map(function(x){return '<option value="'+x+'" '+(cur===x?'selected':'')+'>'+CONTROL_NAMES[x]+'</option>';}).join('');
+  if(cur&&keys.indexOf(cur)<0)html='<option value="'+esc(cur)+'" selected>'+esc(cur)+'</option>'+html;
+  return html;
+}
+
+/* ---------- 视图 2：赛项与规则 ---------- */
+function viewEvents(){
+  var ev=S.events.find(function(e){return e.id===CUR_EVENT;})||S.events[0];
+  if(!ev)return '<div class="card">暂无赛项，请重置种子。</div>';
+  var list=S.events.map(function(e){
+    return '<div class="li'+(e.id===ev.id?' on':'')+'" onclick="selEvent(\''+e.id+'\')">'+
+      '<span><b>'+esc(e.name)+'</b><div class="small muted">'+esc(e.id)+'</div></span>'+
+      '<span class="tag'+(validateEvent(e).errs.length?' err':'')+'">'+(validateEvent(e).errs.length?'有误':'OK')+'</span>'+
+    '</div>';
+  }).join('');
+  return '<div class="grid g12">'+
+    '<div class="card" style="margin:0"><h2>赛项列表</h2><div class="list">'+list+'</div>'+
+      '<div class="hint" style="margin-top:10px">新增赛项 = 新增一份配置，引擎无需改动。当前为演示，赛项列表固定为种子三项。</div>'+
+    '</div>'+
+    '<div class="card" style="margin:0">'+eventForm(ev)+'</div>'+
+  '</div>'+
+  '<div class="card" style="margin-top:16px"><h2>配置快照 <small>改配置前先存一份，随时可回滚</small></h2>'+
+    '<div class="row" style="margin-bottom:10px">'+
+      '<input id="snapNote" placeholder="快照备注（如：赛前冻结 v1.1）" style="max-width:320px">'+
+      '<button class="btn primary" onclick="makeSnapshot()">生成快照</button>'+
+      '<button class="btn" onclick="exportConfig()">导出全部配置</button>'+
+    '</div>'+
+    (S.snapshots.length?S.snapshots.map(function(s,i){
+      return '<div class="snap"><span><b>'+esc(s.note)+'</b> <span class="muted">· '+esc(s.ts)+' · '+s.events.length+' 个赛项</span></span>'+
+        '<button class="btn sm" onclick="restoreSnapshot('+i+')">回滚到此版本</button></div>';
+    }).join(''):'<div class="hint">暂无快照。生成快照可在改配置前留存一份可回滚的版本。</div>')+
+  '</div>';
+}
+function selEvent(id){CUR_EVENT=id;render();}
+function eventForm(ev){
+  var taskRows=(ev.tasks||[]).map(function(t,i){
+    return '<tr>'+
+      '<td><input value="'+esc(t.name)+'" oninput="updTask('+i+',\'name\',this.value)"></td>'+
+      '<td><select onchange="updTask('+i+',\'type\',this.value)">'+
+        ['numeric','count','enum'].map(function(x){return '<option value="'+x+'" '+(t.type===x?'selected':'')+'>'+taskTypeName(x)+'</option>';}).join('')+
+      '</select><div class="small muted">'+esc(TASK_TYPE_HINT[t.type]||'')+'</div></td>'+
+      '<td><input type="number" value="'+(t.maxScore==null?'':t.maxScore)+'" oninput="updTask('+i+',\'maxScore\',this.value)"></td>'+
+      '<td><input type="number" step="0.05" value="'+(t.weight==null?'':t.weight)+'" oninput="updTask('+i+',\'weight\',this.value)"></td>'+
+      '<td><select onchange="updTask('+i+',\'control\',this.value)">'+controlOptions(t.control)+'</select></td>'+
+      '<td><button class="btn sm danger" onclick="delTask('+i+')">删</button></td>'+
+    '</tr>';
+  }).join('');
+  var bonusRows=(ev.bonusRules||[]).map(function(b,i){
+    var p=b.params||{};
+    var paramHtml;
+    if(b.template==='time_bonus'){
+      paramHtml='每秒加分 <input type="number" step="0.1" style="width:80px;display:inline-block" value="'+(p.perSecond==null?'':p.perSecond)+'" oninput="updBonus('+i+',\'perSecond\',this.value)"> '+
+                '封顶 <input type="number" style="width:80px;display:inline-block" value="'+(p.cap==null?'':p.cap)+'" oninput="updBonus('+i+',\'cap\',this.value)">';
+    }else if(b.template==='count_bonus'){
+      paramHtml='引用任务 <input style="width:90px;display:inline-block" value="'+esc(p.taskId||'')+'" oninput="updBonus('+i+',\'taskId\',this.value)"> '+
+                '每单位 <input type="number" style="width:80px;display:inline-block" value="'+(p.perUnit==null?'':p.perUnit)+'" oninput="updBonus('+i+',\'perUnit\',this.value)">';
+    }else{paramHtml='<span class="muted">无参数</span>';}
+    return '<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)">'+
+      '<select style="width:200px" onchange="updBonusTpl('+i+',this.value)">'+
+        ['time_bonus','count_bonus','none'].map(function(x){return '<option value="'+x+'" '+(b.template===x?'selected':'')+'>'+bonusName(x)+'</option>';}).join('')+
+      '</select>'+
+      '<span class="small muted" style="flex:1">'+paramHtml+'</span>'+
+      '<button class="btn sm danger" onclick="delBonus('+i+')">删</button>'+
+    '</div>';
+  }).join('');
+  var pen=ev.penaltyRule&&ev.penaltyRule.params||{};
+  var tiers=ev.rankRule&&ev.rankRule.awardTiers||{};
+  var tb=(ev.rankRule&&ev.rankRule.tieBreak||[]).join(',');
+
+  return '<h2>赛项配置 <small>'+esc(ev.name)+'</small></h2>'+
+    '<div class="grid g2">'+
+      '<div class="fld"><label>赛项名称</label><input value="'+esc(ev.name)+'" oninput="updEvent(\'name\',this.value)"></div>'+
+      '<div class="fld"><label>赛项 ID <span class="muted" style="font-weight:400">（系统自动分配，不可修改）</span></label><input value="'+esc(ev.id)+'" readonly style="background:#f5f6f8;color:#6b7280;cursor:not-allowed"></div>'+
+    '</div>'+
+    '<div class="fld"><label>适用组别（逗号分隔）</label><input value="'+esc((ev.groups||[]).join(','))+'" oninput="updEventGroups(this.value)"></div>'+
+    '<hr class="sep">'+
+    '<div class="row" style="justify-content:space-between"><label class="small muted">任务项（计分最小单元 · 三类原语）</label>'+
+      '<button class="btn sm" onclick="addTask()">+ 添加任务</button></div>'+
+    '<table style="margin-top:8px"><thead><tr><th>任务名</th><th>评分方式</th><th>满分</th><th>权重 / 每单位分</th><th>裁判录入控件</th><th></th></tr></thead>'+
+      '<tbody>'+(taskRows||'<tr><td colspan="6" class="muted">暂无任务</td></tr>')+'</tbody></table>'+
+    '<div class="hint">数值评分 = 得分 ÷ 满分 × 权重；计数得分 = 数量 × 每单位分；等级评分 = 按等级对应分值取分。</div>'+
+    '<hr class="sep">'+
+    '<div class="grid g2">'+
+      '<div class="fld"><label>计分模板</label><select onchange="updEventTpl(this.value)">'+
+        ['weighted_sum','sum','average'].map(function(x){return '<option value="'+x+'" '+((ev.scoreRule&&ev.scoreRule.template)===x?'selected':'')+'>'+tplName(x)+'</option>';}).join('')+
+      '</select></div>'+
+      '<div class="fld"><label>同分时的裁决规则</label><select onchange="updTieBreakPreset(this.value)">'+
+        '<option value="score,time" '+(tb==='score,time'?'selected':'')+'>按用时少者优先</option>'+
+        '<option value="score" '+(tb==='score'?'selected':'')+'>并列（不额外裁决）</option>'+
+      '</select></div>'+
+    '</div>'+
+    '<div class="fld"><label>排名奖项占比（小数，如 0.1 = 前 10%）</label>'+
+      '<div class="row">'+
+        ['一等奖','二等奖','三等奖'].map(function(k){
+          return '<span class="small">'+k+' <input type="number" step="0.05" style="width:70px;display:inline-block" value="'+(tiers[k]==null?'':tiers[k])+'" oninput="updTier(\''+k+'\',this.value)"></span>';
+        }).join('')+
+      '</div>'+
+    '</div>'+
+    '<hr class="sep">'+
+    '<div class="row" style="justify-content:space-between"><label class="small muted">奖励规则（bonusRules）</label>'+
+      '<button class="btn sm" onclick="addBonus()">+ 添加奖励</button></div>'+
+    '<div style="margin-top:6px">'+(bonusRows||'<div class="hint">无奖励规则</div>')+'</div>'+
+    '<div class="fld" style="margin-top:12px"><label>扣分规则（每张牌扣分）</label>'+
+      '<div class="row"><span class="small">黄牌 <input type="number" style="width:70px;display:inline-block" value="'+(pen.yellow==null?'':pen.yellow)+'" oninput="updPen(\'yellow\',this.value)"></span>'+
+      '<span class="small">红牌 <input type="number" style="width:70px;display:inline-block" value="'+(pen.red==null?'':pen.red)+'" oninput="updPen(\'red\',this.value)"></span></div>'+
+    '</div>'+
+    '<div class="row" style="margin-top:6px">'+
+      '<button class="btn primary" onclick="doValidate()">校验配置</button>'+
+      '<button class="btn" onclick="exportEvent()">导出该赛项 JSON</button>'+
+      (backendMode?'<button class="btn" onclick="backendPushEvent()" '+(backendBusy?'disabled':'')+'>保存到后端</button>':'')+
+      '<span class="small muted">当前版本不开放自定义公式（如需评估请联系技术）</span>'+
+    '</div>'+
+    '<div class="vres" id="vres"></div>';
+}
+function updEvent(k,v){var ev=find(CUR_EVENT);if(!ev)return;ev[k]=v;save();}
+function updEventGroups(v){var ev=find(CUR_EVENT);if(!ev)return;ev.groups=v.split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean);save();}
+function updEventTpl(v){
+  var ev=find(CUR_EVENT);if(!ev)return;
+  var before=(ev.scoreRule&&ev.scoreRule.template)||'—';
+  ev.scoreRule={template:v,params:{}};
+  logAudit('改配置',ev.name+' · 计分模板',before,v,'赛项规则调整');
+  save();
+}
+function updTieBreak(v){var ev=find(CUR_EVENT);if(!ev)return;ev.rankRule.tieBreak=v.split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean);save();}
+function updTieBreakPreset(v){
+  var ev=find(CUR_EVENT);if(!ev)return;
+  var before=tieName(ev.rankRule.tieBreak);
+  ev.rankRule.tieBreak=v.split(',').map(function(s){return s.trim();}).filter(Boolean);
+  logAudit('改配置',ev.name+' · 同分裁决规则',before,tieName(ev.rankRule.tieBreak),'赛项规则调整');
+  save();
+}
+function updTier(k,v){var ev=find(CUR_EVENT);if(!ev)return;if(!ev.rankRule.awardTiers)ev.rankRule.awardTiers={};ev.rankRule.awardTiers[k]=Number(v)||0;save();}
+function updPen(k,v){var ev=find(CUR_EVENT);if(!ev)return;ev.penaltyRule.params[k]=Number(v)||0;save();}
+function updTask(i,k,v){var ev=find(CUR_EVENT);if(!ev)return;var t=ev.tasks[i];if(!t)return;
+  if(k==='maxScore')t[k]=v===''?null:Number(v);else if(k==='weight')t[k]=v===''?0:Number(v);else t[k]=v;save();}
+function addTask(){
+  var ev=find(CUR_EVENT);if(!ev)return;
+  ev.tasks.push({id:uid('t'),name:'新任务',type:'numeric',maxScore:100,weight:0,control:'slider'});
+  logAudit('改配置',ev.name+' · 新增任务','—','新任务 / numeric','赛项规则调整');
+  save();render();
+}
+function delTask(i){
+  var ev=find(CUR_EVENT);if(!ev)return;
+  var t=ev.tasks[i]||{};
+  ev.tasks.splice(i,1);
+  logAudit('改配置',ev.name+' · 删除任务',(t.name||'任务')+' / '+(t.type||''),'—','赛项规则调整');
+  save();render();
+}
+function addBonus(){var ev=find(CUR_EVENT);if(!ev)return;ev.bonusRules=ev.bonusRules||[];ev.bonusRules.push({template:'time_bonus',params:{perSecond:0.5,cap:10}});save();render();}
+function delBonus(i){var ev=find(CUR_EVENT);if(!ev)return;ev.bonusRules.splice(i,1);save();render();}
+function updBonus(i,k,v){var ev=find(CUR_EVENT);if(!ev)return;var b=ev.bonusRules[i];if(!b)return;b.params=b.params||{};
+  b.params[k]=(k==='taskId')?v:(v===''?null:Number(v));save();}
+function updBonusTpl(i,v){var ev=find(CUR_EVENT);if(!ev)return;var b=ev.bonusRules[i];if(!b)return;
+  b.template=v;b.params=v==='time_bonus'?{perSecond:0.5,cap:10}:(v==='count_bonus'?{taskId:'',perUnit:5,cap:null}:{});save();render();}
+function doValidate(){
+  var ev=find(CUR_EVENT);if(!ev)return;
+  var r=validateEvent(ev);var box=document.getElementById('vres');if(!box)return;
+  var h='';
+  if(!r.errs.length&&!r.warns.length)h='<span class="k">校验通过：无错误、无告警。</span>';
+  r.errs.forEach(function(e){h+='<div class="e">错误 · '+esc(e)+'</div>';});
+  r.warns.forEach(function(w){h+='<div class="w">告警 · '+esc(w)+'</div>';});
+  box.innerHTML=h;
+}
+function find(id){return S.events.find(function(e){return e.id===id;});}
+
+/* ---------- 视图 3：WRC 报名导入 ---------- */
+var IMP={text:'',headers:null,mapping:{},diff:null,error:'',lastResult:null,fileName:'',busy:false,showPaste:false,fromExcel:false};
+var WRC_FIELDS=[
+  {k:'team_number',label:'队伍编号',required:true},
+  {k:'team_name',label:'参赛队伍名称',required:true},
+  {k:'school',label:'学校名称',required:false},
+  {k:'coach',label:'指导教师',required:false},
+  {k:'group_code',label:'参赛组别',required:true},
+  {k:'event_code',label:'赛项',required:true}
+];
+var EVENT_BY_NAME={'脑机星球':'brain_planet','火星救援':'mars_rescue','未来之城':'future_city'};
+var DIFF_META={
+  insert:{t:'🟢 新增',cls:'ok'},
+  update:{t:'🟡 更新',cls:'warn'},
+  skip:{t:'⚪ 跳过',cls:''},
+  conflict:{t:'🔴 冲突',cls:'err'}
+};
+var WRC_SAMPLE=[
+  '队伍编号,参赛队伍名称,学校名称,指导教师,参赛组别,赛项',
+  '1001,星河队,杭州实验小学,张老师,小学组,脑机星球',
+  '1002,追光队,杭州实验小学,李老师,小学组,脑机星球',
+  '1003,晨曦队,东莞东城实验小学,王老师,初中组,脑机星球',
+  '1004,极客队,杭州实验小学,周老师,高中组,脑机星球',
+  '2001,火星一号,青岛实验学校,赵老师,小学组,火星救援',
+  '3001,新星队,成都教装展学校,陈老师,小学组,未来之城',
+  '1003,晨曦队,东莞东城实验小学,王老师,初中组,脑机星球'
+].join('\n');
+
+function parseCSV(text){
+  var lines=text.replace(/\r/g,'').split('\n').filter(function(l){return l.trim()!=='';});
+  return lines.map(function(l){
+    var out=[],cur='',q=false;
+    for(var i=0;i<l.length;i++){
+      var c=l[i];
+      if(q){
+        if(c==='"'){ if(l[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c;
+      }else{
+        if(c==='"')q=true; else if(c===','){out.push(cur);cur='';} else cur+=c;
+      }
+    }
+    out.push(cur);
+    return out.map(function(s){return s.trim();});
+  });
+}
+function autoMap(headers){
+  var m={};
+  WRC_FIELDS.forEach(function(f){
+    var idx=-1;
+    headers.forEach(function(h,i){
+      if(idx>=0)return;
+      var s=String(h).replace(/\s/g,'');
+      if(f.k==='team_number'&&(s.indexOf('编号')>=0||s.indexOf('队号')>=0||s.toLowerCase().indexOf('number')>=0))idx=i;
+      else if(f.k==='team_name'&&(s.indexOf('队伍名')>=0||s.indexOf('队名')>=0||s==='名称'))idx=i;
+      else if(f.k==='school'&&(s.indexOf('学校')>=0||s.indexOf('机构')>=0||s.indexOf('单位')>=0))idx=i;
+      else if(f.k==='coach'&&(s.indexOf('教练')>=0||s.indexOf('指导')>=0||s.indexOf('教师')>=0))idx=i;
+      else if(f.k==='group_code'&&(s.indexOf('组别')>=0||s.indexOf('年级')>=0||s.indexOf('学段')>=0))idx=i;
+      else if(f.k==='event_code'&&(s.indexOf('赛项')>=0||s.indexOf('项目')>=0||s.indexOf('赛道')>=0))idx=i;
+    });
+    m[f.k]=idx;
+  });
+  return m;
+}
+function impLoadSample(){IMP.text=WRC_SAMPLE;IMP.diff=null;IMP.headers=null;IMP.error='';IMP.lastResult=null;IMP.fileName='';IMP.busy=false;IMP.fromExcel=false;IMP.showPaste=true;render();}
+function impSetMap(k,v){IMP.mapping[k]=Number(v);buildImport();}
+function buildImport(){
+  var t=(IMP.text||'').trim();
+  if(!t){IMP.error='请先选择 WRC 报名 Excel 文件，或展开「粘贴 CSV」兜底通道';IMP.diff=null;render();return;}
+  IMP.fromExcel=false;
+  ingestGrid(parseCSV(t));
+}
+function ingestGrid(grid){
+  if(!grid||grid.length<2){IMP.error='数据不足：至少需要「表头 + 1 行数据」';IMP.diff=null;render();return;}
+  var headers=grid[0].map(function(s){return String(s==null?'':s).trim();}).map(function(s,i){return s||('列'+(i+1));});
+  var dataRows=grid.slice(1).filter(function(r){return r&&r.some(function(c){return String(c==null?'':c).trim()!=='';});});
+  if(!dataRows.length){IMP.error='未解析到有效数据行';IMP.diff=null;render();return;}
+  if(!IMP.headers||IMP.headers.join('|')!==headers.join('|')){
+    IMP.headers=headers;
+    IMP.mapping=autoMap(headers);
+  }
+  var items=[],firstIdx={};
+  dataRows.forEach(function(r,ri){
+    var o={_row:ri+2};
+    WRC_FIELDS.forEach(function(f){
+      var idx=IMP.mapping[f.k];
+      o[f.k]=(idx>=0&&idx!=null&&r[idx]!=null)?String(r[idx]):'';
+    });
+    var errs=[];
+    WRC_FIELDS.forEach(function(f){ if(f.required&&!o[f.k])errs.push('缺少「'+f.label+'」'); });
+    if(o.team_number&&!/^\d+$/.test(o.team_number))errs.push('队伍编号须为纯数字（当前「'+o.team_number+'」）');
+    var evId=EVENT_BY_NAME[o.event_code];
+    if(o.event_code&&!evId)errs.push('未知赛项「'+o.event_code+'」');
+    var ev=evId?find(evId):null;
+    if(ev&&o.group_code&&(ev.groups||[]).indexOf(o.group_code)<0)errs.push('组别「'+o.group_code+'」不属于赛项「'+ev.name+'」');
+    var dup=false;
+    if(o.team_number){
+      if(firstIdx[o.team_number]==null)firstIdx[o.team_number]=ri+2;
+      else dup=true;
+    }
+    items.push({o:o,errs:errs,evId:evId,dup:dup,dupAt:firstIdx[o.team_number]});
+  });
+  items.forEach(function(it){
+    var o=it.o,status,changes=[];
+    if(it.dup)it.errs.push('编号在文件中重复（首次出现在第 '+it.dupAt+' 行），需人工裁决');
+    if(it.errs.length){ status='conflict'; }
+    else{
+      var mt=null;
+      for(var i=0;i<S.teams.length;i++){ if(S.teams[i].no===o.team_number){mt=S.teams[i];break;} }
+      if(!mt)status='insert';
+      else{
+        var curEv=find(mt.eventId);
+        var pairs=[['team_name','name','队伍名称'],['school','school','学校'],['coach','coach','教练'],['group_code','group','组别'],['event_code','evName','赛项']];
+        pairs.forEach(function(p){
+          var oldV=(p[1]==='evName')?((curEv&&curEv.name)||''):(mt[p[1]]||'');
+          var newV=o[p[0]]||'';
+          if(oldV!==newV)changes.push({label:p[2],old:oldV||'—',new:newV||'—'});
+        });
+        var hasScore=!!S.scores[mt.id];
+        var structural=changes.some(function(c){return c.label==='组别'||c.label==='赛项';});
+        if(hasScore&&structural){ status='conflict'; it.errs.push('该队已有成绩，不允许变更组别/赛项'); }
+        else if(changes.length){ status='update'; it.changes=changes; }
+        else status='skip';
+      }
+    }
+    it.status=status;
+    it.checked=(status==='insert'||status==='update');
+  });
+  IMP.diff=items;IMP.error='';IMP.lastResult=null;
+  render();
+}
+function impToggle(i){ if(!IMP.diff||!IMP.diff[i])return; IMP.diff[i].checked=!IMP.diff[i].checked; render(); }
+function impToggleAll(v){ if(!IMP.diff)return; IMP.diff.forEach(function(it){ if(it.status==='insert'||it.status==='update')it.checked=!!v; }); render(); }
+function impCommit(){
+  if(!IMP.diff)return;
+  var sum={insert:0,update:0,skip:0,conflict:0},detail=[];
+  IMP.diff.forEach(function(it){
+    sum[it.status]++;
+    if(!it.checked||it.status==='conflict'||it.status==='skip')return;
+    var o=it.o;
+    if(it.status==='insert'){
+      S.teams.push({id:uid('tm'),no:o.team_number,name:o.team_name,school:o.school,coach:o.coach,
+        eventId:it.evId,group:o.group_code,members:'',status:'active',source:'excel'});
+      detail.push({act:'insert',no:o.team_number,name:o.team_name});
+    }else if(it.status==='update'){
+      var mt=null;
+      for(var i=0;i<S.teams.length;i++){ if(S.teams[i].no===o.team_number){mt=S.teams[i];break;} }
+      if(mt){
+        mt.name=o.team_name;mt.school=o.school;mt.coach=o.coach;mt.group=o.group_code;
+        mt.eventId=it.evId;mt.source='excel';
+        detail.push({act:'update',no:o.team_number,name:o.team_name,changes:it.changes});
+      }
+    }
+  });
+  S.importLogs=S.importLogs||[];
+  S.importLogs.unshift({ts:nowStr(),source:'excel',operator:'记分员',summary:sum,detail:detail,status:'success'});
+  S.importLogs=S.importLogs.slice(0,20);
+  save();
+  IMP.diff=null;IMP.text='';IMP.headers=null;
+  IMP.lastResult=sum;
+  render();
+}
+/* ---------- .xlsx 直读（零依赖：ZIP central directory + DecompressionStream + XML 扫描） ---------- */
+function xmlUnescape(s){
+  return String(s==null?'':s)
+    .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'")
+    .replace(/&#x([0-9a-fA-F]+);/g,function(_,h){return String.fromCharCode(parseInt(h,16));})
+    .replace(/&#(\d+);/g,function(_,d){return String.fromCharCode(Number(d));})
+    .replace(/&amp;/g,'&');
+}
+function colIndexFromRef(ref){
+  var m=/^([A-Z]+)/.exec(String(ref||'').toUpperCase());
+  if(!m)return -1;
+  var s=m[1],n=0;
+  for(var i=0;i<s.length;i++)n=n*26+(s.charCodeAt(i)-64);
+  return n-1;
+}
+function parseSharedStringsXml(xml){
+  var out=[],re=/<si\b[^>]*>([\s\S]*?)<\/si>/g,m;
+  while((m=re.exec(xml))){
+    var blk=m[1],s='',t=/<t\b[^>]*>([\s\S]*?)<\/t>/g,tm;
+    while((tm=t.exec(blk)))s+=xmlUnescape(tm[1]);
+    out.push(s);
+  }
+  return out;
+}
+function parseSheetXml(xml,shared){
+  var grid=[],rowRe=/<row\b[^>]*>([\s\S]*?)<\/row>/g,rm;
+  while((rm=rowRe.exec(xml))){
+    var rowXml=rm[1],arr=[],cellRe=/<c\b([^>]*?)\/>|<c\b([^>]*?)>([\s\S]*?)<\/c>/g,cm;
+    while((cm=cellRe.exec(rowXml))){
+      var attrs=(cm[1]!=null?cm[1]:(cm[2]||'')),inner=cm[3]||'';
+      var rA=/r="([^"]+)"/.exec(attrs);
+      var ci=rA?colIndexFromRef(rA[1]):arr.length;
+      if(ci<0)ci=arr.length;
+      var tA=/t="([^"]+)"/.exec(attrs);
+      var t=tA?tA[1]:'';
+      var val='';
+      if(t==='inlineStr'||t==='str'){
+        var it=/<t\b[^>]*>([\s\S]*?)<\/t>/.exec(inner);
+        val=it?xmlUnescape(it[1]):'';
+      }else{
+        var v=/<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner);
+        if(v){
+          val=v[1];
+          if(t==='s'){var si=Number(val);val=(shared&&shared[si]!=null)?shared[si]:'';}
+          else val=xmlUnescape(val);
+        }
+      }
+      arr[ci]=String(val);
+    }
+    for(var q=0;q<arr.length;q++)if(arr[q]==null)arr[q]='';
+    if(arr.some(function(x){return String(x).trim()!=='';}))grid.push(arr);
+  }
+  return grid;
+}
+async function inflateRaw(data){
+  if(typeof DecompressionStream==='undefined')throw new Error('当前环境不支持解压，请改用「粘贴 CSV」兜底通道');
+  var st=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return await new Response(st).text();
+}
+async function unzipXlsx(u8){
+  var dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);
+  var eocd=-1;
+  for(var i=u8.length-22;i>=0;i--){ if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;} }
+  if(eocd<0)throw new Error('不是有效的 .xlsx（未找到 ZIP 结构）');
+  var count=dv.getUint16(eocd+10,true),cdOff=dv.getUint32(eocd+16,true),p=cdOff,entries=[];
+  for(var k=0;k<count;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    var method=dv.getUint16(p+10,true);
+    var csize=dv.getUint32(p+20,true);
+    var nameLen=dv.getUint16(p+28,true);
+    var extraLen=dv.getUint16(p+30,true);
+    var cmtLen=dv.getUint16(p+32,true);
+    var lho=dv.getUint32(p+42,true);
+    var name=new TextDecoder().decode(u8.subarray(p+46,p+46+nameLen));
+    entries.push({name:name,method:method,csize:csize,lho:lho});
+    p+=46+nameLen+extraLen+cmtLen;
+  }
+  var wanted=/^xl\/(sharedStrings\.xml|worksheets\/sheet\d+\.xml)$/;
+  var out={};
+  for(var j=0;j<entries.length;j++){
+    var e=entries[j];
+    if(!wanted.test(e.name))continue;
+    var lnl=dv.getUint16(e.lho+26,true),lel=dv.getUint16(e.lho+28,true);
+    var start=e.lho+30+lnl+lel;
+    var data=u8.subarray(start,start+e.csize);
+    out[e.name]=(e.method===0)?new TextDecoder().decode(data):await inflateRaw(data);
+  }
+  return out;
+}
+async function readXlsxGrid(u8){
+  var files=await unzipXlsx(u8);
+  var shared=files['xl/sharedStrings.xml']?parseSharedStringsXml(files['xl/sharedStrings.xml']):[];
+  var sheets=Object.keys(files).filter(function(k){return /^xl\/worksheets\/sheet\d+\.xml$/.test(k);})
+    .sort(function(a,b){return a.localeCompare(b,undefined,{numeric:true});});
+  if(!sheets.length)throw new Error('未找到工作表（xl/worksheets/sheet1.xml）');
+  return parseSheetXml(files[sheets[0]],shared);
+}
+async function impHandleFile(file){
+  if(!file)return;
+  IMP.error='';IMP.fileName=file.name||'';IMP.busy=true;IMP.diff=null;render();
+  try{
+    var nm=(file.name||'').toLowerCase();
+    if(/\.csv$/.test(nm)){
+      var text=await file.text();
+      IMP.busy=false;IMP.text=text;IMP.fromExcel=false;IMP.showPaste=true;
+      ingestGrid(parseCSV(text));
+      return;
+    }
+    if(/\.xls$/.test(nm))throw new Error('.xls 为旧版二进制格式，请在 Excel 中另存为 .xlsx 后重试');
+    if(!/\.xlsx$/.test(nm))throw new Error('仅支持 .xlsx / .csv（当前：'+(file.name||'未知')+'）');
+    var buf=new Uint8Array(await file.arrayBuffer());
+    var grid=await readXlsxGrid(buf);
+    IMP.busy=false;IMP.fromExcel=true;IMP.text='';
+    ingestGrid(grid);
+  }catch(e){
+    IMP.busy=false;IMP.diff=null;
+    IMP.error='Excel 解析失败：'+((e&&e.message)?e.message:e);
+    render();
+  }
+}
+function impFilePicked(input){ var f=input&&input.files&&input.files[0]; impHandleFile(f); }
+function impDrop(ev){
+  ev.preventDefault();
+  var f=ev.dataTransfer&&ev.dataTransfer.files&&ev.dataTransfer.files[0];
+  if(f)impHandleFile(f);
+}
+function impTogglePaste(){IMP.showPaste=!IMP.showPaste;render();}
+
+function viewImport(){
+  var h='';
+  h+='<div class="card"><h2>导入链路 <small>对齐《裁判打分系统 · 队伍导入架构图 V0.2》</small></h2>'+
+     '<div class="row tight">'+
+       ['① 选择来源','② 解析+列映射','③ 字段校验','④ Diff 对比','⑤ 预览确认','⑥ 事务入库'].map(function(s,i){
+         return (i?'<span class="muted">→</span>':'')+'<span class="tag'+(IMP.diff?' b':'')+'">'+s+'</span>';
+       }).join('')+
+     '</div>'+
+     '<div class="hint" style="margin-top:10px">报名源头 = <b>WRC 官网导出报名表</b>（主通道）。导入采用<b>合并式 + 变更预览</b>，不做清空重建；已有成绩的队伍不会被物理删除，退赛仅标记为「已退赛」。</div>'+
+  '</div>';
+
+  if(IMP.lastResult){
+    var r=IMP.lastResult;
+    h+='<div class="card" style="border-left:3px solid #2f6b0f"><b>导入成功</b> <span class="small">已写入 teams 表并生成 import_logs 审计记录：</span>'+
+       '<div class="row tight" style="margin-top:6px">'+
+       '<span class="tag ok">🟢 新增 '+r.insert+'</span><span class="tag warn">🟡 更新 '+r.update+'</span>'+
+       '<span class="tag">⚪ 跳过 '+r.skip+'</span><span class="tag err">🔴 冲突 '+r.conflict+'</span></div></div>';
+  }
+
+  h+='<div class="card"><h2>① 选择来源 <small>主通道 = 直接导入 WRC 官网导出的 Excel</small></h2>'+
+     '<label class="drop" for="impFile" ondragover="event.preventDefault()" ondrop="impDrop(event)">'+
+       '<b>'+(IMP.busy?'正在解析 Excel…':'点击选择 Excel 文件，或拖拽到此处')+'</b>'+
+       '<span>支持 .xlsx（WRC 官网导出）与 .csv；.xls 旧格式请先在 Excel 中另存为 .xlsx</span>'+
+     '</label>'+
+     '<input type="file" id="impFile" accept=".xlsx,.csv" style="display:none" onchange="impFilePicked(this)">'+
+     (IMP.fileName?'<div class="small muted" style="margin-top:8px">已选择：'+esc(IMP.fileName)+(IMP.fromExcel?' <span class="tag ok">已解析 Excel</span>':'')+'</div>':'')+
+     (IMP.error?'<div class="small" style="color:#a32d2d;margin-top:8px">'+esc(IMP.error)+'</div>':'')+
+     '<hr class="sep">'+
+     '<div class="row">'+
+       '<button class="btn" onclick="impLoadSample()">载入内置样例（'+(WRC_SAMPLE.split('\n').length-1)+' 行 · 覆盖四种变化状态）</button>'+
+       '<button class="btn" onclick="impTogglePaste()">'+(IMP.showPaste?'收起':'展开')+'粘贴 CSV 兜底通道</button>'+
+     '</div>'+
+     '<div id="impPaste" style="display:'+(IMP.showPaste?'block':'none')+';margin-top:10px">'+
+       '<div class="fld"><label>报名数据（CSV，首行为表头）</label>'+
+       '<textarea id="impText" style="min-height:150px" oninput="IMP.text=this.value" placeholder="队伍编号,参赛队伍名称,学校名称,指导教师,参赛组别,赛项">'+esc(IMP.text)+'</textarea></div>'+
+       '<button class="btn primary" onclick="buildImport()">解析并比对</button>'+
+     '</div>'+
+  '</div>';
+
+  if(IMP.headers){
+    h+='<div class="card"><h2>③ 列映射 <small>确认「哪一列是哪个字段」—— 防导错列（抄 fllscoring 的防呆设计）</small></h2><div class="grid g3">';
+    WRC_FIELDS.forEach(function(f){
+      h+='<div class="fld"><label>'+f.label+(f.required?' <span style="color:#a32d2d">*必填</span>':'')+'</label>'+
+         '<select onchange="impSetMap(\''+f.k+'\',this.value)">'+
+         '<option value="-1">（不导入）</option>'+
+         IMP.headers.map(function(hd,i){return '<option value="'+i+'" '+(IMP.mapping[f.k]===i?'selected':'')+'>'+esc(hd)+'</option>';}).join('')+
+         '</select></div>';
+    });
+    h+='</div>';
+    var firstRow=IMP.diff&&IMP.diff[0]?IMP.diff[0].o:null;
+    if(firstRow){
+      h+='<div class="note">首行示例预览：'+WRC_FIELDS.map(function(f){return esc(f.label)+' = <b>'+esc(firstRow[f.k]||'（空）')+'</b>';}).join(' · ')+'</div>';
+    }
+    h+='</div>';
+  }
+
+  if(IMP.diff){
+    var c={insert:0,update:0,skip:0,conflict:0};
+    IMP.diff.forEach(function(it){c[it.status]++;});
+    h+='<div class="card"><h2>④ 变更比对 <small>与库内 '+S.teams.length+' 支队伍比对</small></h2>'+
+       '<div class="row tight" style="margin-bottom:10px">'+
+       '<span class="tag ok">🟢 新增 '+c.insert+'</span><span class="tag warn">🟡 更新 '+c.update+'</span>'+
+       '<span class="tag">⚪ 跳过 '+c.skip+'</span><span class="tag err">🔴 冲突 '+c.conflict+'</span>'+
+       '<span class="sp" style="flex:1"></span>'+
+       '<button class="btn sm" onclick="impToggleAll(true)">全选可应用项</button>'+
+       '<button class="btn sm" onclick="impToggleAll(false)">全不选</button></div>'+
+       '<table><thead><tr><th style="width:34px"></th><th style="width:92px">状态</th><th style="width:46px">行</th><th>编号</th><th>队伍名称</th><th>学校</th><th>教练</th><th>组别</th><th>赛项</th><th>变更 / 问题</th></tr></thead><tbody>';
+    IMP.diff.forEach(function(it,i){
+      var o=it.o,meta=DIFF_META[it.status];
+      var chg='';
+      if(it.status==='update'&&it.changes)chg=it.changes.map(function(c2){return esc(c2.label)+' <span class="muted">'+esc(c2.old)+' → </span><b>'+esc(c2.new)+'</b>';}).join('；');
+      else if(it.errs&&it.errs.length)chg='<span style="color:#a32d2d">'+it.errs.map(esc).join('；')+'</span>';
+      else if(it.status==='skip')chg='<span class="muted">与库内完全一致，不写入</span>';
+      else if(it.status==='insert')chg='<span class="muted">库中不存在该编号，将新建</span>';
+      var cb=(it.status==='conflict')?'<input type="checkbox" disabled title="冲突项需人工裁决">'
+        :'<input type="checkbox" '+(it.checked?'checked':'')+' onchange="impToggle('+i+')">';
+      h+='<tr><td style="text-align:center">'+cb+'</td><td><span class="tag '+meta.cls+'">'+meta.t+'</span></td>'+
+         '<td class="muted">'+o._row+'</td><td>'+esc(o.team_number)+'</td><td>'+esc(o.team_name)+'</td>'+
+         '<td class="small">'+esc(o.school||'—')+'</td><td class="small">'+esc(o.coach||'—')+'</td>'+
+         '<td>'+esc(o.group_code)+'</td><td>'+esc(o.event_code)+'</td>'+
+         '<td class="small">'+(chg||'—')+'</td></tr>';
+    });
+    h+='</tbody></table>'+
+       '<div class="row" style="margin-top:12px">'+
+       '<button class="btn primary" onclick="impCommit()">⑤ 确认入库（事务 + upsert + 写 import_logs）</button>'+
+       '<span class="small muted">冲突项默认不可勾选，必须人工裁决后才能提交；跳过项不产生写入。</span>'+
+       '</div></div>';
+  }
+
+  h+='<div class="card"><h2>导入审计 <small>import_logs · 争议追溯依据</small></h2>';
+  if(!S.importLogs||!S.importLogs.length){
+    h+='<div class="hint">暂无导入记录。执行一次导入后，这里会留下来源 / 时间 / 操作人 / 变更汇总 / 明细。</div>';
+  }else{
+    h+='<table><thead><tr><th>时间</th><th>来源</th><th>操作人</th><th>变更汇总</th><th>明细</th><th>状态</th></tr></thead><tbody>';
+    S.importLogs.forEach(function(l){
+      h+='<tr><td class="small">'+esc(l.ts)+'</td><td><span class="tag b">'+esc(l.source==='excel'?'Excel 导入':l.source)+'</span></td><td>'+esc(l.operator)+'</td>'+
+         '<td class="small">🟢 新增 '+l.summary.insert+'　🟡 更新 '+l.summary.update+'　⚪ 跳过 '+l.summary.skip+'　🔴 冲突 '+l.summary.conflict+'</td>'+
+         '<td class="small muted">'+esc((l.detail||[]).map(function(d){return importActName(d.act)+' '+d.no;}).join('、')||'—')+'</td>'+
+         '<td><span class="tag ok">'+esc(l.status==='success'?'成功':l.status)+'</span></td></tr>';
+    });
+    h+='</tbody></table>';
+  }
+  h+='</div>';
+  return h;
+}
+
+/* ---------- 视图 4：队伍管理 ---------- */
+function viewTeams(){
+  var opts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===CUR_EVENT?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
+  var ev=find(CUR_EVENT)||S.events[0];
+  var tms=ev?S.teams.filter(function(t){return t.eventId===ev.id;}):[];
+  var rows=tms.map(function(t){
+    var sc=S.scores[t.id]||{};
+    var signed=sc.signed?'<span class="tag ok">已签字</span>':'<span class="tag">未签字</span>';
+    var has=sc.tasks?'<span class="tag b">有成绩</span>':'<span class="tag">待录入</span>';
+    var st=t.status==='withdrawn'?'<span class="tag err">退赛</span>':'<span class="tag ok">在册</span>';
+    var src=t.source==='excel'?'<span class="tag b">WRC 导入</span>':(t.source==='manual'?'手动录入':esc(t.source||'—'));
+    var ev0=find(t.eventId)||{groups:['小学组','初中组']};
+    var gOpts=(ev0.groups||['小学组','初中组']).map(function(g){return '<option '+(g===t.group?'selected':'')+'>'+esc(g)+'</option>';}).join('');
+    return '<tr><td><b>'+esc(t.no||'—')+'</b></td>'+
+      '<td><b>'+esc(t.name)+'</b><div class="small muted">'+esc(t.members||'—')+'</div></td>'+
+      '<td class="small">'+esc(t.school||'—')+'</td><td class="small">'+esc(t.coach||'—')+'</td>'+
+      '<td><select style="max-width:112px" onchange="changeTeamGroup(\''+t.id+'\',this.value)">'+gOpts+'</select></td>'+
+      '<td>'+st+'</td><td class="small">'+src+'</td>'+
+      '<td>'+has+' '+signed+'</td>'+
+      '<td><span class="row tight"><button class="btn sm" onclick="toggleWithdraw(\''+t.id+'\')">'+(t.status==='withdrawn'?'恢复':'弃赛')+'</button>'+
+      '<button class="btn sm danger" onclick="delTeam(\''+t.id+'\')">删除</button></span></td></tr>';
+  }).join('');
+  return '<div class="card"><h2>新增队伍 <small>手动录入通道（现场补录 / 临时队伍）</small></h2>'+
+    '<div class="grid g3">'+
+      '<div class="fld"><label>队伍编号（纯数字 · 唯一）</label><input id="ntNo" placeholder="如 5001"></div>'+
+      '<div class="fld"><label>队伍名称</label><input id="ntName" placeholder="如 星河队"></div>'+
+      '<div class="fld"><label>组别</label><input id="ntGroup" placeholder="如 小学组"></div>'+
+      '<div class="fld"><label>学校 / 机构</label><input id="ntSchool" placeholder="如 杭州实验小学"></div>'+
+      '<div class="fld"><label>指导教师</label><input id="ntCoach" placeholder="如 张老师"></div>'+
+      '<div class="fld"><label>成员（/ 分隔）</label><input id="ntMembers" placeholder="如 张三 / 李四"></div>'+
+    '</div>'+
+    '<div class="row"><button class="btn primary" onclick="addTeam()">添加到「'+esc(ev?ev.name:'')+'」</button>'+
+      '<span class="sp" style="flex:1"></span>'+
+      '<button class="btn" onclick="toggleBulk()">批量导入（CSV）</button></div>'+
+    '<div id="bulkBox" style="display:none;margin-top:12px">'+
+      '<div class="fld"><label>每行一队：编号,队伍名称,组别,学校,教练,成员（编号与名称必填，其余可留空）</label>'+
+      '<textarea id="bulkText" placeholder="5001,星河队,小学组,杭州实验小学,张老师,张三/李四&#10;5002,追光队,小学组,杭州实验小学,李老师,王五/赵六"></textarea></div>'+
+      '<button class="btn primary" onclick="bulkImport()">导入</button>'+
+    '</div>'+
+  '</div>'+
+  '<div class="card"><h2>队伍列表 <small>按赛项筛选</small></h2>'+
+    '<div class="row" style="margin-bottom:10px"><select style="max-width:220px" onchange="selTeamEvent(this.value)">'+opts+'</select>'+
+      '<span class="small muted">共 '+tms.length+' 支队伍</span>'+
+      (backendMode?'<button class="btn sm" onclick="backendPushTeams()" '+(backendBusy?'disabled':'')+'>推送队伍到后端</button>':'')+
+    '</div>'+
+    '<table><thead><tr><th>编号</th><th>队伍 / 成员</th><th>学校</th><th>教练</th><th>组别</th><th>状态</th><th>来源</th><th>进度</th><th></th></tr></thead>'+
+    '<tbody>'+(rows||'<tr><td colspan="9" class="muted">该赛项暂无队伍</td></tr>')+'</tbody></table>'+
+  '</div>';
+}
+function selTeamEvent(id){CUR_EVENT=id;CUR_TEAM=null;render();}
+function toggleBulk(){var b=document.getElementById('bulkBox');if(b)b.style.display=b.style.display==='none'?'block':'none';}
+function addTeam(){
+  var n=(document.getElementById('ntName')||{}).value||'';
+  var no=((document.getElementById('ntNo')||{}).value||'').trim();
+  if(!n.trim()){alert('请填写队伍名称');return;}
+  if(!no||!/^\d+$/.test(no)){alert('队伍编号必填且须为纯数字');return;}
+  if(S.teams.some(function(t){return t.no===no;})){alert('队伍编号 '+no+' 已存在（编号须唯一）');return;}
+  S.teams.push({id:uid('tm'),no:no,name:n.trim(),
+    school:((document.getElementById('ntSchool')||{}).value||'').trim(),
+    coach:((document.getElementById('ntCoach')||{}).value||'').trim(),
+    eventId:CUR_EVENT,group:((document.getElementById('ntGroup')||{}).value||'').trim(),
+    members:((document.getElementById('ntMembers')||{}).value||'').trim(),
+    status:'active',source:'manual'});
+  save();render();
+}
+function bulkImport(){
+  var ta=document.getElementById('bulkText');if(!ta)return;
+  var lines=ta.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  var n=0,skip=0;
+  lines.forEach(function(l){
+    var p=l.split(/[,，]/);
+    var no=(p[0]||'').trim(),nm=(p[1]||'').trim();
+    if(!no||!nm){skip++;return;}
+    if(!/^\d+$/.test(no)||S.teams.some(function(t){return t.no===no;})){skip++;return;}
+    S.teams.push({id:uid('tm'),no:no,name:nm,group:(p[2]||'').trim(),school:(p[3]||'').trim(),
+      coach:(p[4]||'').trim(),members:(p[5]||'').trim(),eventId:CUR_EVENT,status:'active',source:'manual'});
+    n++;
+  });
+  save();alert('已导入 '+n+' 支队伍'+(skip?('，跳过 '+skip+' 行（编号缺失/重复/非数字）'):''));render();
+}
+function delTeam(id){
+  var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===id){t=S.teams[i];break;}}
+  if(!confirm('删除该队伍及其成绩？'))return;
+  S.teams=S.teams.filter(function(x){return x.id!==id;});
+  delete S.scores[id];
+  logAudit('删队',(t?t.name+'（'+t.no+'）':id),'在册','已删除','队伍数据清理');
+  save();render();
+}
+function toggleWithdraw(id){
+  var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===id){t=S.teams[i];break;}}
+  if(!t)return;
+  var to=(t.status==='withdrawn')?'active':'withdrawn';
+  if(to==='withdrawn'&&!confirm('将「'+t.name+'」标记为弃赛？队伍与历史成绩保留（软删除，不物理删除）。'))return;
+  var before=t.status||'active';
+  t.status=to;
+  logAudit('弃赛',t.name+'（'+t.no+'）',before,to,to==='withdrawn'?'选手弃赛（软删除，保留历史成绩）':'恢复参赛');
+  save();render();
+}
+function changeTeamGroup(id,g){
+  var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===id){t=S.teams[i];break;}}
+  if(!t||t.group===g)return;
+  var before=t.group;
+  t.group=g;
+  logAudit('改组',t.name+'（'+t.no+'）',before,g,'组别调整');
+  save();render();
+}
+
+/* ---------- 视图 5：裁判打分 ---------- */
+function viewScore(){
+  var ev=find(SCORE_EVENT)||S.events[0];
+  if(!ev)return '<div class="card">暂无赛项</div>';
+  var tms=S.teams.filter(function(t){return t.eventId===ev.id;});
+  if(CUR_TEAM&&!tms.some(function(t){return t.id===CUR_TEAM;}))CUR_TEAM=null;
+  if(!CUR_TEAM&&tms.length)CUR_TEAM=tms[0].id;
+  var opts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===ev.id?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
+  var teamList=tms.map(function(t){
+    var sc=S.scores[t.id]||{};
+    var done=sc.tasks?Object.keys(sc.tasks).length>0:false;
+    return '<div class="li'+(t.id===CUR_TEAM?' on':'')+'" onclick="selScoreTeam(\''+t.id+'\')">'+
+      '<span>'+esc(t.name)+'<div class="small muted">'+esc(t.group)+'</div></span>'+
+      (sc.signed?'<span class="tag ok">签</span>':(done?'<span class="tag b">录</span>':'<span class="tag">空</span>'))+
+    '</div>';
+  }).join('');
+  return '<div class="card" style="margin-bottom:16px"><div class="row">'+
+      '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selScoreEvent(this.value)">'+opts+'</select>'+
+      '<span class="pill"><i></i>断网可录入 · 首登激活后配置随裁判码下发</span>'+
+    '</div></div>'+
+  '<div class="grid g12">'+
+    '<div class="card" style="margin:0"><h2>队伍</h2><div class="list">'+(teamList||'<div class="hint" style="padding:10px">该赛项暂无队伍，请先到「队伍管理」添加。</div>')+'</div></div>'+
+    '<div class="card" style="margin:0">'+scoreForm(ev)+'</div>'+
+  '</div>';
+}
+function selScoreEvent(id){SCORE_EVENT=id;CUR_TEAM=null;render();}
+function selScoreTeam(id){CUR_TEAM=id;render();}
+function scoreForm(ev){
+  if(!CUR_TEAM)return '<h2>录入</h2><div class="hint">请选择左侧队伍。</div>';
+  var team=S.teams.find(function(t){return t.id===CUR_TEAM;});
+  var rec=S.scores[CUR_TEAM]||(S.scores[CUR_TEAM]={tasks:{},time:0,yellow:0,red:0,signed:false});
+  rec.tasks=rec.tasks||{};
+  var items=getInputItems(ev);
+  var fields=items.map(function(it){
+    var v=rec.tasks[it.id];
+    var ctl;
+    if(it.type==='enum'){
+      var en=it.enumMap||{};var keys=Object.keys(en);
+      if(!keys.length)keys=['优','良','中','差'];
+      ctl='<select onchange="setScore(\''+it.id+'\',this.value)"><option value="">-- 请选择 --</option>'+
+        keys.map(function(k){return '<option value="'+esc(k)+'" '+(v===k?'selected':'')+'>'+esc(k)+(en[k]!=null?'（'+en[k]+'分）':'')+'</option>';}).join('')+'</select>';
+    }else if(it.type==='count'){
+      ctl='<input type="number" min="0" value="'+(v==null?'':esc(v))+'" oninput="setScore(\''+it.id+'\',this.value)">';
+    }else{
+      var mx=it.maxScore||100;
+      ctl='<div class="range"><input type="range" min="0" max="'+mx+'" value="'+(v==null?0:esc(v))+'" oninput="setScore(\''+it.id+'\',this.value);this.nextElementSibling.nextElementSibling.textContent=this.value">'+
+          '<span class="thumb" style="flex:1;justify-content:space-between"><i>0</i><i>'+mx+'</i></span><b>'+(v==null?0:esc(v))+'</b></div>';
+    }
+    return '<div class="fld"><label>'+esc(it.name)+' <span class="tag">'+esc(taskTypeName(it.type))+'</span>'+
+      (it.type==='count'?'<span class="small muted"> 每单位 '+(it.weight||0)+' 分</span>':'')+'</label>'+ctl+'</div>';
+  }).join('');
+
+  return '<h2>成绩录入 <small>'+esc(team?team.name:'')+' · '+esc(ev.name)+'</small></h2>'+
+    fields+
+    '<hr class="sep">'+
+    '<div class="grid g3">'+
+      '<div class="fld"><label>用时（秒）</label><input type="number" min="0" value="'+(rec.time||'')+'" oninput="setMeta(\'time\',this.value)"></div>'+
+      '<div class="fld"><label>黄牌数</label><input type="number" min="0" value="'+(rec.yellow||'')+'" oninput="setMeta(\'yellow\',this.value)"></div>'+
+      '<div class="fld"><label>红牌数</label><input type="number" min="0" value="'+(rec.red||'')+'" oninput="setMeta(\'red\',this.value)"></div>'+
+    '</div>'+
+    '<div class="note" style="margin-bottom:12px">时间奖励：基准 '+REF_TIME+' 秒，越快加越多（每快 1 秒 +'+((ev.bonusRules||[]).filter(function(b){return b.template==='time_bonus';})[0]||{params:{}}).params.perSecond+' 分，封顶 '+(((ev.bonusRules||[]).filter(function(b){return b.template==='time_bonus';})[0]||{params:{}}).params.cap)+' 分）。</div>'+
+    '<div class="row" style="justify-content:space-between">'+
+      '<label class="row tight" style="cursor:pointer"><input type="checkbox" style="width:auto" '+(rec.signed?'checked':'')+' onchange="toggleSign(this.checked)"> <span class="small">选手代表已签字确认</span></label>'+
+      '<span class="small">实时预估总分：<b id="preview" style="font-size:16px;color:#185FA5">'+computeTotal(ev,rec).total.toFixed(1)+'</b></span>'+
+    '</div>'+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="requestScoreChange()">发起改分申请（需裁判长授权）</button>'+
+      '<span class="small muted">提交后裁判不可直接改分；改分须裁判长授权，且全程留痕。</span>'+
+    '</div>'+
+    '<div class="hint" style="margin-top:10px">录入即存本地（离线优先）；联网后随裁判码同步。未来之城 V7.3 双队对抗时，两队选手代表均需签字。</div>';
+}
+function curRec(){
+  if(!CUR_TEAM)return null;
+  if(!S.scores[CUR_TEAM])S.scores[CUR_TEAM]={tasks:{},time:0,yellow:0,red:0,signed:false};
+  if(!S.scores[CUR_TEAM].tasks)S.scores[CUR_TEAM].tasks={};
+  return S.scores[CUR_TEAM];
+}
+function setScore(tid,v){var r=curRec();if(!r)return;r.tasks[tid]=v;save();refreshPreview();}
+function setMeta(k,v){var r=curRec();if(!r)return;r[k]=Number(v)||0;save();refreshPreview();}
+function toggleSign(v){var r=curRec();if(!r)return;r.signed=!!v;save();}
+function refreshPreview(){
+  var ev=find(SCORE_EVENT);var r=curRec();var el=document.getElementById('preview');
+  if(ev&&r&&el)el.textContent=computeTotal(ev,r).total.toFixed(1);
+}
+function requestScoreChange(){
+  var ev=find(SCORE_EVENT),r=curRec();
+  if(!ev||!r||!CUR_TEAM){alert('请先选择队伍。');return;}
+  var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===CUR_TEAM){t=S.teams[i];break;}}
+  var before=computeTotal(ev,r).total.toFixed(1);
+  var reason=prompt('改分申请：请填写申诉 / 复核原因（裁判长授权后生效）','申诉复核');
+  if(!reason)return;
+  logAudit('改分',(t?t.name+'（'+t.no+'）':CUR_TEAM)+' · '+ev.name,'总分 '+before,'总分 '+before+'（待裁判长授权）',reason);
+  alert('改分申请已记录，等待裁判长授权。\n依据：裁判提交后禁止直接改分，须走审批并留痕。');
+  render();
+}
+
+/* ---------- 视图 6：实时榜单 ---------- */
+function viewRank(){
+  var opts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===RANK_EVENT?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
+  var ev=find(RANK_EVENT)||S.events[0];
+  var rows=ev?standings(ev.id):[];
+  var body=rows.map(function(r){
+    var ac=r.award?(r.award==='一等奖'?'award1':(r.award==='二等奖'?'award2':(r.award==='三等奖'?'award3':''))):'';
+    return '<tr>'+
+      '<td class="num"><b>'+r.rank+'</b>'+(r.tie?' <span class="tag warn">并列</span>':'')+'</td>'+
+      '<td><b>'+esc(r.team.name)+'</b><div class="small muted">'+esc(r.team.group)+'</div></td>'+
+      '<td class="num">'+r.base.toFixed(1)+'</td>'+
+      '<td class="num">'+r.bonus.toFixed(1)+'</td>'+
+      '<td class="num">'+(r.penalty?'-'+r.penalty.toFixed(1):'0')+'</td>'+
+      '<td class="num"><b style="font-size:14px">'+r.total.toFixed(1)+'</b></td>'+
+      '<td class="num">'+(r.time||'—')+'</td>'+
+      '<td>'+(r.complete?'<span class="tag ok">完成</span>':'<span class="tag warn">待完成</span>')+'</td>'+
+      '<td class="'+ac+'">'+(r.award?esc(r.award):'—')+'</td>'+
+    '</tr>';
+  }).join('');
+  return '<div class="card"><div class="row">'+
+      '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selRankEvent(this.value)">'+opts+'</select>'+
+      '<button class="btn" onclick="exportStandings()">导出榜单 CSV</button>'+
+      '<span class="sp" style="flex:1"></span>'+
+      '<span class="small muted">计分模板：'+esc(tplName(ev&&ev.scoreRule&&ev.scoreRule.template))+' · 同分裁决：'+esc(tieName((ev&&ev.rankRule&&ev.rankRule.tieBreak)||[]))+'</span>'+
+    '</div></div>'+
+  '<div class="card"><h2>实时榜单 <small>两轮取优 → 加权计分 → 加分 → 扣牌 → 排名 → 按比例分配奖项</small></h2>'+
+    '<table><thead><tr><th class="num">名次</th><th>队伍</th><th class="num">基础分</th><th class="num">加分</th><th class="num">扣分</th><th class="num">总分</th><th class="num">用时(s)</th><th>完成度</th><th>奖项</th></tr></thead>'+
+    '<tbody>'+(body||'<tr><td colspan="9" class="muted">该赛项暂无队伍或成绩</td></tr>')+'</tbody></table>'+
+  '</div>'+
+  '<div class="card"><h2>计分明细校验 <small>用于裁判复核</small></h2><div class="note">'+
+    '基础分 = Σ(各任务得分)；加分 = 时间奖励 + 计数奖励；扣分 = 黄牌×'+
+    esc(((ev&&ev.penaltyRule&&ev.penaltyRule.params)||{}).yellow)+' + 红牌×'+esc(((ev&&ev.penaltyRule&&ev.penaltyRule.params)||{}).red)+
+    '；总分 = max(0, 基础分 + 加分 − 扣分)。'+
+  '</div></div>';
+}
+function selRankEvent(id){RANK_EVENT=id;render();}
+function exportStandings(){
+  var ev=find(RANK_EVENT);if(!ev)return;
+  var rows=standings(ev.id);
+  var csv='排名,队伍,组别,基础分,加分,扣分,总分,用时(秒),完成度,奖项\n';
+  rows.forEach(function(r){
+    csv+=[r.rank,r.team.name,r.team.group,r.base.toFixed(1),r.bonus.toFixed(1),r.penalty.toFixed(1),r.total.toFixed(1),r.time||'',r.complete?'完成':'待完成',r.award||''].join(',')+'\n';
+  });
+  download('榜单_'+ev.name+'_'+nowStr().replace(/[: ]/g,'')+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
+}
+
+/* ---------- 视图 7：公示与导出 ---------- */
+function viewPublish(){
+  var opts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===PUB_EVENT?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
+  var ev=find(PUB_EVENT)||S.events[0];
+  var rows=ev?standings(ev.id):[];
+  var pub=ev&&S.published[ev.id];
+  var body=rows.map(function(r){
+    var name=PUB_ANON?('参赛队 '+r.rank):r.team.name;
+    return '<tr><td class="num">'+r.rank+'</td><td>'+esc(name)+'</td><td class="num">'+r.total.toFixed(1)+'</td><td>'+(r.award?esc(r.award):'—')+'</td></tr>';
+  }).join('');
+  return '<div class="card"><div class="row">'+
+      '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selPubEvent(this.value)">'+opts+'</select>'+
+      '<label class="row tight small" style="cursor:pointer"><input type="checkbox" style="width:auto" '+(PUB_ANON?'checked':'')+' onchange="toggleAnon(this.checked)"> 匿名公示（仅显示参赛队序号）</label>'+
+      '<span class="sp" style="flex:1"></span>'+
+      (pub?'<button class="btn danger" onclick="unpublish()">取消发布</button>':'<button class="btn primary" onclick="doPublish()">发布公示</button>')+
+      '<button class="btn" onclick="exportPublishCsv()">导出公示 CSV</button>'+
+    '</div>'+
+    '<div class="hint" style="margin-top:10px">按赛事决策：现场大屏与实时直播不做，<b>公示页为对外唯一出口</b>；内部实时排名不外投。</div>'+
+  '</div>'+
+  '<div class="pub"><h3>'+esc(ev?ev.name:'')+' · 成绩公示</h3>'+
+    '<div class="sub">'+esc(S.configVersion)+' · '+(pub?'已发布':'草稿（未发布）')+' · 组别 '+esc(((ev&&ev.groups)||[]).join(' / '))+'</div>'+
+    '<table><thead><tr><th class="num">名次</th><th>队伍</th><th class="num">总分</th><th>奖项</th></tr></thead>'+
+    '<tbody>'+(body||'<tr><td colspan="4" class="muted">暂无可公示成绩</td></tr>')+'</tbody></table>'+
+    '<div class="hint" style="margin-top:14px;text-align:center">公示内容为最终成绩；未成年人信息已做匿名化处理。</div>'+
+  '</div>';
+}
+function selPubEvent(id){PUB_EVENT=id;render();}
+function toggleAnon(v){PUB_ANON=!!v;render();}
+function doPublish(){S.published[PUB_EVENT]=true;save();render();}
+function unpublish(){delete S.published[PUB_EVENT];save();render();}
+function exportPublishCsv(){
+  var ev=find(PUB_EVENT);if(!ev)return;
+  var rows=standings(ev.id);
+  var csv='名次,队伍,总分,奖项\n';
+  rows.forEach(function(r){csv+=[r.rank,(PUB_ANON?'参赛队 '+r.rank:r.team.name),r.total.toFixed(1),r.award||''].join(',')+'\n';});
+  download('公示_'+ev.name+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
+}
+
+/* ---------- 配置导出 / 快照 ---------- */
+function currentConfig(){return {schemaVersion:S.schemaVersion,events:clone(S.events)};}
+function exportConfig(){download('赛事配置_'+nowStr().replace(/[: ]/g,'')+'.json',JSON.stringify(currentConfig(),null,2),'application/json');}
+function exportEvent(){
+  var ev=find(CUR_EVENT);if(!ev)return;
+  download('赛项配置_'+ev.id+'.json',JSON.stringify({schemaVersion:S.schemaVersion,events:[ev]},null,2),'application/json');
+}
+function makeSnapshot(){
+  var noteEl=document.getElementById('snapNote');
+  var note=(noteEl&&noteEl.value.trim())||('快照 '+nowStr());
+  S.snapshots.unshift({ts:nowStr(),note:note,events:clone(S.events)});
+  S.snapshots=S.snapshots.slice(0,10);
+  save();render();
+}
+function restoreSnapshot(i){
+  var s=S.snapshots[i];if(!s)return;
+  if(!confirm('回滚到「'+s.note+'」？当前配置将被覆盖。'))return;
+  S.events=clone(s.events);save();render();
+}
+
+/* ---------- 视图 8：赛台与赛程编排 ---------- */
+var CUR_SLOT=null;
+function periodTime(p){return p==='上午'?'09:00–12:00':'14:00–17:00';}
+function slotById(id){for(var i=0;i<S.slots.length;i++){if(S.slots[i].id===id)return S.slots[i];}return null;}
+function slotOfSeat(seatId,period){for(var i=0;i<S.slots.length;i++){var x=S.slots[i];if(x.seatId===seatId&&x.period===period)return x;}return null;}
+function slotCountOfSeat(seatId){var n=0;S.slots.forEach(function(x){if(x.seatId===seatId)n++;});return n;}
+function seatName(id){for(var i=0;i<S.seats.length;i++){if(S.seats[i].id===id)return S.seats[i].name;}return '—';}
+function slotTeams(sl){
+  if(!sl)return [];
+  if(sl.type==='extra')return (sl.snapshot||[]).map(function(x){return {no:x.no,name:x.name,school:x.school||'',temp:true};});
+  return (sl.teams||[]).map(function(id){
+    var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===id){t=S.teams[i];break;}}
+    return t?{no:t.no,name:t.name,school:t.school||'',id:t.id,temp:false}:null;
+  }).filter(function(x){return !!x;});
+}
+function addSeat(){
+  var name=prompt('新赛台名称：','赛台 '+(S.seats.length+1));
+  if(!name)return;
+  S.seats.push({id:uid('seat'),name:String(name).trim()});
+  logAudit('调赛台','新增赛台','—',String(name).trim(),'现场加开赛台');
+  render();
+}
+function renameSeat(i){
+  var s=S.seats[i];if(!s)return;
+  var name=prompt('赛台名称：',s.name);if(!name)return;
+  var before=s.name;s.name=String(name).trim();
+  logAudit('调赛台','赛台改名',before,s.name,'运营调整');
+  save();render();
+}
+function delSeat(id){
+  var s=null;for(var i=0;i<S.seats.length;i++){if(S.seats[i].id===id){s=S.seats[i];break;}}
+  if(!s)return;
+  var used=slotCountOfSeat(id);
+  if(!confirm('删除「'+s.name+'」？'+(used?('该赛台下 '+used+' 个场次将一并移除。'):'')))return;
+  S.seats=S.seats.filter(function(x){return x.id!==id;});
+  S.slots=S.slots.filter(function(x){return x.seatId!==id;});
+  if(CUR_SLOT&&!slotById(CUR_SLOT))CUR_SLOT=null;
+  logAudit('调赛台','删除赛台',s.name,'—','现场撤台');
+  save();render();
+}
+function addSlot(seatId,period){
+  var ev=S.events[0]||{id:'',groups:[]};
+  var sl={id:uid('sl'),seatId:seatId,period:period,time:periodTime(period),eventId:ev.id,
+          group:(ev.groups&&ev.groups[0])||'小学组',type:'normal',teams:[],snapshot:null};
+  S.slots.push(sl);CUR_SLOT=sl.id;
+  logAudit('调赛台','新增场次',seatName(seatId)+' · '+period,sl.group,'赛程编排');
+  save();render();
+}
+function delSlot(id){
+  var sl=slotById(id);if(!sl)return;
+  if(!confirm('删除该场次？'))return;
+  S.slots=S.slots.filter(function(x){return x.id!==id;});
+  if(CUR_SLOT===id)CUR_SLOT=null;
+  logAudit('调赛台','删除场次',sl.period+' · '+sl.group,'—','赛程调整');
+  save();render();
+}
+function openSlot(id){CUR_SLOT=id;render();}
+function slotSet(id,k,v){
+  var sl=slotById(id);if(!sl)return;
+  var before=String(sl[k]==null?'—':sl[k]);
+  sl[k]=v;
+  if(k==='type'){
+    if(v==='extra'){sl.snapshot=sl.snapshot||[];sl.teams=[];}
+    else{sl.teams=sl.teams||[];sl.snapshot=null;}
+  }
+  var label=(k==='eventId')?'赛项':(k==='group'?'组别':'场次类型');
+  logAudit('调赛台','修改场次·'+label,before,String(v==null?'—':v),'赛程调整');
+  save();render();
+}
+function autoAssignByProximity(slotId){
+  var sl=slotById(slotId);if(!sl)return;
+  if(sl.type==='extra'){alert('加时赛场次请用「导入队伍编号」建立场内快照，不参与自动分配。');return;}
+  var targets=S.slots.filter(function(x){return x.period===sl.period&&x.type==='normal'&&x.eventId===sl.eventId&&x.group===sl.group;});
+  if(!targets.length){alert('该时段没有同赛项同组别的可用场次，请先配置赛台场次。');return;}
+  var pool=S.teams.filter(function(t){return t.eventId===sl.eventId&&t.group===sl.group&&t.status!=='withdrawn';}).map(function(t){return t.id;});
+  if(!pool.length){alert('该赛项该组别没有在册队伍。');return;}
+  targets.forEach(function(x){x.teams=[];});
+  pool.forEach(function(id,i){targets[i%targets.length].teams.push(id);});
+  var detail=targets.map(function(x){return seatName(x.seatId)+' '+(x.teams||[]).length+' 队';}).join('；');
+  logAudit('调赛台','就近分配队伍',pool.length+' 支待分配',detail,'按人数就近均衡到各赛台');
+  save();render();
+}
+function moveTeamToSlot(teamId,targetSlotId){
+  if(!targetSlotId)return;
+  var from=null;
+  S.slots.forEach(function(x){if(x.teams){var i=x.teams.indexOf(teamId);if(i>=0){from=x;x.teams.splice(i,1);}}});
+  var to=slotById(targetSlotId);
+  if(!to||to.type==='extra'){alert('目标场次不可用。');save();render();return;}
+  to.teams=to.teams||[];if(to.teams.indexOf(teamId)<0)to.teams.push(teamId);
+  var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===teamId){t=S.teams[i];break;}}
+  logAudit('调赛台','手动改派赛台',(t?t.name:teamId)+' @ '+(from?seatName(from.seatId):'—'),seatName(to.seatId),'现场调度');
+  save();render();
+}
+function clearSlotTeams(slotId){
+  var sl=slotById(slotId);if(!sl)return;
+  if(sl.type==='extra')sl.snapshot=[];else sl.teams=[];
+  logAudit('调赛台','清空场次队伍',sl.period+' · '+sl.group,'—','重新编排');
+  save();render();
+}
+function importExtraTeams(slotId){
+  var sl=slotById(slotId);if(!sl)return;
+  var ta=document.getElementById('extraText');if(!ta)return;
+  var lines=ta.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  if(!lines.length){alert('请粘贴队伍编号（每行一个，可写作「编号,队伍名」）。');return;}
+  sl.snapshot=sl.snapshot||[];
+  var added=0,skip=0;
+  lines.forEach(function(l){
+    var p=l.split(/[,，\t]/).map(function(s){return s.trim();});
+    var no=p[0];if(!no)return;
+    if(sl.snapshot.some(function(x){return x.no===no;})){skip++;return;}
+    var mt=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].no===no){mt=S.teams[i];break;}}
+    sl.snapshot.push({no:no,name:p[1]||(mt?mt.name:'临时队'),school:mt?mt.school:'',coach:mt?mt.coach:''});
+    added++;
+  });
+  logAudit('调赛台','加时赛导入队伍','—',added+' 支（场内快照）','仅影响冠亚季军/晋级时启用，不写入主库');
+  alert('已导入 '+added+' 支为场内快照'+(skip?('，跳过重复 '+skip+' 支'):'')+'。\n快照仅在本次加时赛场次内生效，不写入队伍主库。');
+  save();render();
+}
+function viewSeats(){
+  var periods=['上午','下午'];
+  var head='<tr><th style="width:104px">时段</th>'+S.seats.map(function(s){
+    return '<th>'+esc(s.name)+'<div class="small muted" style="font-weight:400">'+slotCountOfSeat(s.id)+' 个场次</div></th>';
+  }).join('')+'</tr>';
+  var rows=periods.map(function(p){
+    return '<tr><td><b>'+p+'</b><div class="small muted">'+periodTime(p)+'</div></td>'+S.seats.map(function(s){
+      var sl=slotOfSeat(s.id,p);
+      if(!sl)return '<td><div class="slot empty" onclick="addSlot(\''+s.id+'\',\''+p+'\')">+ 配置场次</div></td>';
+      var ev=find(sl.eventId)||{name:'—'};
+      return '<td><div class="slot'+(sl.type==='extra'?' extra':'')+(CUR_SLOT===sl.id?' sel':'')+'" onclick="openSlot(\''+sl.id+'\')">'+
+        '<b>'+esc(ev.name)+'</b><div class="small muted">'+esc(sl.group)+'</div>'+
+        '<div style="margin:4px 0">'+(sl.type==='extra'?'<span class="tag warn">加时赛</span>':'<span class="tag b">正式场次</span>')+'</div>'+
+        '<div class="small">'+slotTeams(sl).length+' 支队伍</div></div></td>';
+    }).join('')+'</tr>';
+  }).join('');
+  var detailHtml='<div class="hint">点击上方任一「场次卡片」查看详情并编排队伍。</div>';
+  var sl=CUR_SLOT?slotById(CUR_SLOT):null;
+  if(sl){
+    var ev=find(sl.eventId)||{groups:[]};
+    var evOpts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===sl.eventId?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
+    var grpOpts=(ev.groups||['小学组','初中组']).map(function(g){return '<option '+(g===sl.group?'selected':'')+'>'+esc(g)+'</option>';}).join('');
+    var sib=S.slots.filter(function(x){return x.period===sl.period&&x.type==='normal'&&x.id!==sl.id;});
+    var moveOpts=sib.map(function(x){return '<option value="'+x.id+'">'+esc(seatName(x.seatId))+'</option>';}).join('');
+    var teamRows=slotTeams(sl).map(function(t){
+      return '<tr><td><b>'+esc(t.no)+'</b></td><td>'+esc(t.name)+'</td><td class="small">'+esc(t.school||'—')+'</td>'+
+        '<td>'+(t.temp?'<span class="tag warn">场内快照</span>':'<span class="tag b">主库</span>')+'</td>'+
+        '<td>'+(t.temp?'<span class="small muted">仅本场次</span>':'<select style="max-width:150px" onchange="moveTeamToSlot(\''+t.id+'\',this.value)"><option value="">改派到…</option>'+moveOpts+'</select>')+'</td></tr>';
+    }).join('');
+    detailHtml='<h2 style="margin-top:0">场次详情 <small>'+esc(seatName(sl.seatId))+' · '+esc(sl.period)+' '+esc(sl.time)+'</small></h2>'+
+      '<div class="grid g3">'+
+        '<div class="fld"><label>赛项</label><select onchange="slotSet(\''+sl.id+'\',\'eventId\',this.value)">'+evOpts+'</select></div>'+
+        '<div class="fld"><label>组别</label><select onchange="slotSet(\''+sl.id+'\',\'group\',this.value)">'+grpOpts+'</select></div>'+
+        '<div class="fld"><label>场次类型</label><select onchange="slotSet(\''+sl.id+'\',\'type\',this.value)">'+
+          '<option value="normal" '+(sl.type!=='extra'?'selected':'')+'>正式场次</option>'+
+          '<option value="extra" '+(sl.type==='extra'?'selected':'')+'>加时赛（独立场次）</option></select></div>'+
+      '</div>'+
+      (sl.type==='extra'
+        ? '<div class="note" style="margin-bottom:12px">加时赛 = 赛项内的<b>独立场次</b>，仅在影响冠亚季军 / 晋级时启用。队伍编号由运营手动导入，<b>以导入为准</b>；数据以<b>场内快照</b>保存，<b>不写入队伍主库</b>，归档时独立标记。</div>'+
+          '<div class="fld"><label>导入队伍编号（每行一个，可写作「编号,队伍名」）</label>'+
+          '<textarea id="extraText" placeholder="9001&#10;9002,临时队"></textarea></div>'+
+          '<div class="row" style="margin-bottom:12px"><button class="btn primary" onclick="importExtraTeams(\''+sl.id+'\')">导入为场内快照</button>'+
+          '<button class="btn" onclick="clearSlotTeams(\''+sl.id+'\')">清空快照</button></div>'
+        : '<div class="row" style="margin-bottom:12px">'+
+          '<button class="btn primary" onclick="autoAssignByProximity(\''+sl.id+'\')">按就近自动分配</button>'+
+          '<button class="btn" onclick="clearSlotTeams(\''+sl.id+'\')">清空队伍</button>'+
+          '<span class="small muted">就近 = 该时段同赛项同组别的队伍按顺序均衡铺到各赛台；也可在右侧下拉手动改派。</span></div>')+
+      '<table><thead><tr><th style="width:90px">编号</th><th>队伍名称</th><th>申报单位</th><th style="width:96px">来源</th><th style="width:180px">手动改派</th></tr></thead>'+
+      '<tbody>'+(teamRows||'<tr><td colspan="5" class="muted">该场次暂无队伍</td></tr>')+'</tbody></table>'+
+      '<div class="row" style="margin-top:12px"><button class="btn danger" onclick="delSlot(\''+sl.id+'\')">删除该场次</button></div>';
+  }
+  var seatList=S.seats.map(function(s,i){
+    return '<div class="li"><span><b>'+esc(s.name)+'</b><div class="small muted">'+slotCountOfSeat(s.id)+' 个场次</div></span>'+
+      '<span class="row tight"><button class="btn sm" onclick="renameSeat('+i+')">改名</button>'+
+      '<button class="btn sm danger" onclick="delSeat(\''+s.id+'\')">删除</button></span></div>';
+  }).join('');
+  return '<div class="card"><h2>赛台配置 <small>数量由运营按参赛人数自行配置；同一赛台可跨时段、跨赛项复用</small></h2>'+
+      '<div class="row" style="margin-bottom:10px">'+
+        '<button class="btn primary sm" onclick="addSeat()">+ 添加赛台</button>'+
+        (backendMode?'<button class="btn sm" onclick="backendPushSchedule()" '+(backendBusy?'disabled':'')+'>推送赛台赛程到后端</button>':'')+
+      '</div>'+
+      '<div class="grid g12">'+
+        '<div><div class="list">'+(seatList||'<div class="hint" style="padding:10px">暂无赛台</div>')+'</div></div>'+
+        '<div><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>'+
+        '<div class="hint" style="margin-top:8px">单元格 = 赛台 × 时段。空位点「+ 配置场次」新建；同一赛项可同时占用多张赛台（人多就多开台）。</div></div>'+
+      '</div></div>'+
+    '<div class="card">'+detailHtml+'</div>';
+}
+
+/* ---------- 视图 9：现场大屏（分页轮播） ---------- */
+var SCREEN={eventId:'brain_planet',page:0,playing:false,timer:null,locked:false};
+function maskPerson(n){
+  n=String(n==null?'':n).trim();
+  if(!n)return '';
+  if(n.length<=1)return n;
+  return n.charAt(0)+new Array(Math.min(n.length-1,2)+1).join('*');
+}
+function maskMembers(m){
+  var arr=String(m==null?'':m).split(/[\/、,，|]/).map(function(s){return s.trim();}).filter(Boolean);
+  if(!arr.length)return '—';
+  return arr.map(maskPerson).join(' / ');
+}
+function screenRows(evId){
+  return standings(evId).map(function(r){
+    return {rank:r.rank,name:r.team.name,school:r.team.school||'—',group:r.team.group,
+            members:maskMembers(r.team.members),award:r.award||'—'};
+  });
+}
+function screenPages(){
+  var rows=screenRows(SCREEN.eventId);
+  var per=Number((S.screen&&S.screen.pageSize)||10);
+  var pages=[];
+  for(var i=0;i<rows.length;i+=per)pages.push(rows.slice(i,i+per));
+  return pages.length?pages:[[]];
+}
+function screenStep(dir){
+  var pages=screenPages();
+  if(!pages.length)return;
+  SCREEN.page=(SCREEN.page+(dir||1)+pages.length)%pages.length;
+  render();
+}
+function screenPlay(){
+  if(SCREEN.locked){alert('已锁定本屏，请先解除锁定再播放。');return;}
+  if(SCREEN.timer)clearInterval(SCREEN.timer);
+  SCREEN.playing=true;
+  var sec=Number((S.screen&&S.screen.interval)||60);
+  SCREEN.timer=setInterval(function(){screenStep(1);},sec*1000);
+  render();
+}
+function screenPause(){
+  if(SCREEN.timer){clearInterval(SCREEN.timer);SCREEN.timer=null;}
+  SCREEN.playing=false;
+  render();
+}
+function screenToggleLock(){
+  SCREEN.locked=!SCREEN.locked;
+  if(SCREEN.locked&&SCREEN.timer){clearInterval(SCREEN.timer);SCREEN.timer=null;SCREEN.playing=false;}
+  logAudit('调赛台',SCREEN.locked?'大屏锁定本屏':'大屏解除锁定','—','—',SCREEN.locked?'现场异常需固定展示':'恢复自动轮播');
+  render();
+}
+function screenSetEvent(id){SCREEN.eventId=id;SCREEN.page=0;render();}
+function screenSetInterval(v){S.screen.interval=Number(v)||60;save();if(SCREEN.playing)screenPlay();else render();}
+function viewScreen(){
+  var opts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===SCREEN.eventId?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
+  var pages=screenPages();
+  if(SCREEN.page>=pages.length)SCREEN.page=0;
+  var page=pages[SCREEN.page]||[];
+  var ev=find(SCREEN.eventId)||{name:'—'};
+  var rowsHtml=page.map(function(r){
+    return '<div class="screen-row"><div class="rk">'+r.rank+'</div><div class="tm">'+esc(r.name)+'</div>'+
+      '<div class="sc">'+esc(r.school)+' · '+esc(r.group)+' · 选手 '+esc(r.members)+'</div>'+
+      '<div class="aw">'+esc(r.award)+'</div></div>';
+  }).join('')||'<div class="screen-row"><div class="sc">该赛项暂无可展示成绩</div></div>';
+  var total=screenRows(SCREEN.eventId).length;
+  return '<div class="card"><div class="row">'+
+      '<span class="small muted">赛项</span><select style="max-width:200px" onchange="screenSetEvent(this.value)">'+opts+'</select>'+
+      '<span class="small muted">每屏停留</span><select style="max-width:180px" onchange="screenSetInterval(this.value)">'+
+        [60,10,5].map(function(v){return '<option value="'+v+'" '+((Number(S.screen.interval)||60)===v?'selected':'')+'>'+v+' 秒'+(v===60?'（正式）':'（演示）')+'</option>';}).join('')+
+      '</select>'+
+      '<button class="btn sm" onclick="screenStep(-1)">上一屏</button>'+
+      '<button class="btn sm" onclick="screenStep(1)">下一屏</button>'+
+      (SCREEN.playing?'<button class="btn sm danger" onclick="screenPause()">暂停轮播</button>':'<button class="btn sm primary" onclick="screenPlay()">开始轮播</button>')+
+      '<button class="btn sm" onclick="screenToggleLock()">'+(SCREEN.locked?'解除锁定':'置顶 / 锁定本场')+'</button>'+
+    '</div>'+
+    '<div class="hint" style="margin-top:10px">不同赛项分屏展示，同一赛项下不同组别同页分区。展示<b>全部队伍排名</b>（每屏 '+esc(S.screen.pageSize)+' 条，共 '+pages.length+' 屏 / '+total+' 支），<b>姓名脱敏</b>、队名与学校保留；不支持手动翻页，由运营用「置顶 / 锁定本场」干预。</div>'+
+  '</div>'+
+  '<div class="card"><h2>大屏预览 <small>'+(SCREEN.locked?'已锁定本屏':(SCREEN.playing?'轮播中':'已暂停'))+'</small></h2>'+
+    '<div class="screen-box">'+
+      '<div class="hd"><b>'+esc(ev.name)+' · 成绩排名</b><span>第 '+(SCREEN.page+1)+' / '+pages.length+' 屏'+(SCREEN.locked?' · 已锁定':'')+'</span></div>'+
+      rowsHtml+
+      '<div class="screen-foot">姓名已脱敏 · 每屏停留 '+esc(S.screen.interval)+' 秒后自动切换下一屏</div>'+
+    '</div>'+
+  '</div>';
+}
+
+/* ---------- 视图 10：全操作审计 ---------- */
+function logAudit(action,target,before,after,reason){
+  S.auditLogs=S.auditLogs||[];
+  S.auditLogs.unshift({ts:nowStr(),operator:'运营 A',action:action,target:target,
+    before:String(before==null?'—':before),after:String(after==null?'—':after),reason:reason||'—'});
+  S.auditLogs=S.auditLogs.slice(0,300);
+  save();
+}
+var AUDIT_TYPES=['改配置','改分','弃赛','改组','调赛台','删队'];
+function viewAudit(){
+  var logs=(S.auditLogs||[]).slice();
+  var counts={};
+  AUDIT_TYPES.forEach(function(t){counts[t]=0;});
+  logs.forEach(function(l){if(counts[l.action]!=null)counts[l.action]++;});
+  var kpi=AUDIT_TYPES.map(function(t){
+    return '<div class="kpi"><div class="lb">'+t+'</div><div class="nm">'+counts[t]+'</div><div class="ft">已留痕条数</div></div>';
+  }).join('');
+  var rows=logs.map(function(l){
+    return '<tr><td class="small">'+esc(l.ts)+'</td><td>'+esc(l.operator)+'</td>'+
+      '<td><span class="tag b">'+esc(l.action)+'</span></td><td>'+esc(l.target)+'</td>'+
+      '<td class="small muted">'+esc(l.before)+' →</td><td class="small"><b>'+esc(l.after)+'</b></td>'+
+      '<td class="small">'+esc(l.reason)+'</td></tr>';
+  }).join('');
+  var imp=(S.importLogs||[]).map(function(l){
+    return '<tr><td class="small">'+esc(l.ts)+'</td><td>'+esc(l.operator)+'</td>'+
+      '<td><span class="tag">导入队伍</span></td><td>'+esc(l.source==='excel'?'Excel 导入':l.source)+'</td>'+
+      '<td class="small">🟢 新增 '+l.summary.insert+'　🟡 更新 '+l.summary.update+'　⚪ 跳过 '+l.summary.skip+'　🔴 冲突 '+l.summary.conflict+'</td>'+
+      '<td class="small">'+esc((l.detail||[]).map(function(d){return importActName(d.act)+' '+d.no;}).join('、')||'—')+'</td>'+
+      '<td class="small">'+esc(l.status)+'</td></tr>';
+  }).join('');
+  return '<div class="card"><h2>留痕范围 <small>六类操作 + 队伍导入全部记录；运营后台可查，保留 ≥ 2 年</small></h2>'+
+      '<div class="grid g3">'+kpi+'</div>'+
+      '<div class="hint" style="margin-top:10px">每条记录含：操作人 / 时间 / 操作对象 / <b>旧值 → 新值</b> / 原因。锁定成绩与配置后，解锁必须填写原因并同样留痕。</div>'+
+    '</div>'+
+    '<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">操作日志 <small>共 '+logs.length+' 条</small></h2>'+
+      '<button class="btn sm" onclick="exportAudit()">导出审计 CSV</button></div>'+
+      '<table style="margin-top:10px"><thead><tr><th style="width:130px">时间</th><th style="width:90px">操作人</th><th style="width:92px">操作类型</th><th>操作对象</th><th style="width:120px">旧值</th><th style="width:140px">新值</th><th style="width:180px">原因</th></tr></thead>'+
+      '<tbody>'+(rows||'<tr><td colspan="7" class="muted">暂无操作日志</td></tr>')+'</tbody></table>'+
+    '</div>'+
+    '<div class="card"><h2>队伍导入记录 <small>WRC 报名导入审计</small></h2>'+
+      '<table><thead><tr><th style="width:130px">时间</th><th style="width:90px">操作人</th><th style="width:92px">类型</th><th>来源</th><th style="width:170px">变更汇总</th><th>明细</th><th style="width:90px">状态</th></tr></thead>'+
+      '<tbody>'+(imp||'<tr><td colspan="7" class="muted">暂无导入记录</td></tr>')+'</tbody></table>'+
+    '</div>';
+}
+function exportAudit(){
+  var csv='时间,操作人,操作类型,操作对象,旧值,新值,原因\n';
+  (S.auditLogs||[]).forEach(function(l){
+    csv+=[l.ts,l.operator,l.action,l.target,l.before,l.after,l.reason].map(function(x){
+      return '"'+String(x==null?'':x).replace(/"/g,'""')+'"';
+    }).join(',')+'\n';
+  });
+  download('操作审计_'+nowStr().replace(/[: ]/g,'')+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
+}
+
+/* ---------- 启动 ---------- */
+S=load();
+render();
+if(backendMode){loadFromBackend();}
+setInterval(backendHealthCheck,30000); // 每 30 秒检测后端健康
+</script>
+</body>
+</html>

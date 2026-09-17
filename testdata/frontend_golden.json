@@ -1,0 +1,739 @@
+{
+  "source": "赛事统分后台管理_demo.html",
+  "note": "由 scripts/gen_frontend_golden.js 从 demo 前端实现自动生成，请勿手工编辑",
+  "generatedAt": "2026-09-17T04:46:52.015Z",
+  "refTime": 120,
+  "events": [
+    {
+      "id": "brain_planet",
+      "event": {
+        "id": "brain_planet",
+        "name": "脑机星球",
+        "groups": [
+          "小学组",
+          "初中组"
+        ],
+        "customFormula": null,
+        "tasks": [
+          {
+            "id": "focus",
+            "name": "专注力任务",
+            "type": "numeric",
+            "maxScore": 100,
+            "weight": 0.5,
+            "control": "slider"
+          },
+          {
+            "id": "build",
+            "name": "搭建任务",
+            "type": "numeric",
+            "maxScore": 100,
+            "weight": 0.5,
+            "control": "slider"
+          }
+        ],
+        "scoreRule": {
+          "template": "weighted_sum",
+          "params": {}
+        },
+        "bonusRules": [
+          {
+            "template": "time_bonus",
+            "params": {
+              "perSecond": 0.5,
+              "cap": 10
+            }
+          }
+        ],
+        "penaltyRule": {
+          "template": "per_card",
+          "params": {
+            "yellow": 5,
+            "red": 15
+          }
+        },
+        "rankRule": {
+          "tieBreak": [
+            "score",
+            "time"
+          ],
+          "awardTiers": {
+            "一等奖": 0.1,
+            "二等奖": 0.2,
+            "三等奖": 0.3
+          }
+        }
+      },
+      "teams": [
+        {
+          "no": "1001",
+          "name": "星河队",
+          "group": "小学组",
+          "school": "杭州实验小学",
+          "coach": "张老师",
+          "members": "张一 / 李二",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {
+              "focus": 88,
+              "build": 92
+            },
+            "time": 96,
+            "yellow": 0,
+            "red": 0,
+            "signed": true
+          },
+          "expect": {
+            "base": 90,
+            "bonus": 10,
+            "penalty": 0,
+            "total": 100,
+            "complete": true
+          }
+        },
+        {
+          "no": "1002",
+          "name": "追光队",
+          "group": "小学组",
+          "school": "杭州第二实验小学",
+          "coach": "孙老师",
+          "members": "王三 / 赵四",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {
+              "focus": 76,
+              "build": 81
+            },
+            "time": 104,
+            "yellow": 1,
+            "red": 0,
+            "signed": true
+          },
+          "expect": {
+            "base": 78.5,
+            "bonus": 8,
+            "penalty": 5,
+            "total": 81.5,
+            "complete": true
+          }
+        },
+        {
+          "no": "1003",
+          "name": "晨曦队",
+          "group": "初中组",
+          "school": "",
+          "coach": "李老师",
+          "members": "孙五 / 周六",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {
+              "focus": 93,
+              "build": 89
+            },
+            "time": 88,
+            "yellow": 0,
+            "red": 0,
+            "signed": true
+          },
+          "expect": {
+            "base": 91,
+            "bonus": 10,
+            "penalty": 0,
+            "total": 101,
+            "complete": true
+          }
+        },
+        {
+          "no": "1004",
+          "name": "极客队",
+          "group": "初中组",
+          "school": "杭州实验小学",
+          "coach": "周老师",
+          "members": "吴七 / 郑八",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {
+              "focus": 70,
+              "build": 75
+            },
+            "time": 112,
+            "yellow": 2,
+            "red": 0,
+            "signed": false
+          },
+          "expect": {
+            "base": 72.5,
+            "bonus": 4,
+            "penalty": 10,
+            "total": 66.5,
+            "complete": true
+          }
+        }
+      ],
+      "standings": [
+        {
+          "rank": 1,
+          "no": "1003",
+          "name": "晨曦队",
+          "group": "初中组",
+          "base": 91,
+          "bonus": 10,
+          "penalty": 0,
+          "total": 101,
+          "time": 88,
+          "complete": true,
+          "award": "一等奖",
+          "tie": false
+        },
+        {
+          "rank": 2,
+          "no": "1001",
+          "name": "星河队",
+          "group": "小学组",
+          "base": 90,
+          "bonus": 10,
+          "penalty": 0,
+          "total": 100,
+          "time": 96,
+          "complete": true,
+          "award": "二等奖",
+          "tie": false
+        },
+        {
+          "rank": 3,
+          "no": "1002",
+          "name": "追光队",
+          "group": "小学组",
+          "base": 78.5,
+          "bonus": 8,
+          "penalty": 5,
+          "total": 81.5,
+          "time": 104,
+          "complete": true,
+          "award": "三等奖",
+          "tie": false
+        },
+        {
+          "rank": 4,
+          "no": "1004",
+          "name": "极客队",
+          "group": "初中组",
+          "base": 72.5,
+          "bonus": 4,
+          "penalty": 10,
+          "total": 66.5,
+          "time": 112,
+          "complete": true,
+          "award": "三等奖",
+          "tie": false
+        }
+      ],
+      "frontendValidation": {
+        "errs": [],
+        "warns": []
+      }
+    },
+    {
+      "id": "mars_rescue",
+      "event": {
+        "id": "mars_rescue",
+        "name": "火星救援",
+        "groups": [
+          "小学组",
+          "初中组"
+        ],
+        "customFormula": null,
+        "tasks": [
+          {
+            "id": "base",
+            "name": "救援主任务",
+            "type": "numeric",
+            "maxScore": 100,
+            "weight": 1,
+            "control": "slider"
+          }
+        ],
+        "scoreRule": {
+          "template": "weighted_sum",
+          "params": {}
+        },
+        "bonusRules": [
+          {
+            "template": "count_bonus",
+            "params": {
+              "taskId": "energy",
+              "perUnit": 5,
+              "cap": null
+            }
+          },
+          {
+            "template": "count_bonus",
+            "params": {
+              "taskId": "bridge",
+              "perUnit": 5,
+              "cap": null
+            }
+          },
+          {
+            "template": "time_bonus",
+            "params": {
+              "perSecond": 0.5,
+              "cap": 10
+            }
+          }
+        ],
+        "penaltyRule": {
+          "template": "per_card",
+          "params": {
+            "yellow": 5,
+            "red": 15
+          }
+        },
+        "rankRule": {
+          "tieBreak": [
+            "score",
+            "time"
+          ],
+          "awardTiers": {
+            "一等奖": 0.1,
+            "二等奖": 0.2,
+            "三等奖": 0.3
+          }
+        }
+      },
+      "teams": [
+        {
+          "no": "2001",
+          "name": "火星一号",
+          "group": "小学组",
+          "school": "青岛实验学校",
+          "coach": "陈老师",
+          "members": "冯九 / 陈十",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {
+              "base": 85,
+              "energy": 6,
+              "bridge": 2
+            },
+            "time": 98,
+            "yellow": 0,
+            "red": 0,
+            "signed": true
+          },
+          "expect": {
+            "base": 85,
+            "bonus": 50,
+            "penalty": 0,
+            "total": 135,
+            "complete": true
+          }
+        },
+        {
+          "no": "2002",
+          "name": "风暴队",
+          "group": "小学组",
+          "school": "青岛实验学校",
+          "coach": "吴老师",
+          "members": "褚一 / 卫二",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {
+              "base": 79,
+              "energy": 4,
+              "bridge": 3
+            },
+            "time": 106,
+            "yellow": 1,
+            "red": 0,
+            "signed": true
+          },
+          "expect": {
+            "base": 79,
+            "bonus": 42,
+            "penalty": 5,
+            "total": 116,
+            "complete": true
+          }
+        },
+        {
+          "no": "2003",
+          "name": "探索者队",
+          "group": "初中组",
+          "school": "青岛实验学校",
+          "coach": "郑老师",
+          "members": "蒋三 / 沈四",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {
+              "base": 91,
+              "energy": 8,
+              "bridge": 1
+            },
+            "time": 92,
+            "yellow": 0,
+            "red": 0,
+            "signed": false
+          },
+          "expect": {
+            "base": 91,
+            "bonus": 55,
+            "penalty": 0,
+            "total": 146,
+            "complete": true
+          }
+        }
+      ],
+      "standings": [
+        {
+          "rank": 1,
+          "no": "2003",
+          "name": "探索者队",
+          "group": "初中组",
+          "base": 91,
+          "bonus": 55,
+          "penalty": 0,
+          "total": 146,
+          "time": 92,
+          "complete": true,
+          "award": "一等奖",
+          "tie": false
+        },
+        {
+          "rank": 2,
+          "no": "2001",
+          "name": "火星一号",
+          "group": "小学组",
+          "base": 85,
+          "bonus": 50,
+          "penalty": 0,
+          "total": 135,
+          "time": 98,
+          "complete": true,
+          "award": "二等奖",
+          "tie": false
+        },
+        {
+          "rank": 3,
+          "no": "2002",
+          "name": "风暴队",
+          "group": "小学组",
+          "base": 79,
+          "bonus": 42,
+          "penalty": 5,
+          "total": 116,
+          "time": 106,
+          "complete": true,
+          "award": "三等奖",
+          "tie": false
+        }
+      ],
+      "frontendValidation": {
+        "errs": [],
+        "warns": []
+      }
+    },
+    {
+      "id": "future_city",
+      "event": {
+        "id": "future_city",
+        "name": "未来之城",
+        "groups": [
+          "小学组",
+          "初中组"
+        ],
+        "customFormula": null,
+        "tasks": [
+          {
+            "id": "task_a",
+            "name": "任务A（待补）",
+            "type": "numeric",
+            "maxScore": 100,
+            "weight": 0.6,
+            "control": "slider"
+          },
+          {
+            "id": "task_b",
+            "name": "任务B（待补）",
+            "type": "numeric",
+            "maxScore": 100,
+            "weight": 0.4,
+            "control": "slider"
+          }
+        ],
+        "scoreRule": {
+          "template": "weighted_sum",
+          "params": {}
+        },
+        "bonusRules": [
+          {
+            "template": "time_bonus",
+            "params": {
+              "perSecond": 0.5,
+              "cap": 10
+            }
+          }
+        ],
+        "penaltyRule": {
+          "template": "per_card",
+          "params": {
+            "yellow": 5,
+            "red": 15
+          }
+        },
+        "rankRule": {
+          "tieBreak": [
+            "score",
+            "time"
+          ],
+          "awardTiers": {
+            "一等奖": 0.1,
+            "二等奖": 0.2,
+            "三等奖": 0.3
+          }
+        }
+      },
+      "teams": [
+        {
+          "no": "4001",
+          "name": "创想队",
+          "group": "小学组",
+          "school": "成都教装展学校",
+          "coach": "陈老师",
+          "members": "韩五 / 杨六 / 朱七",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {
+              "task_a": 82,
+              "task_b": 78
+            },
+            "time": 120,
+            "yellow": 0,
+            "red": 0,
+            "signed": false
+          },
+          "expect": {
+            "base": 80.4,
+            "bonus": 0,
+            "penalty": 0,
+            "total": 80.4,
+            "complete": true
+          }
+        },
+        {
+          "no": "4002",
+          "name": "领航队",
+          "group": "小学组",
+          "school": "成都教装展学校",
+          "coach": "刘老师",
+          "members": "秦八 / 尤九 / 许十",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {
+              "task_a": 88,
+              "task_b": 84
+            },
+            "time": 101,
+            "yellow": 0,
+            "red": 0,
+            "signed": false
+          },
+          "expect": {
+            "base": 86.4,
+            "bonus": 9.5,
+            "penalty": 0,
+            "total": 95.9,
+            "complete": true
+          }
+        },
+        {
+          "no": "4003",
+          "name": "智造队",
+          "group": "初中组",
+          "school": "成都教装展学校",
+          "coach": "张老师",
+          "members": "何一 / 吕二 / 施三",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {},
+            "time": 0,
+            "yellow": 0,
+            "red": 0,
+            "signed": false
+          },
+          "expect": {
+            "base": 0,
+            "bonus": 0,
+            "penalty": 0,
+            "total": 0,
+            "complete": false
+          }
+        },
+        {
+          "no": "4004",
+          "name": "破晓队",
+          "group": "初中组",
+          "school": "成都教装展学校",
+          "coach": "王老师",
+          "members": "孔四 / 曹五 / 严六",
+          "status": "active",
+          "record": {
+            "roundNo": 1,
+            "tasks": {},
+            "time": 0,
+            "yellow": 0,
+            "red": 0,
+            "signed": false
+          },
+          "expect": {
+            "base": 0,
+            "bonus": 0,
+            "penalty": 0,
+            "total": 0,
+            "complete": false
+          }
+        }
+      ],
+      "standings": [
+        {
+          "rank": 1,
+          "no": "4002",
+          "name": "领航队",
+          "group": "小学组",
+          "base": 86.4,
+          "bonus": 9.5,
+          "penalty": 0,
+          "total": 95.9,
+          "time": 101,
+          "complete": true,
+          "award": "一等奖",
+          "tie": false
+        },
+        {
+          "rank": 2,
+          "no": "4001",
+          "name": "创想队",
+          "group": "小学组",
+          "base": 80.4,
+          "bonus": 0,
+          "penalty": 0,
+          "total": 80.4,
+          "time": 120,
+          "complete": true,
+          "award": "二等奖",
+          "tie": false
+        },
+        {
+          "rank": 3,
+          "no": "4004",
+          "name": "破晓队",
+          "group": "初中组",
+          "base": 0,
+          "bonus": 0,
+          "penalty": 0,
+          "total": 0,
+          "time": 0,
+          "complete": false,
+          "award": "三等奖",
+          "tie": false
+        },
+        {
+          "rank": 4,
+          "no": "4003",
+          "name": "智造队",
+          "group": "初中组",
+          "base": 0,
+          "bonus": 0,
+          "penalty": 0,
+          "total": 0,
+          "time": 0,
+          "complete": false,
+          "award": "三等奖",
+          "tie": true
+        }
+      ],
+      "frontendValidation": {
+        "errs": [],
+        "warns": []
+      }
+    }
+  ],
+  "maskPersonCases": [
+    {
+      "in": "张一",
+      "out": "张*"
+    },
+    {
+      "in": "程俊淇",
+      "out": "程**"
+    },
+    {
+      "in": "张",
+      "out": "张"
+    },
+    {
+      "in": "",
+      "out": ""
+    },
+    {
+      "in": "欧阳娜娜",
+      "out": "欧**"
+    },
+    {
+      "in": "A",
+      "out": "A"
+    },
+    {
+      "in": "李",
+      "out": "李"
+    },
+    {
+      "in": "  ",
+      "out": ""
+    },
+    {
+      "in": "张三丰",
+      "out": "张**"
+    }
+  ],
+  "maskCases": [
+    {
+      "in": "张一 / 李二",
+      "out": "张* / 李*"
+    },
+    {
+      "in": "韩五、杨六、朱七",
+      "out": "韩* / 杨* / 朱*"
+    },
+    {
+      "in": "王小明,李小红，张小三|赵小四",
+      "out": "王** / 李** / 张** / 赵**"
+    },
+    {
+      "in": "程俊淇",
+      "out": "程**"
+    },
+    {
+      "in": "",
+      "out": "—"
+    },
+    {
+      "in": "   ",
+      "out": "—"
+    },
+    {
+      "in": "周吴郑 / ",
+      "out": "周**"
+    }
+  ]
+}
