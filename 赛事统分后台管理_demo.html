@@ -1359,10 +1359,6 @@ function sidebar(){
 }
 function topbar(){
   var titles={contests:'赛事管理（一场赛事一份数据 · 隔离与归档）',control:'跨赛事 · 并行总控（只读汇总，不切当前赛事）',crossrank:'跨赛事 · 跨赛事汇总榜（多场成绩对照）',dash:'总览（开赛就绪度 · 赛项状态）',events:'赛项与规则配置',seats:'赛台与赛程编排',teams:'队伍与报名 · 队伍管理',import:'队伍与报名 · WRC 报名导入',referees:'裁判与排班 · 裁判档案与裁判码',duty:'裁判与排班 · 执裁排班（赛台 × 时段 × 人）',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',lock:'锁定与发布 · 成绩锁定与解锁（赛项 × 组别 · 双锁）',watch:'处理进度看板（告警收件箱 + 改分 / 争议台账 · 只读看板）',dq:'锁定与发布 · 资格与递补（取消资格登记 + 递补）',evidence:'留底证据库（服务端那一端）',publish:'锁定与发布 · 公示与导出',roles:'合规 · 角色与权限',audit:'合规 · 全操作审计'};
-  var localPill='<span class="pill"><i></i>离线可用 · 本地已保存</span>';
-  var backendToggle='<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;margin-left:8px">'+
-    '<input type="checkbox" '+(backendMode?'checked':'')+' onchange="toggleBackendMode()" style="width:auto">'+
-    '连接后端</label>';
   var refreshBtn=backendMode?'<button class="btn sm" onclick="refreshBackend()" '+(backendBusy?'disabled':'')+'>刷新</button>':'';
   var contestPicker='<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;margin:0">'+
     '<span class="muted">赛事</span>'+
@@ -1372,11 +1368,7 @@ function topbar(){
   return '<div class="top">'+
     '<h1>'+titles[VIEW]+'</h1>'+
     contestPicker+
-    localPill+
-    '<span id="backend-status">'+backendStatusHtml(backendStatus,'')+'</span>'+
-    backendToggle+
     refreshBtn+
-    '<span class="pill" style="background:#f3f0fd;border-color:#e0d9f8;color:#4a3aa8">配置快照 '+S.events.map(function(e){return esc(e.name)+' '+configVersionOf(e.id);}).join(' · ')+'</span>'+
     '<span class="pill" style="background:#eefaf1;border-color:#bfe8cc;color:#1f7a45">当前登录 '+esc(currentUser().name)+' · '+roleName(currentUser().role)+'</span>'+
     '<span class="sp"></span>'+
     '<button class="btn sm" onclick="exportConfig()">导出配置文件</button>'+
