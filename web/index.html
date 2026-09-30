@@ -135,6 +135,7 @@ var CUR_TEAM=null;                // 打分页当前队伍
 var RANK_EVENT='brain_planet';    // 榜单页当前赛项
 var PUB_EVENT='brain_planet';     // 公示页当前赛项
 var PUB_ANON=false;
+var SCORE_ENTRY_ROLE='ops';       // 后台录入身份：ops=运营代录 / sync=现场回传（平板）
 
 /* ---------- 后端连接配置 ---------- */
 var BACKEND_URL='/api/v1';        // 同域部署时相对路径即可；独立部署可改为 http://localhost:8080/api/v1
@@ -147,7 +148,9 @@ function loadBackendMode(){try{backendMode=localStorage.getItem(BACKEND_KEY+'_mo
 function saveBackendMode(){try{localStorage.setItem(BACKEND_KEY+'_mode',backendMode?'1':'0');}catch(e){}}
 function loadLastSyncAt(){try{lastSyncAt=localStorage.getItem(BACKEND_KEY+'_lastSyncAt')||'';}catch(e){lastSyncAt='';}}
 function saveLastSyncAt(ts){try{lastSyncAt=ts||'';localStorage.setItem(BACKEND_KEY+'_lastSyncAt',lastSyncAt);}catch(e){}}
-loadBackendMode();loadLastSyncAt();
+function loadEntryRole(){try{var v=localStorage.getItem(BACKEND_KEY+'_entryrole');if(v==='ops'||v==='sync')SCORE_ENTRY_ROLE=v;}catch(e){}}
+function saveEntryRole(){try{localStorage.setItem(BACKEND_KEY+'_entryrole',SCORE_ENTRY_ROLE);}catch(e){}}
+loadBackendMode();loadLastSyncAt();loadEntryRole();
 backendStatus=backendMode?'unknown':'offline';
 
 /* ---------- 工具 ---------- */
@@ -622,7 +625,7 @@ function render(){
 function sidebar(){
   var groups=[
     ['运营管理',[['dash','总览'],['events','赛项与规则'],['seats','赛台与赛程'],['teams','队伍管理'],['import','WRC 报名导入']]],
-    ['现场执行',[['score','裁判打分'],['rank','实时榜单'],['screen','现场大屏']]],
+    ['现场执行',[['score','裁判打分'],['rank','实时榜单'],['screen','大屏展示']]],
     ['结果与合规',[['publish','公示与导出'],['audit','操作审计']]]
   ];
   var nav=groups.map(function(g){
@@ -637,7 +640,7 @@ function sidebar(){
   '</aside>';
 }
 function topbar(){
-  var titles={dash:'赛事总览',events:'赛项与规则配置',seats:'赛台与赛程编排',import:'WRC 报名导入',teams:'队伍管理',score:'裁判打分录入',rank:'实时榜单',screen:'现场大屏（分页轮播）',publish:'公示与导出',audit:'全操作审计'};
+  var titles={dash:'赛事总览',events:'赛项与规则配置',seats:'赛台与赛程编排',import:'WRC 报名导入',teams:'队伍管理',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',publish:'公示与导出',audit:'全操作审计'};
   var localPill='<span class="pill"><i></i>离线可用 · 本地已保存</span>';
   var backendToggle='<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;margin-left:8px">'+
     '<input type="checkbox" '+(backendMode?'checked':'')+' onchange="toggleBackendMode()" style="width:auto">'+
@@ -1412,6 +1415,10 @@ function viewScore(){
   }).join('');
   return '<div class="card" style="margin-bottom:16px"><div class="row">'+
       '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selScoreEvent(this.value)">'+opts+'</select>'+
+      '<span class="small muted">录入身份</span><select style="max-width:200px" onchange="setEntryRole(this.value)">'+
+        '<option value="ops" '+(SCORE_ENTRY_ROLE==='ops'?'selected':'')+'>运营代录</option>'+
+        '<option value="sync" '+(SCORE_ENTRY_ROLE==='sync'?'selected':'')+'>现场回传（平板）</option>'+
+      '</select>'+
       '<span class="pill"><i></i>断网可录入 · 首登激活后配置随裁判码下发</span>'+
     '</div></div>'+
   '<div class="grid g12">'+
@@ -1421,6 +1428,7 @@ function viewScore(){
 }
 function selScoreEvent(id){SCORE_EVENT=id;CUR_TEAM=null;render();}
 function selScoreTeam(id){CUR_TEAM=id;render();}
+function setEntryRole(v){SCORE_ENTRY_ROLE=v;saveEntryRole();render();}
 function scoreForm(ev){
   if(!CUR_TEAM)return '<h2>录入</h2><div class="hint">请选择左侧队伍。</div>';
   var team=S.teams.find(function(t){return t.id===CUR_TEAM;});
@@ -1446,7 +1454,10 @@ function scoreForm(ev){
       (it.type==='count'?'<span class="small muted"> 每单位 '+(it.weight||0)+' 分</span>':'')+'</label>'+ctl+'</div>';
   }).join('');
 
-  return '<h2>成绩录入 <small>'+esc(team?team.name:'')+' · '+esc(ev.name)+'</small></h2>'+
+  return (SCORE_ENTRY_ROLE==='ops'
+    ? '<div class="note" style="margin-bottom:10px"><b>运营代录</b>：本页为运营在后台代录 / 管理成绩，提交后成绩以「运营代录」身份留痕；现场裁判自录成绩请走平板评分端。</div>'
+    : '')+
+    '<h2>成绩录入 <small>'+esc(team?team.name:'')+' · '+esc(ev.name)+' · '+(SCORE_ENTRY_ROLE==='ops'?'运营代录':'现场回传')+'</small></h2>'+
     fields+
     '<hr class="sep">'+
     '<div class="grid g3">'+
@@ -1469,6 +1480,7 @@ function curRec(){
   if(!CUR_TEAM)return null;
   if(!S.scores[CUR_TEAM])S.scores[CUR_TEAM]={tasks:{},time:0,yellow:0,red:0,signed:false};
   if(!S.scores[CUR_TEAM].tasks)S.scores[CUR_TEAM].tasks={};
+  S.scores[CUR_TEAM].enteredBy=SCORE_ENTRY_ROLE;
   return S.scores[CUR_TEAM];
 }
 function setScore(tid,v){var r=curRec();if(!r)return;r.tasks[tid]=v;save();refreshPreview();}
@@ -1485,7 +1497,7 @@ function requestScoreChange(){
   var before=computeTotal(ev,r).total.toFixed(1);
   var reason=prompt('改分申请：请填写申诉 / 复核原因（裁判长授权后生效）','申诉复核');
   if(!reason)return;
-  logAudit('改分',(t?t.name+'（'+t.no+'）':CUR_TEAM)+' · '+ev.name,'总分 '+before,'总分 '+before+'（待裁判长授权）',reason);
+  logAudit('改分',(t?t.name+'（'+t.no+'）':CUR_TEAM)+' · '+ev.name,'总分 '+before,'总分 '+before+'（待裁判长授权）',(SCORE_ENTRY_ROLE==='ops'?'运营代录 ':'')+reason);
   alert('改分申请已记录，等待裁判长授权。\n依据：裁判提交后禁止直接改分，须走审批并留痕。');
   render();
 }
@@ -1782,7 +1794,7 @@ function viewSeats(){
 }
 
 /* ---------- 视图 9：现场大屏（分页轮播） ---------- */
-var SCREEN={eventId:'brain_planet',page:0,playing:false,timer:null,locked:false};
+var SCREEN={eventId:'brain_planet',page:0,playing:false,timer:null,locked:false,mode:'live'};
 function maskPerson(n){
   n=String(n==null?'':n).trim();
   if(!n)return '';
@@ -1801,7 +1813,7 @@ function screenRows(evId){
   });
 }
 function screenPages(){
-  var rows=screenRows(SCREEN.eventId);
+  var rows=SCREEN.mode==='publish'?publishScreenRows(SCREEN.eventId):screenRows(SCREEN.eventId);
   var per=Number((S.screen&&S.screen.pageSize)||10);
   var pages=[];
   for(var i=0;i<rows.length;i+=per)pages.push(rows.slice(i,i+per));
@@ -1834,20 +1846,38 @@ function screenToggleLock(){
 }
 function screenSetEvent(id){SCREEN.eventId=id;SCREEN.page=0;render();}
 function screenSetInterval(v){S.screen.interval=Number(v)||60;save();if(SCREEN.playing)screenPlay();else render();}
+function screenSetMode(m){SCREEN.mode=m;if(SCREEN.timer){clearInterval(SCREEN.timer);SCREEN.timer=null;SCREEN.playing=false;}SCREEN.page=0;render();}
+function publishScreenRows(evId){
+  return standings(evId).map(function(r){
+    var name=PUB_ANON?('参赛队 '+r.rank):r.team.name;
+    return {rank:r.rank,name:name,school:r.team.school||'—',group:r.team.group||'—',total:r.total,award:r.award||'—'};
+  });
+}
 function viewScreen(){
+  var isPub=SCREEN.mode==='publish';
   var opts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===SCREEN.eventId?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
   var pages=screenPages();
   if(SCREEN.page>=pages.length)SCREEN.page=0;
   var page=pages[SCREEN.page]||[];
   var ev=find(SCREEN.eventId)||{name:'—'};
   var rowsHtml=page.map(function(r){
+    if(isPub){
+      return '<div class="screen-row"><div class="rk">'+r.rank+'</div><div class="tm">'+esc(r.name)+'</div>'+
+        '<div class="sc">'+esc(r.school)+' · '+esc(r.group)+'</div>'+
+        '<div class="sc" style="flex:1.1;color:#cfe3f7">总分 '+Number(r.total).toFixed(1)+'</div>'+
+        '<div class="aw">'+esc(r.award)+'</div></div>';
+    }
     return '<div class="screen-row"><div class="rk">'+r.rank+'</div><div class="tm">'+esc(r.name)+'</div>'+
       '<div class="sc">'+esc(r.school)+' · '+esc(r.group)+' · 选手 '+esc(r.members)+'</div>'+
       '<div class="aw">'+esc(r.award)+'</div></div>';
   }).join('')||'<div class="screen-row"><div class="sc">该赛项暂无可展示成绩</div></div>';
-  var total=screenRows(SCREEN.eventId).length;
+  var total=(isPub?publishScreenRows(SCREEN.eventId):screenRows(SCREEN.eventId)).length;
   return '<div class="card"><div class="row">'+
       '<span class="small muted">赛项</span><select style="max-width:200px" onchange="screenSetEvent(this.value)">'+opts+'</select>'+
+      '<span class="seg" style="margin-left:6px;display:inline-flex;border:1px solid #ddd;border-radius:8px;overflow:hidden">'+
+        '<button class="btn sm '+(!isPub?'primary':'')+'" style="border:none;border-radius:0" onclick="screenSetMode(\'live\')">实时榜单</button>'+
+        '<button class="btn sm '+(isPub?'primary':'')+'" style="border:none;border-radius:0;border-left:1px solid #ddd" onclick="screenSetMode(\'publish\')">赛后公示表</button>'+
+      '</span>'+
       '<span class="small muted">每屏停留</span><select style="max-width:180px" onchange="screenSetInterval(this.value)">'+
         [60,10,5].map(function(v){return '<option value="'+v+'" '+((Number(S.screen.interval)||60)===v?'selected':'')+'>'+v+' 秒'+(v===60?'（正式）':'（演示）')+'</option>';}).join('')+
       '</select>'+
@@ -1856,13 +1886,17 @@ function viewScreen(){
       (SCREEN.playing?'<button class="btn sm danger" onclick="screenPause()">暂停轮播</button>':'<button class="btn sm primary" onclick="screenPlay()">开始轮播</button>')+
       '<button class="btn sm" onclick="screenToggleLock()">'+(SCREEN.locked?'解除锁定':'置顶 / 锁定本场')+'</button>'+
     '</div>'+
-    '<div class="hint" style="margin-top:10px">不同赛项分屏展示，同一赛项下不同组别同页分区。展示<b>全部队伍排名</b>（每屏 '+esc(S.screen.pageSize)+' 条，共 '+pages.length+' 屏 / '+total+' 支），<b>姓名脱敏</b>、队名与学校保留；不支持手动翻页，由运营用「置顶 / 锁定本场」干预。</div>'+
+    '<div class="hint" style="margin-top:10px">'+
+      (isPub
+        ? '【赛后公示表模式】展示<b>正式公示成绩</b>（名次 / 队伍 / 学校 / 总分 / 奖项），与「公示与导出」页同源、遵循'+(PUB_ANON?'<b>匿名公示</b>（仅显示参赛队序号）':'公示脱敏规则')+'；'+(S.published[SCREEN.eventId]?'该赛项<b>已发布</b>':'<span class="warn">该赛项尚未发布公示，当前为草稿预览</span>')
+        : '【实时榜单模式】展示<b>全部队伍排名</b>（每屏 '+esc(S.screen.pageSize)+' 条，共 '+pages.length+' 屏 / '+total+' 支），<b>姓名脱敏</b>、队名与学校保留；由运营用「置顶 / 锁定本场」干预。')+
+    '</div>'+
   '</div>'+
-  '<div class="card"><h2>大屏预览 <small>'+(SCREEN.locked?'已锁定本屏':(SCREEN.playing?'轮播中':'已暂停'))+'</small></h2>'+
+  '<div class="card"><h2>'+(isPub?'赛后成绩公示表':'大屏预览')+' <small>'+(SCREEN.locked?'已锁定本屏':(SCREEN.playing?'轮播中':'已暂停'))+'</small></h2>'+
     '<div class="screen-box">'+
-      '<div class="hd"><b>'+esc(ev.name)+' · 成绩排名</b><span>第 '+(SCREEN.page+1)+' / '+pages.length+' 屏'+(SCREEN.locked?' · 已锁定':'')+'</span></div>'+
+      '<div class="hd"><b>'+esc(ev.name)+' · '+(isPub?'成绩公示表':'成绩排名')+'</b><span>第 '+(SCREEN.page+1)+' / '+pages.length+' 屏'+(SCREEN.locked?' · 已锁定':'')+'</span></div>'+
       rowsHtml+
-      '<div class="screen-foot">姓名已脱敏 · 每屏停留 '+esc(S.screen.interval)+' 秒后自动切换下一屏</div>'+
+      '<div class="screen-foot">'+(isPub?'正式公示成绩 · 与对外公示页同源一致':'姓名已脱敏 · 每屏停留 '+esc(S.screen.interval)+' 秒后自动切换下一屏')+'</div>'+
     '</div>'+
   '</div>';
 }
