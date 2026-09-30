@@ -160,23 +160,11 @@ var PUB_EVENT='brain_planet';     // 公示页当前赛项
 var PUB_ANON=false;
 var SCORE_ENTRY_ROLE='sync';      // 后台录入身份：ops=工作人员代录 / sync=现场回传（平板）；默认按现场回传记账，手工代录需手动切换
 
-/* ---------- 后端连接配置 ---------- */
-var BACKEND_URL='/api/v1';        // 同域部署时相对路径即可；独立部署可改为 http://localhost:8080/api/v1
-var BACKEND_KEY='brainco_backend_v1';
-var backendMode=false;            // 是否优先连接后端
-var backendStatus='unknown';      // unknown / online / offline / error
-var backendBusy=false;            // 是否正在同步
-var lastSyncAt='';                // 上次成功同步时间（RFC3339）
-function loadBackendMode(){try{backendMode=localStorage.getItem(BACKEND_KEY+'_mode')==='1';}catch(e){backendMode=false;}}
-function saveBackendMode(){try{localStorage.setItem(BACKEND_KEY+'_mode',backendMode?'1':'0');}catch(e){}}
-/* 增量同步游标按**赛事**分开存：两地同时办赛时游标不能互相覆盖，否则会被别的场地带偏、漏同步 */
-function syncCursorKey(){return BACKEND_KEY+'_lastSyncAt::'+(CUR_CONTEST||'none');}
-function loadLastSyncAt(){try{lastSyncAt=localStorage.getItem(syncCursorKey())||'';}catch(e){lastSyncAt='';}}
-function saveLastSyncAt(ts){try{lastSyncAt=ts||'';localStorage.setItem(syncCursorKey(),lastSyncAt);}catch(e){}}
-function loadEntryRole(){try{var v=localStorage.getItem(BACKEND_KEY+'_entryrole_v2');if(v==='ops'||v==='sync')SCORE_ENTRY_ROLE=v;}catch(e){}}
-function saveEntryRole(){try{localStorage.setItem(BACKEND_KEY+'_entryrole_v2',SCORE_ENTRY_ROLE);}catch(e){}}
-loadBackendMode();loadLastSyncAt();loadEntryRole();
-backendStatus=backendMode?'unknown':'offline';
+/* 本机偏好存储键（后台需联网使用：不做离线兜底、不做后端双模式） */
+var STORE_KEY='brainco_backend_v1';   // 沿用旧键名，保留已保存的录入身份偏好
+function loadEntryRole(){try{var v=localStorage.getItem(STORE_KEY+'_entryrole_v2');if(v==='ops'||v==='sync')SCORE_ENTRY_ROLE=v;}catch(e){}}
+function saveEntryRole(){try{localStorage.setItem(STORE_KEY+'_entryrole_v2',SCORE_ENTRY_ROLE);}catch(e){}}
+loadEntryRole();
 
 /* ---------- 工具 ---------- */
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -767,7 +755,7 @@ function switchContest(id){
     if(!confirm('本场「'+c.name+'」登记的值守人是：'+st.join(' / ')+'。\n你现在不是这条赛事的守人 —— 确认要进去吗？')){render();return;}
   }
   save();
-  CUR_CONTEST=id;saveContests();writeTabCur(id);loadLastSyncAt();
+  CUR_CONTEST=id;saveContests();writeTabCur(id);
   READONLY_WARNED=false;
   S=loadContest(id);
   CUR_TEAM=null;EV_PREVIEW=null;
@@ -870,241 +858,10 @@ function save(){
   if(readonlyGuard())return;   /* 归档赛事：拒绝落盘 */
   try{localStorage.setItem(ckey(CUR_CONTEST),JSON.stringify(S));}catch(e){}
   var c=contestById(CUR_CONTEST);if(c){c.updatedAt=nowStr();saveContests();}
-  if(backendMode && !backendBusy){backendSyncSoon();}
 }
 function resetSeed(){if(confirm('重置【'+contestName(CUR_CONTEST)+'】为内置三赛项种子数据？\n只影响本场赛事，其他赛事数据不受影响。当前改动将丢失。')){S=seedData();save();CUR_TEAM=null;render();}}
 
-/* ---------- 后端适配层（P5：连接后端 + 离线兜底） ---------- */
-// 设计原则：
-// 1. S 仍是前端单一事实来源，localStorage 始终兜底保存。
-// 2. backendMode=true 时，页面加载后尝试从后端拉取全量数据覆盖 S。
-// 3. 本地变更后 save() 会触发 backendSyncSoon()，把成绩批量上行到后端。
-// 4. 后端不可用时自动降级提示，不断网也能继续操作（数据在本地）。
-
-function backendFetch(path,opts){
-  opts=opts||{};
-  var url=BACKEND_URL+path;
-  var init={method:opts.method||'GET',headers:{'Accept':'application/json'}};
-  if(opts.body){
-    init.headers['Content-Type']='application/json';
-    init.body=JSON.stringify(opts.body);
-  }
-  var ctrl=null;
-  if(typeof AbortController!=='undefined'){ctrl=new AbortController();init.signal=ctrl.signal;}
-  var timer=setTimeout(function(){if(ctrl)ctrl.abort();},opts.timeout||5000);
-  return fetch(url,init).then(function(r){
-    clearTimeout(timer);
-    return r.json().then(function(j){return {ok:r.ok,status:r.status,body:j};});
-  }).catch(function(err){
-    clearTimeout(timer);
-    throw err;
-  });
-}
-
-function setBackendStatus(st,msg){
-  backendStatus=st;
-  var el=document.getElementById('backend-status');
-  if(el)el.innerHTML=backendStatusHtml(st,msg);
-}
-function backendStatusHtml(st,msg){
-  var map={'online':['#eaf3de','#2f6b0f','已连接后端'],'offline':['#faeeda','#9a6410','离线兜底'],'error':['#fcebeb','#a32d2d','后端异常'],'unknown':['#eef2f7','#4a5768','检测中']};
-  var c=map[st]||map['unknown'];
-  return '<span class="pill" style="background:'+c[0]+';border-color:'+c[0]+';color:'+c[1]+'">'+c[2]+(msg?': '+esc(msg):'')+'</span>';
-}
-
-var backendSyncTimer=null;
-function backendSyncSoon(){if(backendSyncTimer)return;backendSyncTimer=setTimeout(function(){backendSyncTimer=null;backendSync();},800);}
-
-function backendSync(){
-  if(!backendMode || backendBusy)return;
-  backendBusy=true;setBackendStatus('unknown','同步中');
-  var scores=[];
-  S.teams.forEach(function(t){
-    var rec=S.scores[t.id];
-    if(rec && rec.signed){
-      var item={eventId:t.eventId,no:t.no,roundNo:1,clientId:'web-demo',tasks:rec.tasks||{},time:rec.time||0,signed:!!rec.signed};
-      item.yellow=rec.yellow||0;
-      item.red=rec.red||0;
-      scores.push(item);
-    }
-  });
-  backendFetch('/sync',{method:'POST',body:{lastSyncAt:lastSyncAt,scores:scores},timeout:8000})
-  .then(function(r){
-    if(r.ok && r.body && r.body.code===0){
-      if(r.body.data && r.body.data.serverTime)saveLastSyncAt(r.body.data.serverTime);
-      setBackendStatus('online',r.body.data?('已同步 '+r.body.data.succeeded+' 条'):'');
-    }else{
-      var m=(r.body&&r.body.message)||('HTTP '+r.status);
-      setBackendStatus('error',m);
-    }
-  }).catch(function(e){
-    setBackendStatus('offline','后端不可达，已存本地');
-  }).finally(function(){backendBusy=false;});
-}
-
-function backendPushEvent(){
-  if(!backendMode || backendBusy)return;
-  var ev=find(CUR_EVENT);if(!ev)return;
-  backendBusy=true;setBackendStatus('unknown','保存赛项中');
-  backendFetch('/events/'+ev.id,{method:'PUT',body:Object.assign({},ev,{reason:'前端规则调整'}),timeout:8000})
-  .then(function(r){
-    if(r.ok && r.body && r.body.code===0){
-      setBackendStatus('online','赛项已保存');
-    }else{
-      var m=(r.body&&r.body.message)||('HTTP '+r.status);
-      setBackendStatus('error','保存赛项失败：'+m);
-    }
-  }).catch(function(e){
-    setBackendStatus('offline','后端不可达，已存本地');
-  }).finally(function(){backendBusy=false;});
-}
-
-function backendPushTeams(){
-  if(!backendMode || backendBusy)return;
-  var ev=find(CUR_EVENT);if(!ev)return;
-  var localTeams=S.teams.filter(function(t){return t.eventId===ev.id;});
-  if(!localTeams.length){alert('当前赛项没有队伍可推送');return;}
-  backendBusy=true;setBackendStatus('unknown','推送队伍中');
-  backendFetch('/events/'+ev.id+'/teams?limit=10000')
-  .then(function(r){
-    if(!r.ok || !r.body || r.body.code!==0){throw new Error((r.body&&r.body.message)||'HTTP '+r.status);}
-    var existing={};
-    (r.body.data&&r.body.data.teams||[]).forEach(function(t){existing[t.team_no||t.no]=true;});
-    var toCreate=localTeams.filter(function(t){return !existing[t.no];});
-    if(!toCreate.length){setBackendStatus('online','队伍已同步');backendBusy=false;return;}
-    return Promise.all(toCreate.map(function(t){
-      return backendFetch('/events/'+ev.id+'/teams',{method:'POST',body:{
-        no:t.no,name:t.name,school:t.school||'',coach:t.coach||'',group:t.group||'',members:t.members||''
-      },timeout:8000});
-    })).then(function(rs){
-      var ok=0,fail=0;
-      rs.forEach(function(res){if(res.ok && res.body && res.body.code===0)ok++;else fail++;});
-      setBackendStatus('online','推送 '+ok+' 支，失败 '+fail+' 支');
-    });
-  }).catch(function(e){
-    setBackendStatus('offline','后端不可达，已存本地');
-  }).finally(function(){backendBusy=false;});
-}
-
-function backendPushSchedule(){
-  if(!backendMode || backendBusy)return;
-  if(!S.seats.length && !S.slots.length){alert('没有赛台或场次可推送');return;}
-  backendBusy=true;setBackendStatus('unknown','推送赛程中');
-  Promise.all([backendFetch('/seats?limit=1000'),backendFetch('/slots?limit=1000')])
-  .then(function(rs){
-    var seatRes=rs[0],slotRes=rs[1];
-    if(!seatRes.ok || !seatRes.body || seatRes.body.code!==0){throw new Error('读取赛台失败');}
-    if(!slotRes.ok || !slotRes.body || slotRes.body.code!==0){throw new Error('读取场次失败');}
-    var backendSeats=(seatRes.body.data&&seatRes.body.data.seats)||[];
-    var backendSlots=(slotRes.body.data&&slotRes.body.data.slots)||[];
-    var seatMap={}; // 本地 seat.name -> 后端 seat.id
-    backendSeats.forEach(function(s){seatMap[s.name]=s.id;});
-    var seatCreates=S.seats.filter(function(s){return !seatMap[s.name];}).map(function(s,i){
-      return backendFetch('/seats',{method:'POST',body:{name:s.name,sortOrder:i},timeout:8000});
-    });
-    return Promise.all(seatCreates).then(function(seatRs){
-      seatRs.forEach(function(res){
-        if(res.ok && res.body && res.body.code===0){
-          var data=res.body.data;seatMap[data.name]=data.id;
-        }
-      });
-      var slotKey=function(s){return (s.seatId||'')+'|'+s.period;}; // 本地 slot 用本地 seatId
-      var backendSlotKeys={};
-      backendSlots.forEach(function(s){backendSlotKeys[(s.seatId||'')+'|'+s.period]=true;});
-      var slotCreates=[];
-      S.slots.forEach(function(sl){
-        var backendSeatId=seatMap[seatName(sl.seatId)];
-        if(!backendSeatId)return;
-        if(backendSlotKeys[backendSeatId+'|'+sl.period])return;
-        slotCreates.push(backendFetch('/slots',{method:'POST',body:{
-          seatId:backendSeatId,period:sl.period,time:sl.time,eventId:sl.eventId,group:sl.group,type:sl.type||'normal'
-        },timeout:8000}));
-      });
-      return Promise.all(slotCreates);
-    }).then(function(slotRs){
-      var ok=slotRs.filter(function(r){return r.ok && r.body && r.body.code===0;}).length;
-      var fail=slotRs.length-ok;
-      setBackendStatus('online','赛程推送 '+ok+' 成功 '+fail+' 失败');
-    });
-  }).catch(function(e){
-    setBackendStatus('offline','后端不可达，已存本地');
-  }).finally(function(){backendBusy=false;});
-}
-
-function loadFromBackend(){
-  if(!backendMode)return;
-  backendBusy=true;setBackendStatus('unknown','加载中');
-  Promise.all([
-    backendFetch('/events'),
-    backendFetch('/seats'),
-    backendFetch('/slots'),
-    backendFetch('/audit-logs?limit=1000'),
-    backendFetch('/import-logs?limit=1000')
-  ]).then(function(rs){
-    var evRes=rs[0], seatRes=rs[1], slotRes=rs[2], auditRes=rs[3], impRes=rs[4];
-    if(!evRes.ok || !evRes.body || evRes.body.code!==0){throw new Error(evRes.body&&evRes.body.message||'赛项加载失败');}
-    // 基础数据映射
-    var events=(evRes.body.data&&evRes.body.data.events)||[];
-    S.events=events;
-    S.seats=(seatRes.body.data&&seatRes.body.data.seats)||[];
-    S.slots=(slotRes.body.data&&slotRes.body.data.slots)||[];
-    S.auditLogs=(auditRes.body.data&&auditRes.body.data.logs)||[];
-    S.importLogs=(impRes.body.data&&impRes.body.data.logs)||[];
-    // 队伍 + 成绩
-    S.teams=[];S.scores={};
-    var teamReqs=events.map(function(ev){return backendFetch('/events/'+ev.id+'/teams?limit=10000');});
-    return Promise.all(teamReqs).then(function(teamRs){
-      var scoreReqs=[];
-      teamRs.forEach(function(tr,idx){
-        var ev=events[idx];
-        var teams=(tr.body.data&&tr.body.data.teams)||[];
-        teams.forEach(function(t){
-          // 后端 Team 字段名：id / event_id / team_no / name / school / coach / group_code / status / members / source
-          var tm={id:'tm_'+t.id, eventId:ev.id, no:t.team_no||t.no, name:t.name, school:t.school||'', coach:t.coach||'', group:t.group_code||t.group, members:t.members||'', status:t.status||'active', source:t.source||'api'};
-          S.teams.push(tm);
-          scoreReqs.push({req:backendFetch('/teams/'+t.id+'/scores?limit=10'),teamId:tm.id});
-        });
-      });
-      return Promise.all(scoreReqs.map(function(x){return x.req.then(function(r){return {teamId:x.teamId,res:r};});}));
-    }).then(function(scoreRs){
-      scoreRs.forEach(function(item){
-        var recs=(item.res.body.data&&item.res.body.data.scores)||[];
-        var best=null;
-        recs.forEach(function(r){
-          var tm=S.teams.find(function(t){return t.id===item.teamId;});
-          var ev=tm?events.find(function(e){return e.id===tm.eventId;}):null;
-          var rec={tasks:r.task_values||{},time:r.duration_sec||0,yellow:r.yellow||0,red:r.red||0,signed:!!r.signed};
-          var total=ev?computeTotal(ev,rec).total:0;
-          if(!best || total>best.total || (total===best.total && rec.time<best.time)){
-            best={tasks:r.task_values||{},time:rec.time,yellow:rec.yellow,red:rec.red,signed:rec.signed};
-          }
-        });
-        if(best)S.scores[item.teamId]=best;
-      });
-      saveLocalOnly();setBackendStatus('online','已加载');render();
-    });
-  }).catch(function(e){
-    setBackendStatus('offline','后端不可达，使用本地数据');
-  }).finally(function(){backendBusy=false;});
-}
-
 function saveLocalOnly(){if(readonlyGuard())return;try{localStorage.setItem(ckey(CUR_CONTEST),JSON.stringify(S));}catch(e){}}
-
-function toggleBackendMode(){
-  backendMode=!backendMode;saveBackendMode();
-  if(backendMode){loadFromBackend();}else{setBackendStatus('offline','已关闭后端连接');render();}
-}
-function refreshBackend(){if(backendMode)loadFromBackend();}
-function backendHealthCheck(){
-  backendFetch('/healthz',{timeout:3000}).then(function(r){
-    if(r.ok && r.body && r.body.code===0 && r.body.data && r.body.data.database==='ok'){
-      if(backendMode && !backendBusy)setBackendStatus('online','');
-    }else{
-      if(backendMode)setBackendStatus('error','健康检查异常');
-    }
-  }).catch(function(){if(backendMode)setBackendStatus('offline','后端不可达');});
-}
-
 /* ---------- 计分引擎（替代原 Excel 公式，对应引擎改造设计 compute_total） ---------- */
 function getInputItems(ev){
   var items=(ev.tasks||[]).map(function(t){return clone(t);});
@@ -1354,12 +1111,11 @@ function sidebar(){
   return '<aside class="side">'+
     '<div class="brand"><div class="dot">N</div><div><b>NeuroMaster</b><span>赛事统分后台</span></div></div>'+
     nav+
-    '<div class="foot">当前赛事<br><b style="color:#c7d3e3">'+esc(contestName(CUR_CONTEST))+'</b><br>值守 '+esc(staffLabel(CUR_CONTEST))+'<br>'+(backendMode?'已启用后端连接<br>数据优先来自服务端<br>断网自动使用本地缓存':'离线可用<br>数据存本机浏览器')+'<br><br>单文件 · 零依赖</div>'+
+    '<div class="foot">当前赛事<br><b style="color:#c7d3e3">'+esc(contestName(CUR_CONTEST))+'</b><br>值守 '+esc(staffLabel(CUR_CONTEST))+'<br><br>单文件 · 零依赖</div>'+
   '</aside>';
 }
 function topbar(){
   var titles={contests:'赛事管理（一场赛事一份数据 · 隔离与归档）',control:'跨赛事 · 并行总控（只读汇总，不切当前赛事）',crossrank:'跨赛事 · 跨赛事汇总榜（多场成绩对照）',dash:'总览（开赛就绪度 · 赛项状态）',events:'赛项与规则配置',seats:'赛台与赛程编排',teams:'队伍与报名 · 队伍管理',import:'队伍与报名 · WRC 报名导入',referees:'裁判与排班 · 裁判档案与裁判码',duty:'裁判与排班 · 执裁排班（赛台 × 时段 × 人）',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',lock:'锁定与发布 · 成绩锁定与解锁（赛项 × 组别 · 双锁）',watch:'处理进度看板（告警收件箱 + 改分 / 争议台账 · 只读看板）',dq:'锁定与发布 · 资格与递补（取消资格登记 + 递补）',evidence:'留底证据库（服务端那一端）',publish:'锁定与发布 · 公示与导出',roles:'合规 · 角色与权限',audit:'合规 · 全操作审计'};
-  var refreshBtn=backendMode?'<button class="btn sm" onclick="refreshBackend()" '+(backendBusy?'disabled':'')+'>刷新</button>':'';
   var contestPicker='<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;margin:0">'+
     '<span class="muted">赛事</span>'+
     '<select onchange="switchContest(this.value)" style="width:auto;min-width:230px;max-width:320px" title="切换赛事 = 切换整套数据（队伍 / 成绩 / 规则 / 留底 / 审计）">'+
@@ -1368,7 +1124,6 @@ function topbar(){
   return '<div class="top">'+
     '<h1>'+titles[VIEW]+'</h1>'+
     contestPicker+
-    refreshBtn+
     '<span class="pill" style="background:#eefaf1;border-color:#bfe8cc;color:#1f7a45">当前登录 '+esc(currentUser().name)+' · '+roleName(currentUser().role)+'</span>'+
     '<span class="sp"></span>'+
     '<button class="btn sm" onclick="exportConfig()">导出配置文件</button>'+
@@ -2226,7 +1981,6 @@ function eventForm(ev){
     '<div class="row" style="margin-top:6px">'+
       '<button class="btn primary" onclick="doValidate()">校验配置</button>'+
       '<button class="btn" onclick="exportEvent()">导出该赛项 JSON</button>'+
-      (backendMode?'<button class="btn" onclick="backendPushEvent()" '+(backendBusy?'disabled':'')+'>保存到后端</button>':'')+
       '<span class="small muted">当前版本不开放自定义公式（如需评估请联系技术）</span>'+
     '</div>'+
     '<div class="vres" id="vres"></div>';
@@ -2863,7 +2617,6 @@ function viewTeams(){
   '<div class="card"><h2>队伍列表 <small>按赛项筛选</small></h2>'+
     '<div class="row" style="margin-bottom:10px"><select style="max-width:220px" onchange="selTeamEvent(this.value)">'+opts+'</select>'+
       '<span class="small muted">共 '+tms.length+' 支队伍</span>'+
-      (backendMode?'<button class="btn sm" onclick="backendPushTeams()" '+(backendBusy?'disabled':'')+'>推送队伍到后端</button>':'')+
     '</div>'+
     '<table><thead><tr><th>编号</th><th>队伍 / 成员</th><th>学校</th><th>教练</th><th>组别</th><th>状态</th><th>来源</th><th>进度</th><th></th></tr></thead>'+
     '<tbody>'+(rows||'<tr><td colspan="9" class="muted">该赛项暂无队伍</td></tr>')+'</tbody></table>'+
@@ -4070,7 +3823,6 @@ function viewSeats(){
   return '<div class="card"><h2>赛台配置 <small>数量由工作人员按参赛人数自行配置；同一赛台可跨时段、跨赛项复用</small></h2>'+
       '<div class="row" style="margin-bottom:10px">'+
         '<button class="btn primary sm" onclick="addSeat()">+ 添加赛台</button>'+
-        (backendMode?'<button class="btn sm" onclick="backendPushSchedule()" '+(backendBusy?'disabled':'')+'>推送赛台赛程到后端</button>':'')+
       '</div>'+
       '<div class="grid g12">'+
         '<div><div class="list">'+(seatList||'<div class="hint" style="padding:10px">暂无赛台</div>')+'</div></div>'+
@@ -5063,7 +4815,7 @@ function onStorageChange(e){
     CUR_CONTEST=keep;writeTabCur(keep);
   }else{
     var nx=(CONTESTS[0]||{}).id||'';
-    if(nx){CUR_CONTEST=nx;writeTabCur(nx);S=loadContest(nx);loadLastSyncAt();
+    if(nx){CUR_CONTEST=nx;writeTabCur(nx);S=loadContest(nx);
       alert('本标签原赛事已被其他标签删除，已自动切换到「'+contestName(nx)+'」。');}
   }
   if(VIEW==='contests'||VIEW==='dash')render();
@@ -5073,10 +4825,8 @@ if(typeof window!=='undefined' && window.addEventListener)window.addEventListene
 /* ---------- 启动 ---------- */
 loadContests();
 S=loadContest(CUR_CONTEST);
-loadLastSyncAt();
+
 render();
-if(backendMode){loadFromBackend();}
-setInterval(backendHealthCheck,30000); // 每 30 秒检测后端健康
 </script>
 </body>
 </html>
