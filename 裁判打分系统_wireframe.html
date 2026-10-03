@@ -101,6 +101,8 @@
   .two-col > div { flex: 1; }
   .legend { display: flex; gap: 18px; justify-content: center; margin: 30px auto; font-size: 13px; color: #555; flex-wrap: wrap; }
   .legend b { color: #2b6cb0; }
+  @keyframes endToastIn { from { transform: translateX(40px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+  @keyframes endToastPulse { 0%,100% { box-shadow: 0 14px 36px rgba(229,62,62,.45); } 50% { box-shadow: 0 18px 52px rgba(229,62,62,.8); } }
 </style>
 </head>
 <body>
@@ -158,6 +160,7 @@
             <div class="qrow"><span>身份</span><span style="font-weight:bold;">裁判 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（后台人员档案 · 裁判长登录时为「裁判长」）</span></span></div>
             <div class="qrow"><span>赛项</span><span style="font-weight:bold; color:#2b6cb0;">脑机星球 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
             <div class="qrow"><span>组别</span><span style="font-weight:bold; color:#2b6cb0;">小学组 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
+            <div class="qrow"><span>显示字号</span><span class="seg" style="gap:4px;"><span class="on" style="padding:2px 10px; font-size:12px;">中</span><span style="padding:2px 10px; font-size:12px;">小</span><span style="padding:2px 10px; font-size:12px;">大</span></span></div>
             <div class="qrow" style="border-bottom:none;"><span>赛台</span><span style="font-weight:bold; color:#2b6cb0;">A 赛台 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
           </div>
           <div style="display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;">
@@ -176,6 +179,7 @@
     <span class="num">4</span> <b>按绑定过滤</b>：进入 R2 后仅展示该裁判绑定的 赛项×组别×赛台 下队伍（数据域精确到赛台，裁判只见本赛台队列），不存在“走错赛台”需拦截的场景。<br>
     <span class="num">5</span> <b>校验失败按类型分两页</b>：裁判码/姓名与备案不符时不进入本页，而是按失败类型跳转到独立页——<b>裁判码无效 → P1.5b</b>、<b>姓名与裁判码不匹配 → P1.5c</b>（见下页）；成功与失败是互斥的完整页面，不在本页内上下堆叠。<br>
     <span class="num">6</span> <b>按身份分流（拆为 P1.5 / P1.6 两页）</b>：普通裁判与裁判长是两个互斥的完整登录成功页——<b>P1.5 普通裁判</b>（身份＝「裁判」、主按钮「进入当前比赛 →」直达 P2）、<b>P1.6 裁判长</b>（身份＝「裁判长」、主按钮「进入当前比赛 →」直达 P2，比赛内可切「管理权限」页签）。二者卡片结构相同，仅身份取值与主按钮不同；由后台人员档案的身份字段决定落哪一页，不像 P1.5b（校验失败）那样作为分支，而是各自独立成页。
+    <span class="num">7</span> <b>显示字号（设备级一次性设置）</b>：本页「显示字号 小 / 中 / 大」控制全册裁判端字体缩放，默认「中」；裁判按本人平板清晰度与阅读习惯设置一次，进入执裁后全局生效（打分页 / 队列 / 裁定台均随此缩放）。仅影响显示、不改任何成绩数据。<br>
   </div>
 </div>
 
@@ -196,13 +200,14 @@
             <div class="qrow"><span>身份</span><span style="font-weight:bold; color:#805ad5;">裁判长</span></div>
             <div class="qrow"><span>赛项</span><span style="font-weight:bold; color:#2b6cb0;">脑机星球 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
             <div class="qrow"><span>组别</span><span style="font-weight:bold; color:#2b6cb0;">小学组 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
+            <div class="qrow"><span>显示字号</span><span class="seg" style="gap:4px;"><span class="on" style="padding:2px 10px; font-size:12px;">中</span><span style="padding:2px 10px; font-size:12px;">小</span><span style="padding:2px 10px; font-size:12px;">大</span></span></div>
             <div class="qrow" style="border-bottom:none;"><span>赛台</span><span style="font-weight:bold; color:#2b6cb0;">A 赛台 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
           </div>
           <div style="display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;">
             <span class="btn-gray">← 返回修改</span>
             <span class="btn-primary btn-lg">进入当前比赛 →</span>
           </div>
-          <div style="font-size:12px; color:#a0aec0; margin-top:12px;">身份依后台人员档案取值：本卡为 <b style="color:#718096;">裁判长态</b>。主按钮「进入当前比赛 →」直达 <b>P2 当前比赛页</b>，比赛内默认停在「执裁」页签，可切换至「裁判长终核与监管权限」视图（涵盖争议裁定、改分授权、成绩锁定/解锁、发布前确认，详见 P7 / P7b）；若登录为普通裁判，则身份显示「裁判」、主按钮同为「进入当前比赛 →」直达 P2（见 P1.5）。</div>
+          <div style="font-size:12px; color:#a0aec0; margin-top:12px;">身份依后台人员档案取值：本卡为 <b style="color:#718096;">裁判长态</b>。主按钮「进入当前比赛 →」直达 <b>P2 当前比赛页</b>，比赛内默认停在「执裁」页签，可切换至「裁判长终核与监管权限」视图（涵盖争议裁定、改分授权、发布前确认，详见 P7 / P7b）；若登录为普通裁判，则身份显示「裁判」、主按钮同为「进入当前比赛 →」直达 P2（见 P1.5）。</div>
         </div>
       </div>
     </div>
@@ -210,8 +215,9 @@
   <div class="note">
     <span class="num">1</span> <b>裁判长 = 裁判超集</b>：登录方式（姓名+裁判码）与执裁体验与普通裁判完全相同，默认停在「执裁」、无需提权即可直接顶岗打分（见 P7）。<br>
     <span class="num">2</span> <b>工作台入口</b>：本页主按钮「进入当前比赛 →」直达 P2，裁判长可在比赛内切「管理权限」页签进 P7；普通裁判入口同为 P1.5「进入当前比赛 →」直达 P2。两者按后台人员档案的身份字段分流，P1.5（普通裁判）/ P1.6（裁判长）为两个互斥的完整登录成功页。<br>
-    <span class="num">3</span> <b>「裁判长终核与监管权限」</b>：即 P7b 视图下的 4 项能力——① 争议裁定（→ P8 裁定台）、② 改分授权（→ P9 改分审批）、③ 成绩锁定/解锁（→ P10）、④ 发布前确认（→ P11，发布由工作人员在后台执行）。发布键不在裁判长手里。<b>范围界定</b>：上方卡片预绑的是<b>执裁范围</b>（赛项 × 组别 × 赛台，只管本站）；而本权限的<b>管理范围＝整个赛事（全赛项）</b>——P9 / P10 顶栏即写「全赛项」，争议与改分可跨赛项处理。两者是「执裁归属」与「管理职责」两个维度，并不冲突。<br>
+    <span class="num">3</span> <b>「裁判长终核与监管权限」</b>：即 P7b 视图下的 4 项能力——① 争议裁定（→ P8 裁定台）、② 改分授权（→ P9 改分审批）、④ 发布前确认（→ P11，发布由工作人员在后台执行）。发布键不在裁判长手里。<b>范围界定</b>：上方卡片预绑的是<b>执裁范围</b>（赛项 × 组别 × 赛台，只管本站）；而本权限的<b>管理范围＝整个赛事（全赛项）</b>——P9 顶栏即写「全赛项」，争议与改分可跨赛项处理。两者是「执裁归属」与「管理职责」两个维度，并不冲突。<br>
     <span class="num">4</span> <b>与普通裁判的差异仅一处入口</b>：裁判长比普通裁判多出顶部「执裁 / 管理权限」页签切换；执裁界面（轮次、队列、计时、搜索）与 P2 逐字一致，不另造界面。
+    <span class="num">5</span> <b>显示字号（同 P1.5 note 7）</b>：本页同样提供「显示字号 小 / 中 / 大」设备级设置，与 P1.5 同源、默认「中」，进入执裁后全册生效。<br>
   </div>
 </div>
 
@@ -366,7 +372,7 @@
     <span class="num">2</span> <b>计时器内嵌</b>：用时直接从计时器取数，裁判无需手填，杜绝笔误；<b>全赛项均不设时间奖励</b>——时间不计入分数，仅作为排名维度（<b>总分相同时</b>先用时升序、再用时相同比黄牌少）。<br>
     <span class="num">3</span> <b>队列透明</b>：完整候场队列撑满一屏，已完成 / 比赛中 / 候场一眼可辨，裁判与检录台信息一致，跳号时可发现异常。「第 1 轮」列显示的是该队<b>当前生效成绩</b>（改分批准后随之刷新），与 P2b / P2e 同源，不是「提交时的旧值」。<br>
     <span class="num">4</span> <b>页不空置</b>：队列随 24 队全量展示（第 15–24 顺位在卡内滚动），底部不再留大片空白，且当前队高亮常驻视线中心。<br>
-    <span class="num">5</span> <b>对抗变体（未来之城）</b>：队列对象变为“场次”——当前上场卡展示 A / B 两队并排信息 + 共用计时（同见 P5.6 双侧计分板）；整场提交后才切下一场。<br>
+    <span class="num">5</span> <b>对抗变体（未来之城）</b>：队列对象变为“场次”——当前上场卡展示 A / B 两队并排信息 + A、B 各自独立计时（各记各的，同见 P5.6 双侧计分板）；整场提交后才切下一场。<br>
     <span class="num">6</span> <b>边界态（首 / 末队）</b>：当前为顺位 1 时「上一队」按钮置灰禁用并标注“已是首队”；当前为末位（顺位 24）时「下一队」置灰禁用并标注“已是末队”——按钮始终可见、不隐藏，让用户感知到导航边界；“第 X 顺位 / 共 24 队”徽标同步反映真实顺位。<br>
     <span class="num">7</span> <b>搜索框 = 非顺序跳转入口</b>：输入即实时筛选本赛台队列（按队伍编号 / 名称匹配，命中行高亮）；补赛（迟到队）、重赛 / 申诉复核（已完成队）、跳退赛队均经搜索定位后点命中行即载入该队打分表——是自动轮转之外的手动入口。<br>
     <span class="num">8</span> <b>轮次感知（两轮制）</b>：顶部“第 1 轮 / 第 2 轮”分段控件切换，同页面复用，队列、成绩列、当前队指针均按轮独立；第 1 轮全部提交完成前第 2 轮锁定不可切；第 1 轮末队提交后弹“第 1 轮已全部完成，是否开始第 2 轮？”确认即切轮并把指针重置回首队（T-001）重打。与 S 端“轮次：全部 / 第 1 轮 / 第 2 轮”筛选概念一致。<br>
@@ -431,7 +437,7 @@
               <span style="font-size:22px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">620 <span style="color:#38a169; font-size:14px;">（+150）</span></span>
             </div>
             <div class="qrow"><span style="color:#718096;">改分原因（<b style="color:#c53030;">必填</b>）</span><span style="font-size:12px; color:#a0aec0;">如：任务③ 矿石运输漏记 1 颗，复核后补记 +150</span></div>
-            <div class="qrow" style="font-size:12px; color:#718096;"><span>用时（<b>不可改</b>）</span><span>02:41 不变 · 计时器自动取数、裁判不手填</span></div>
+            <div class="qrow" style="font-size:12px; color:#718096;"><span>用时（<b>可改 · 改分模式专属</b>）</span><span>02:41 → 可修正 · 须填原因并随本单审批（原值由计时器带出）</span></div>
             <div class="qrow" style="border-bottom:none; font-size:12px;"><span style="color:#718096;">判罚记录（<b style="color:#2b6cb0;">可改</b> · 随本单审批）</span><span>🚩 黄牌 ×1 · 红牌 ×0 &nbsp;<span style="color:#c05621; font-weight:bold; cursor:pointer;">记犯规 →</span></span></div>
           </div>
         </div>
@@ -451,7 +457,7 @@
     <span class="num">3</span> <b>二段式生效（关键）</b>：点「提交改分申请 →」<b>只生成申请单 R-00X</b>，成绩不变；须裁判长在 <b>P9 改分审批</b>「批准并留痕」后才写入正式成绩——避免裁判单方改分。<br>
     <span class="num">4</span> <b>旧值 → 新值 diff 全程可见</b>：页面常驻显示「原 470 → 改后 620（+150）」，与 P9 审批端的 diff 同源，审批人核对的是同一组数。<br>
     <span class="num">5</span> <b>原因必填 + 防重复提交</b>：改分原因不填不能提交；<b>同队同轮存在未结单（待审批）时不允许再提</b>，防止重复申请把分数改乱——被拦时的完整呈现单独成页，见 <b>P2d 拦截态</b>。<br>
-    <span class="num">6</span> <b>不计分项分两类处理</b>：<b>用时不可改</b>（计时器自动取数、裁判不手填）；<b>黄 / 红牌可改</b> —— 底部新增「🚩 记犯规」入口，改牌只动留痕与排名、<b>不动分数</b>。<br>
+    <span class="num">6</span> <b>不计分项分两类处理</b>：<b>用时可改（仅改分模式允许）</b>——裁判可修正、须填原因并随本单审批，原值由计时器带出；<b>黄 / 红牌可改</b> —— 底部新增「🚩 记犯规」入口，改牌只动留痕与排名、<b>不动分数</b>。<br>
     <span class="num">7</span> <b>下游联动</b>：授权后按该队绑定版本<b>自动重算排名</b>；若该赛项已发布，会触发 P11 的<b>常驻重发提示</b>（对外公示页须由工作人员重新发布）。<br>
     <span class="num">8</span> <b>任务项 = 赛项规则配置下发</b>：本页任务集与分值<b>不是本页自造</b>，而是与 <b>P3 脑机星球 V6.2</b> 打分页<b>同一套配置</b>（规则模板表驱动）——回到该队改分时，任务名、分值、录入控件与原打分页<b>逐字一致</b>，裁判改的是同一批题目，避免“改分页换了另一套题目”造成口径混乱。
     <span class="num">9</span> <b>提交后反馈（闭环可见）</b>：点「提交改分申请 →」后顶部滑入「✓ 已提交 · 待审批 R-00X」成功条，<b>2 秒自动回跳 P2 队列</b>；该单在 <b>P2「我的申请」面板</b>可查审批进度与撤回（见 P2 note 11）—— <b>队列行不做任何标记</b>（完整呈现单独成页，见 <b>P2c 已提交态</b>）。不再有“点了没反应 / 不知道提交没”的黑洞。<br>
@@ -635,7 +641,7 @@
 <!-- ============ P2e2 成绩回看 · 已作废（只读） ============ -->
 <div class="page">
   <div class="page-title">P2e2 · 成绩回看（<b>已作废</b> · 只读 · 从 P2 队列已作废行点「查看」进入）</div>
-  <div class="page-desc">已在 <b>P8c 裁定台</b>被判定<b>取消资格</b>的队伍成绩单：<b>全页只读且置灰</b>、仅作<b>留痕查阅</b>；成绩构成仍完整保留（供现场答疑与事后追溯），但外层明确标注<b>不进榜单、不计奖项</b>，且<b>不提供「改分」入口</b>（成绩已作废、无可修正）</div>
+  <div class="page-desc">已在 <b>P8c 裁定台</b>被判定<b>取消资格</b>的队伍成绩单：<b>全页只读且置灰</b>、仅作<b>留痕查阅</b>；成绩构成仍完整保留（供现场答疑与事后追溯），但外层明确标注<b>不进榜单</b>，且<b>不提供「改分」入口</b>（成绩已作废、无可修正）</div>
   <div class="tablet">
     <div class="appbar"><span>⛓ 赛台 A · T-012 星海队 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px; color:#fed7d7;">⏱ 已结束 · 用时 02:47</span><span style="font-size:13px; font-weight:bold; background:#fed7d7; color:#c53030; border-radius:6px; padding:3px 12px;">⛔ 成绩作废</span></span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
     <div class="screen">
@@ -643,9 +649,9 @@
         <div class="scroll-area">
           <div class="card" style="margin-bottom:12px; background:#fff5f5; border-color:#c53030;">
             <div style="font-size:13px; color:#c53030;">
-              <b>⛔ 成绩作废</b>：该队已在 <b>P8c 裁定台</b>被判定<b>取消资格</b>（裁定单 <b>D-002</b>），本队第 1 轮<b>全部成绩作废</b> —— <b>不进榜单、不计奖项</b>。下方成绩单仅作<b>留痕查阅</b>，正式成绩区置灰、签名状态标注「已作废」。
+              <b>⛔ 成绩作废</b>：该队已在 <b>P8c 裁定台</b>被判定<b>取消资格</b>（裁定单 <b>D-002</b>），本队第 1 轮<b>全部成绩作废</b> —— <b>不进榜单</b>。下方成绩单仅作<b>留痕查阅</b>，正式成绩区置灰、签名状态标注「已作废」。
             </div>
-            <div style="font-size:12px; color:#9b2c2c; margin-top:6px;">该轮<b>两份冲突记录（750 / 850）一并作废</b>；榜单位次顺延与奖项调整由工作人员在后台处理，并触发 <b>P11 重发提示</b>。</div>
+            <div style="font-size:12px; color:#9b2c2c; margin-top:6px;">该轮<b>两份冲突记录（750 / 850）一并作废</b>；榜单位次顺延由工作人员在后台处理，并触发 <b>P11 重发提示</b>。</div>
           </div>
           <div class="card" style="margin-bottom:8px; background:#f7fafc;">
             <div class="t-name" style="color:#718096;">① 成功放落能源仓 <span class="pts" style="color:#a0aec0">成功 +100</span></div>
@@ -688,7 +694,7 @@
               <div style="width:66px; height:52px; border:1px solid #cbd5e0; border-radius:6px; background:#edf2f7; display:flex; align-items:center; justify-content:center; font-size:10px; color:#a0aec0; flex-shrink:0; text-align:center; line-height:1.4;">📷<br>提交留底</div>
               <div style="flex:1; font-size:11px; color:#4a5568; line-height:1.7;"><b>证据三件 · 提交时自动生成</b><br><span style="font-family:Consolas,monospace; color:#718096;">T-012_R1_1231.jpg</span> 等 &nbsp;<span style="background:#c6f6d5; color:#22543d; padding:1px 6px; border-radius:8px; font-size:10px;">已同步</span></div>
             </div>
-            <div style="margin-top:8px; font-size:11px; color:#a0aec0;">↑ <b>作废不抹除证据</b>：三件仍完整留存（断网也留存、联网自动补传），作废只改「计不计入排名与奖项」，不改证据是否留存——与 P2e / P8 证据层同源。</div>
+            <div style="margin-top:8px; font-size:11px; color:#a0aec0;">↑ <b>作废不抹除证据</b>：三件仍完整留存（断网也留存、联网自动补传），作废只改「是否计入排名」，不改证据是否留存——与 P2e / P8 证据层同源。</div>
           </div>
         </div>
         <div class="action-bar">
@@ -700,11 +706,11 @@
   </div>
   <div class="note">
     <span class="num">1</span> <b>与 P2e 的分工</b>：<b>P2e</b>＝正常已完成队的只读成绩单（底部可点「改分 →」发起修正）；<b>本页</b>＝已被取消资格队伍的只读成绩单（<b>无改分入口</b>）。两页是基础编号 <b>P2e 的两个互斥态</b>，沿用本册「互斥态各成一页」约定（同 P8 / P8b / P8c、P5.8 / P5.8b / P5.8c / P5.8d）。<br>
-    <span class="num">2</span> <b>为什么还保留成绩构成</b>：<b>作废 ≠ 抹除</b>。成绩单仍逐项完整展示，供现场答疑、事后追溯与审计复核；只是外层明确标注「不进榜单、不计奖项」，并把正式成绩区置灰 + 删除线。<br>
+    <span class="num">2</span> <b>为什么还保留成绩构成</b>：<b>作废 ≠ 抹除</b>。成绩单仍逐项完整展示，供现场答疑、事后追溯与审计复核；只是外层明确标注「不进榜单」，并把正式成绩区置灰 + 删除线。<br>
     <span class="num">3</span> <b>为什么没有「改分」入口</b>：取消资格<b>不可撤销</b>（见 P8c note 2），成绩已作废、无可修正——留着入口只会让人以为还能救，点进去反而走不通。故本页只保留「← 返回队列」一个出口。<br>
     <span class="num">4</span> <b>作废依据与示例</b>：本页的作废依据是<b>已裁定的争议工单 D-002</b>（T-012 星海队 · 重复打分 → 裁定「取消资格」）；而 <b>P8c 裁定台</b>展示的是<b>当前待裁定的 D-003</b>（T-005 飞向蓝天队）—— 两者是同一条「<b>重复打分 → 取消资格</b>」链的两个实例，结构完全一致。P2 / P7 队列中 T-012 行的队名后也标红「（成绩作废）」，与 P2e2（本页）对应。<br>
     <span class="num">5</span> <b>入口</b>：P2 / P7 队列中<b>队名后标红「（成绩作废）」</b>的行，点「查看」进本页（正常已完成队仍进 <b>P2e</b>，该行不提供「改分」）。<br>
-    <span class="num">6</span> <b>下游</b>：作废后榜单位次顺延、奖项名单调整与递补由<b>工作人员在后台</b>执行，并触发 <b>P11</b> 的常驻重发提示；本册链路到「作废 + 留痕 + 触发重发提示」为止（见 P8c note 7）。
+    <span class="num">6</span> <b>下游</b>：作废后榜单位次顺延与递补由<b>工作人员在后台</b>执行，并触发 <b>P11</b> 的常驻重发提示；本册链路到「作废 + 留痕 + 触发重发提示」为止（见 P8c note 7）。
   </div>
 </div>
 
@@ -819,7 +825,7 @@
               <div style="border:2px dashed #2b6cb0; border-radius:8px; height:90px; color:#718096; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 王老师 手写签名</div>
             </div>
           </div>
-          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台）。</div>
+          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误。<b>提交硬闸</b>：<b>选手代表 + 裁判</b>两方签名齐全前，「提交成绩 →」按钮<b>置灰禁用</b>，缺一不可提交；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台；本册不提供"撤销提交"，改用 P11 重发提示）。</div>
         </div>
         </div>
         <div class="action-bar">
@@ -899,7 +905,7 @@
               <div style="border:2px dashed #2b6cb0; border-radius:8px; height:90px; color:#718096; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 王老师 手写签名</div>
             </div>
           </div>
-          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台）。</div>
+          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误。<b>提交硬闸</b>：<b>选手代表 + 裁判</b>两方签名齐全前，「提交成绩 →」按钮<b>置灰禁用</b>，缺一不可提交；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台；本册不提供"撤销提交"，改用 P11 重发提示）。</div>
         </div>
         </div>
         <div class="action-bar">
@@ -968,7 +974,7 @@
               <div style="border:2px dashed #2b6cb0; border-radius:8px; height:90px; color:#718096; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 王老师 手写签名</div>
             </div>
           </div>
-          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台）。</div>
+          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误。<b>提交硬闸</b>：<b>选手代表 + 裁判</b>两方签名齐全前，「提交成绩 →」按钮<b>置灰禁用</b>，缺一不可提交；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台；本册不提供"撤销提交"，改用 P11 重发提示）。</div>
         </div>
         </div>
         <div class="action-bar">
@@ -986,7 +992,7 @@
     <span class="num">1</span> <b>tab 分步录入</b>：自动阶段 / 手动阶段任务分开展示，避免裁判在错误阶段误录；点「手动阶段」tab 即切换展示该阶段任务集（<b>该状态见 P5.5</b>），底部按钮随之变为「提交成绩 →」。<br>
     <span class="num">2</span> <b>未来之城共四态，本页是第 1 个</b>：按「<b>页面绑视图、tab 绑阶段</b>」拆分——<b>单队</b>（演练 / 排位）：<b>P5</b> 自动阶段态 → <b>P5.5</b> 手动阶段态；<b>双队对抗</b>：<b>P5.6</b> 自动阶段态 → <b>P5.7</b> 手动阶段态。四个态共用同一份页面组件与同一套后台配置，差异只在「视图」与「当前选中阶段」。<br>
     <span class="num">3</span> <b>判罚不计分</b>：底部“🚩 记犯规”<b>浮出记犯规弹窗（P5.8）</b>，黄牌 / 红牌只作记录与留痕、<b>不扣分</b>；事由清单由工作人员后台按赛项配置（未来之城的可判罚行为与其余赛项不同）。<br>
-    <span class="num">4</span> <b>单队同样走双阶段</b>：本页与 P5.6 对抗板<b>共用同一套阶段任务与后台配置</b>（自动阶段刷色卡 / 手动阶段手柄），仅少了“双队并排 + 共用计时”；阶段切换、阶段小计逻辑完全一致，便于裁判在演练 / 排位与正式对抗间无缝切换。<br>
+    <span class="num">4</span> <b>单队同样走双阶段</b>：本页与 P5.6 对抗板<b>共用同一套阶段任务与后台配置</b>（自动阶段刷色卡 / 手动阶段手柄），仅少了“双队并排 + A、B 各自独立计时（各记各的）”；阶段切换、阶段小计逻辑完全一致，便于裁判在演练 / 排位与正式对抗间无缝切换。<br>
     <span class="num">5</span> <b>时间不计入分数、仅用于排名</b>：<b>全赛项均不设时间奖励</b>（时间不在打分页加分）；整场用时作为<b>排名维度</b>——排名规则（全赛项通用）：<b>按总分降序</b>；<b>总分相同</b>再比整场用时升序（用时少者靠前），再用时相同比<b>黄牌数少者靠前</b>，仍相同则<b>并列</b>（完整规则见 P11 公示页）。<br>
     <span class="num">6</span> <b>任务区占满剩余空间 + 内部滚动，底部操作栏固定</b>：内容区（任务卡）自动占满 appbar 与底部操作栏之间的全部剩余高度，任务超出即在<b>内容区内滚动</b>；「← 返回队列 / 🚩 记犯规 / 保存并继续」三个按钮<b>固定在底部操作栏</b>，不随任务多少上下浮动——任务再多也不需要滑到底找提交入口（P3 / P4 / P5.5–P5.7 同一范式）。
   </div>
@@ -1049,7 +1055,7 @@
               <div style="border:2px dashed #2b6cb0; border-radius:8px; height:90px; color:#718096; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 王老师 手写签名</div>
             </div>
           </div>
-          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台）。</div>
+          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误。<b>提交硬闸</b>：<b>选手代表 + 裁判</b>两方签名齐全前，「提交成绩 →」按钮<b>置灰禁用</b>，缺一不可提交；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台；本册不提供"撤销提交"，改用 P11 重发提示）。</div>
         </div>
         </div>
         <div class="action-bar">
@@ -1075,9 +1081,9 @@
 <!-- ============ P5.6 未来之城双侧计分板（对抗同场） ============ -->
 <div class="page">
   <div class="page-title">P5.6 · 双侧计分板（未来之城 V7.3 · <b>自动阶段态</b> · A vs B）</div>
-  <div class="page-desc">V7.3 双队对抗同场模式 — 同场次 A vs B 共场竞技，<b>双阶段赛制</b>（自动阶段 ⏱02:00 / 手动阶段 ⏱01:45），共用阶段计时、双队得分独立按阶段累加；本页只打分 + 记牌 + 提交，<b>页底设签名区</b>（A / B 两队选手代表 + 裁判各一处）</div>
+  <div class="page-desc">V7.3 双队对抗同场模式 — 同场次 A vs B 共场竞技，<b>双阶段赛制</b>（自动阶段 ⏱02:00 / 手动阶段 ⏱01:45），A、B 各自独立计时（各记各的）、双队得分独立按阶段累加；本页只打分 + 记牌 + 提交，<b>页底设签名区</b>（A / B 两队选手代表 + 裁判各一处）</div>
   <div class="tablet">
-    <div class="appbar"><span>⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮 · 场次 C-3（A vs B）</span><span style="display:inline-flex; align-items:center; gap:8px; background:#c6f6d5; color:#22543d; border-radius:8px; padding:6px 12px; font-weight:bold; margin-right:10px;"><span style="font-size:13px;">⏱ 剩余</span><span style="font-size:26px; font-family:Consolas,monospace; line-height:1;">03:45</span><span style="font-size:12px; font-weight:normal; opacity:0.85; margin-left:4px;">/ 总 03:45</span><span class="btn" style="font-size:11px; padding:3px 10px; background:#2b6cb0; color:#fff; border:none;">暂停</span></span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
+    <div class="appbar"><span>⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮 · 场次 C-3（A vs B）</span><span style="display:inline-flex; align-items:center; gap:8px; margin-right:10px;"><span style="display:inline-flex; align-items:center; gap:6px; background:#c6f6d5; color:#22543d; border-radius:8px; padding:4px 10px; font-weight:bold;"><span style="font-size:12px;">A ⏱</span><span style="font-size:22px; font-family:Consolas,monospace; line-height:1;">03:45</span><span style="font-size:11px; font-weight:normal; opacity:0.85; margin-left:3px;">/ 总 03:45</span><span class="btn" style="font-size:10px; padding:2px 8px; background:#2b6cb0; color:#fff; border:none; margin-left:4px;">暂停</span></span><span style="display:inline-flex; align-items:center; gap:6px; background:#e9d8fd; color:#44337a; border-radius:8px; padding:4px 10px; font-weight:bold;"><span style="font-size:12px;">B ⏱</span><span style="font-size:22px; font-family:Consolas,monospace; line-height:1;">03:45</span><span style="font-size:11px; font-weight:normal; opacity:0.85; margin-left:3px;">/ 总 03:45</span><span class="btn" style="font-size:10px; padding:2px 8px; background:#805ad5; color:#fff; border:none; margin-left:4px;">暂停</span></span></span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
     <div class="screen">
       <div class="main sheet">
         <div class="scroll-area">
@@ -1167,7 +1173,7 @@
             <div style="font-size:12px; color:#718096; margin-bottom:6px;">裁判签名</div>
             <div style="border:2px dashed #2b6cb0; border-radius:8px; height:80px; color:#718096; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 王老师 手写签名</div>
           </div>
-          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：A / B 两队成绩与判罚记录经复核无误；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台）。</div>
+          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：A / B 两队成绩与判罚记录经复核无误。<b>提交硬闸</b>：<b>A 队代表 + B 队代表 + 裁判</b>三方签名齐全前，「提交成绩 →」按钮<b>置灰禁用</b>，缺一不可提交；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台；本册不提供"撤销提交"，改用 P11 重发提示）。</div>
         </div>
         </div>
         <div class="action-bar">
@@ -1181,8 +1187,8 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>同场对抗 · 数据域隔离</b>：A / B 两队列在同一场次内并排竞技，得分各自独立累加、互不干扰；顶部“共用计时”采用<b>倒计时（剩余时间）</b>由两队共用（同场同时开赛），时间不计入分数、仅用于最终排名（先用时、再黄牌），而非各队独立计时；计时颜色随剩余变化：&gt;60s 绿 / 30–60s 黄 / &lt;30s 红闪烁，与单队打分表（P3/P4/P5）计时范式一致（参考 fllscoring）。<br>
-    <span class="num">1.1</span> <b>双阶段计时线（A / B 共用）</b>：本场走「自动阶段 ⏱02:00 → 手动阶段 ⏱01:45」两条阶段；顶部 appbar 显示<b>全场比赛倒计时（⏱ 剩余 / 总）</b>，与单队打分页（P3/P4/P5）计时范式一致，<b>不再在 appbar 设“切手动阶段”按钮</b>；<b>阶段切换由每队卡内的「自动阶段 ｜ 手动阶段」分段控件（tab 栏）完成</b>——点选即切换该队当前展示的阶段任务集；A、B 两队<b>共用同一条阶段倒计时</b>（同场同时开赛，时间不计入分数、仅用于排名）；阶段时长由工作人员后台按赛项配置（见后台「阶段配置」）。<br>
+    <span class="num">1</span> <b>同场对抗 · 数据域隔离</b>：A / B 两队列在同一场次内并排竞技，得分各自独立累加、互不干扰；顶部计时为<b>A、B 各自独立计时（各记各的）</b>——两队各持一条倒计时（剩余 / 总），分别记录本队用时，时间不计入分数、仅用于最终排名（总分相同先用时、再黄牌）；计时颜色随剩余变化：&gt;60s 绿 / 30–60s 黄 / &lt;30s 红闪烁，与单队打分表（P3/P4/P5）计时范式一致（参考 fllscoring）。<br>
+    <span class="num">1.1</span> <b>双阶段计时线（A / B 共用）</b>：本场走「自动阶段 ⏱02:00 → 手动阶段 ⏱01:45」两条阶段；顶部 appbar 显示<b>全场比赛倒计时（⏱ 剩余 / 总）</b>，与单队打分页（P3/P4/P5）计时范式一致，<b>不再在 appbar 设“切手动阶段”按钮</b>；<b>阶段切换由每队卡内的「自动阶段 ｜ 手动阶段」分段控件（tab 栏）完成</b>——点选即切换该队当前展示的阶段任务集；A、B 两队<b>各持一条独立阶段倒计时（各记各的）</b>（同场同时开赛，时间不计入分数、仅用于排名）；阶段时长由工作人员后台按赛项配置（见后台「阶段配置」）。<br>
     <span class="num">1.2</span> <b>每队卡内分段控件 + 阶段小计</b>：每队计分卡顶部有「自动阶段 ｜ 手动阶段」分段控件，点选即切换该队当前展示的阶段任务集；每个阶段块右上角显示<b>阶段小计</b>（该阶段任务得分之和）；原石搬运、火种运输等归自动阶段，投射火种 / 能源球等归手动阶段；卡头小字「本队总分」+ 大号分数 = 自动小计 + 手动小计；<b>两个 tab 状态均省略卡内底部「自动小计 ＋ 手动小计 ＝ 本队总计」构成行</b>，总分只由卡头「本队总分」一处呈现（自动阶段态 P5.6 手动小计为 0、手动阶段态 P5.7 手动小计非 0，均只在卡头展示合计值），避免裁判把“0”误读为漏打，也避免与卡头数字重复。<br>
     <span class="num">2</span> <b>本页设签名位（A / B 选手代表 + 裁判）</b>：V7.3 要求 A、B 两队各一名选手代表签字；本页打分卡底部即设签名区——<b>A 队选手代表 + B 队选手代表 + 本场裁判</b>各签一处，签名即对各队<b>成绩与判罚</b>无异议，与 P3/P4/P5 单队打分页（选手代表 + 裁判各一处）同一范式。<br>
     <span class="num">3</span> <b>本页 vs P5 的边界</b>：P5 是未来之城「单队」标准打分表（单队演练 / 排位用）；P5.6 是正式对抗场次的双队同场控制板——进入对抗场次时由 <b>P2 第 5 条</b>轮转规则直接载入本页。<br>
@@ -1197,7 +1203,7 @@
   <div class="page-title">P5.7 · 双侧计分板（未来之城 V7.3 · <b>手动阶段态</b> · A vs B）</div>
   <div class="page-desc">与 P5.6 是<b>同一页面的另一个 tab 状态</b>：A / B 两队分段控件同时切至「手动阶段」，展示各自该阶段的任务集；各队<b>手动小计</b>计入卡头「本队总分」（＝ 自动小计 ＋ 手动小计），底部按钮变为「提交成绩 →」</div>
   <div class="tablet">
-    <div class="appbar"><span>⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮 · 场次 C-3（A vs B）</span><span style="display:inline-flex; align-items:center; gap:8px; background:#c6f6d5; color:#22543d; border-radius:8px; padding:6px 12px; font-weight:bold; margin-right:10px;"><span style="font-size:13px;">⏱ 剩余</span><span style="font-size:26px; font-family:Consolas,monospace; line-height:1;">01:45</span><span style="font-size:12px; font-weight:normal; opacity:0.85; margin-left:4px;">/ 总 03:45</span><span class="btn" style="font-size:11px; padding:3px 10px; background:#2b6cb0; color:#fff; border:none;">暂停</span></span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
+    <div class="appbar"><span>⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮 · 场次 C-3（A vs B）</span><span style="display:inline-flex; align-items:center; gap:8px; margin-right:10px;"><span style="display:inline-flex; align-items:center; gap:6px; background:#c6f6d5; color:#22543d; border-radius:8px; padding:4px 10px; font-weight:bold;"><span style="font-size:12px;">A ⏱</span><span style="font-size:22px; font-family:Consolas,monospace; line-height:1;">01:45</span><span style="font-size:11px; font-weight:normal; opacity:0.85; margin-left:3px;">/ 总 03:45</span><span class="btn" style="font-size:10px; padding:2px 8px; background:#2b6cb0; color:#fff; border:none; margin-left:4px;">暂停</span></span><span style="display:inline-flex; align-items:center; gap:6px; background:#e9d8fd; color:#44337a; border-radius:8px; padding:4px 10px; font-weight:bold;"><span style="font-size:12px;">B ⏱</span><span style="font-size:22px; font-family:Consolas,monospace; line-height:1;">01:45</span><span style="font-size:11px; font-weight:normal; opacity:0.85; margin-left:3px;">/ 总 03:45</span><span class="btn" style="font-size:10px; padding:2px 8px; background:#805ad5; color:#fff; border:none; margin-left:4px;">暂停</span></span></span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
     <div class="screen">
       <div class="main sheet">
         <div class="scroll-area">
@@ -1307,7 +1313,7 @@
             <div style="font-size:12px; color:#718096; margin-bottom:6px;">裁判签名</div>
             <div style="border:2px dashed #2b6cb0; border-radius:8px; height:80px; color:#718096; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 王老师 手写签名</div>
           </div>
-          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：A / B 两队成绩与判罚记录经复核无误；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台）。</div>
+          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：A / B 两队成绩与判罚记录经复核无误。<b>提交硬闸</b>：<b>A 队代表 + B 队代表 + 裁判</b>三方签名齐全前，「提交成绩 →」按钮<b>置灰禁用</b>，缺一不可提交；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台；本册不提供"撤销提交"，改用 P11 重发提示）。</div>
         </div>
         </div>
         <div class="action-bar">
@@ -1529,8 +1535,8 @@
         </div>
       </div>
     </div>
-    <div style="position:absolute; top:14px; right:14px; background:#2d3748; color:#fff; border-radius:8px; padding:8px 13px; font-size:12px; box-shadow:0 8px 24px rgba(0,0,0,.35); display:flex; align-items:center; gap:7px;">
-      <span style="font-size:15px;">⏰</span><span>比赛时间已结束</span>
+    <div style="position:absolute; top:18px; right:18px; z-index:50; background:linear-gradient(135deg,#e53e3e,#c53030); color:#fff; border-radius:12px; padding:20px 28px; font-size:22px; font-weight:bold; box-shadow:0 14px 36px rgba(229,62,62,.5); display:flex; align-items:center; gap:14px; animation:endToastIn .4s ease-out, endToastPulse 1.6s ease-in-out infinite .4s;">
+      <span style="font-size:44px; line-height:1;">⏰</span><span>比赛时间已结束<br><span style="font-size:15px; font-weight:normal; opacity:.95;">请通知选手停止操作</span></span>
     </div>
   </div>
   <div class="note">
@@ -1540,6 +1546,7 @@
     <span class="num">4</span> <b>为什么记牌时只做轻提示</b>：裁判此刻注意力在弹窗上、记牌又需连续操作，用角落 toast 既不打断录入，又能把「通知选手停止操作」及时带到眼前。<br>
     <span class="num">5</span> <b>与 P5.9 的分工</b>：记牌浮层开着 → 本页（右上角 toast）；浮层没开 → <b>P5.9</b>（打分页顶部居中 toast）。
     <span class="num">6</span> <b>时间到后仍可录入（口径）</b>：记牌浮层在计时归零后<b>仍可继续提交</b>，但记的牌一律视为「<b>时间到时刻已发生的判罚</b>」，<b>不补记时间到之后才发生的犯规</b>——“时间到”是判罚有效性的截止线，不是记牌操作的截止线（与 P5.9 同理）。<br>
+    <span class="num">7</span> <b>视觉放大（#4）</b>：本页右上角 toast 由「深色小字」升级为<b>红色告警底色 + 放大字号（主 22px / 副 15px）+ ⏰ 图标 44px + 脉冲呼吸光晕 + 右侧滑入</b>，确保裁判在记牌浮层遮罩下仍能一眼注意到；仍保持<b>不遮挡弹窗主体、不打断记牌</b>（同 note 2/3）。<br>
   </div>
 </div>
 
@@ -1753,7 +1760,7 @@
 <!-- ============ P7c 裁判长工作台 ·「执裁」页签 · 空状态（无执裁排班） ============ -->
 <div class="page">
   <div class="page-title">P7c · 裁判长工作台（平板）·「执裁」页签 · 空状态（本赛台当日无执裁场次）</div>
-  <div class="page-desc">当裁判长已绑定赛台、但本赛台当日无待执裁场次时，执裁页签自动呈现此空状态：不强行展示空队列 / 空计时，给出原因并引导至「裁判长管理权限」页签处理裁定 / 审批 / 锁定 / 发布等管理待办</div>
+  <div class="page-desc">当裁判长已绑定赛台、但本赛台当日无待执裁场次时，执裁页签自动呈现此空状态：不强行展示空队列 / 空计时，给出原因并引导至「裁判长管理权限」页签处理裁定 / 审批 / 发布等管理待办</div>
   <div class="tablet">
     <div class="appbar"><span>📋 裁判长工作台 · 2026-09-26（周六）</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判长：张老师</span></span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
     <div class="screen">
@@ -1784,7 +1791,7 @@
     <span class="num">1</span> <b>按日实时判定</b>：进入 P7 时系统先判「已绑定赛台当日是否存在待执裁场次」；无则本页签直接呈现此空状态，不展示空队列 / 空计时。<b>前提是「有赛台、无场次」，而非「无赛台」</b>——登录本身已要求预绑赛台（见 P1.6）。<br>
     <span class="num">2</span> <b>页签不消失</b>：执裁页签仍与「裁判长管理权限」并列保留，保证“有排班即恢复完整执裁屏”的连续性；裁判长可随时切回。<br>
     <span class="num">3</span> <b>引导而非阻断</b>：空状态给出原因 + 一键切到管理权限页签，把空闲时间转化为处理裁定 / 审批 / 锁定 / 发布的窗口，不打扰但可见。<br>
-    <span class="num">4</span> <b>排班来源</b>：执裁 assignment 由后台赛程 / 赛台排班下发（与 P10 锁定台、P11 发布页同套赛事配置）；空状态文案可随排班类型微调（本赛台当日无赛程 / 赛项未开始）。
+    <span class="num">4</span> <b>排班来源</b>：执裁 assignment 由后台赛程 / 赛台排班下发（与 P11 发布页同套赛事配置）；空状态文案可随排班类型微调（本赛台当日无赛程 / 赛项未开始）。
   </div>
 </div>
 
@@ -1804,22 +1811,21 @@
           <div class="t-name">裁判长专属能力（普通裁判界面不显示） <span class="pts">当前待办 3 件 · 1 项有阻断</span></div>
           <div class="qrow"><span>① 争议裁定（申诉复核 · 重复打分；结论三态见 <b>P8</b> 维持原判 / <b>P8b</b> 授权改分 / <b>P8c</b> 取消资格）</span><span><span class="warn">待裁定 1 件</span> &nbsp;<span class="btn-outline btn-sm">进入裁定台 →</span></span></div>
           <div class="qrow"><span>② 改分授权（裁判在 <b>P2b 改分模式</b>提交改分申请 → 裁判长授权 → 留痕）</span><span><span class="warn">待审批 2 件</span> &nbsp;<span class="btn-outline btn-sm">改分审批 →</span></span></div>
-          <div class="qrow"><span>③ 成绩锁定 · 配置锁定（解锁须原因 + 告警推送）</span><span><span style="font-size:12px; color:#718096;">无待办</span> &nbsp;<span class="btn-outline btn-sm">进入锁定台 →</span></span></div>
-          <div class="qrow"><span>④ 发布前确认（双锁 + 完整性校验 → 移交工作人员发布）</span><span><span class="warn">有阻断</span> &nbsp;<span class="btn-primary btn-sm">发布前确认 →</span></span></div>
+          <div class="qrow"><span>③ 发布前确认（完整性校验 → 移交工作人员发布）</span><span><span class="warn">有阻断</span> &nbsp;<span class="btn-primary btn-sm">发布前确认 →</span></span></div>
         </div>
         <div style="font-size:12px; color:#2b6cb0; background:#ebf4ff; border:1px solid #bee3f8; border-radius:6px; padding:6px 10px; margin-top:8px;">💡 <b>流水处理</b>：在 P8 / P8b / P8c / P9 处理完一单后，自动回返该类队列顶部，<b>点队列里的下一条待处理行</b>（可点的蓝色队伍名）即载入该单；或点「← 返回工作台」回到本待办队列顶部 —— 无需反复进出本页。</div>
-        <div style="font-size:12px; color:#718096; margin-top:6px;">⚠ 裁定 / 改分 / 锁定均触发版本复现与全量审计（旧值→新值+原因）；改分后排名按各自绑定版本自动重算。</div>
+        <div style="font-size:12px; color:#718096; margin-top:6px;">⚠ 裁定 / 改分 / 发布均触发版本复现与全量审计（旧值→新值+原因）；改分后排名按各自绑定版本自动重算。</div>
       </div>
     </div>
   </div>
   <div class="note">
     <span class="num">1</span> <b>同一屏切换、不跳页</b>：本页与 P7 是同一个工作台的两个页签视图，实际运行中点顶栏页签即切（不刷新、不新增路由、不改变执裁状态）；wireframe 里拆成 P7 / P7b 两页各画一态，与本册“互斥态各成一页”的约定一致（执裁页签在本赛台当日无待执裁场次时自动呈现 P7c 空状态）。<br>
     <span class="num">2</span> <b>专用态才可见</b>：4 项专属入口仅在裁判长身份下显示；普通裁判登录后由 P1.5 直达 P2、无本页签，裁判长由 P1.6 进入 P7 后可切至本「管理权限」页签。<br>
-    <span class="num">3</span> <b>高危动作留痕</b>：裁定 / 改分授权 / 锁定与发布均触发版本复现与全量审计（旧值→新值 + 原因），改分后按各自绑定版本重算排名。<br>
-    <span class="num">4</span> <b>4 项入口各自展开</b>：依次为 <b>P8 裁定台</b>、<b>P9 改分审批</b>、<b>P10 成绩锁定 · 解锁</b>、<b>P11 发布前确认</b>。注意<b>发布键不在裁判长手里</b>——裁判长只做“确认（双锁就绪 + 完整性校验）”，实际发布由工作人员在后台执行；本册不提供“撤销发布”，改用常驻重发提示。<br>
+    <span class="num">3</span> <b>高危动作留痕</b>：裁定 / 改分授权 / 发布均触发版本复现与全量审计（旧值→新值 + 原因），改分后按各自绑定版本重算排名。<br>
+    <span class="num">4</span> <b>4 项入口各自展开</b>：依次为 <b>P8 裁定台</b>、<b>P9 改分审批</b>、<b>P11 发布前确认</b>。注意<b>发布键不在裁判长手里</b>——裁判长只做“确认（完整性校验）”，实际发布由工作人员在后台执行；本册不提供“撤销发布”，改用常驻重发提示。<br>
     <span class="num">5</span> <b>两条到达路径（B+D 方案）</b>：<b>就地入口</b>——普通裁判端只在<b>打分页（P3–P5.9）底部操作栏</b>设上报入口（<b>比赛屏 P2 不设</b>：争议 / 申诉的处置对象是成绩与判罚，业务发生地在打分页）；<b>按身份分标签</b>——<b>裁判长端</b>为「<b>⚖ 争议 / 申诉</b>」+ 待裁定徽标（在 <b>P7 执裁</b>顶栏；本页顶栏不重复放，裁定入口即下方 ① 行「进入裁定台 →」），点击<b>直达 P8 裁定台</b>直接裁定；<b>普通裁判端</b>为「<b>⚠ 上报争议</b>」（无徽标），点击进入 <b>P5.10 上报浮层</b>，提交后工单进待裁定队列，由裁判长裁定。<b>两条路径全程留痕</b>（谁 / 何时 / 上报了什么），取代“口头喊裁判长”。<br>
     <span class="num">6</span> <b>工作台首页必须有待办计数</b>：4 项入口各自带「待裁定 / 待审批 / 无待办 / 有阻断」，卡片标题再给一次汇总（当前待办 3 件）——裁判长进工作台第一眼就知道「哪里有活」，而不是逐个点进去找。这与 <b>P7 顶栏「⚖ 争议 / 申诉」的待裁定徽标</b>（＝ 1，<b>只算争议</b>）、<b>P7c 空状态的待办卡</b>（待裁定 1 ＋ 待审批 2 ＝ <b>3 件</b>，算<b>全部待办</b>）同源——三处<b>口径必须对应</b>：顶栏徽标只算待裁定争议，P7b / P7c 算全部待办（争议 ＋ 改分）。<br>
-    <span class="num">7</span> <b>多裁判长并存时的分工</b>：现场若 ≥2 位裁判长，管理权限按「赛项 × 组别」分区——各自只对自己辖区内的争议 / 改分 / 锁定 / 发布负责，P9 的审批人默认取<b>本人以外的裁判长</b>；若现场只有 1 位裁判长，则允许自批，按 P9 note 4 的<b>「留痕威慑」</b>处理（标红「自批」+ 独立告警 + 后台可抽查）。分区规则由后台人员档案的「管理范围」字段下发。<br>
+    <span class="num">7</span> <b>多裁判长并存时的分工</b>：现场若 ≥2 位裁判长，管理权限按「赛项 × 组别」分区——各自只对自己辖区内的争议 / 改分 / 发布负责，P9 的审批人默认取<b>本人以外的裁判长</b>；若现场只有 1 位裁判长，则允许自批，按 P9 note 4 的<b>「留痕威慑」</b>处理（标红「自批」+ 独立告警 + 后台可抽查）。分区规则由后台人员档案的「管理范围」字段下发。<br>
     <span class="num">8</span> <b>待办流水处理（效率）</b>：本页四类待办支持「处理完 → 直接下一个」——处理完一单即自动回返该类队列顶部（见 <b>P8d</b> / <b>P9b</b> 的成功条），<b>点队列里的下一条待处理行</b>（待裁定 / 待审批，队伍名为可点的蓝色）即载入该单，无需退回入口页，避免反复进出（对应实战摩擦：原流程需 P7b 往返 5 次以上）。<b>不另设「处理下一单 →」按钮</b>：入口长在队列行上，少一个按钮、也少一种“按钮在、却已无下一单”的死键状态。
   </div>
 </div>
@@ -1849,7 +1855,7 @@
   </div>
     <div class="note">
     <span class="num">1</span> <b>本页＝队列页，只做「排队 + 载入」</b>：裁定路径分两层——<b>本页</b>把待裁定工单排出来、并在待裁定行给「<b>去裁定</b>」入口；<b>P8a / P8b / P8c</b>承载单张工单的详情与裁定动作（三档位）。<b>为什么拆开</b>：队列要的是「一眼看出还有几件没干」，详情要的是「逐项对照两份记录 + 填原因 + 签名」——两件事阅读密度差很多，挤在一屏会把队列挤到看不见。已裁定工单仍留在本队列（状态为「已裁定（…）」），并在其单元格给「<b>查看</b>」入口 → 打开 <b>P8e 已裁定只读态</b>（复核结论 / 原因 / 签名 / 证据；确需推翻时才走「再裁定一次」并留痕）。<br>
-    <span class="num">2</span> <b>裁定时限与催办</b>：工单入队即计时，超 <b>30 分钟</b>未处理向裁判长推送一次催办（与 <b>P9 自批</b>、<b>P10 解锁</b>同款「<b>留痕威慑</b>」告警通道）。待裁定工单是 <b>P11 发布 gate 的硬阻断项</b>，所以这条时限直接决定「这个组别能不能按时发榜」——催办不是礼貌提醒，是发布的前置条件。
+    <span class="num">2</span> <b>裁定时限与催办</b>：工单入队即计时，超 <b>30 分钟</b>未处理向裁判长推送一次催办（与 <b>P9 自批</b>同款「<b>留痕威慑</b>」告警通道）。待裁定工单是 <b>P11 发布 gate 的硬阻断项</b>，所以这条时限直接决定「这个组别能不能按时发榜」——催办不是礼貌提醒，是发布的前置条件。
       </div>
 </div>
 
@@ -1923,7 +1929,7 @@
     <span class="num">1</span> <b>同轮两份记录必须并列</b>：重复打分的本质是“同一轮出现了两份互相冲突的成绩记录”，只显示其中一份，裁定就失去比较依据——所以本页把记录 A / 记录 B 两份完整明细并排画出来（各自带用时），让裁判长能逐项对照后再定取哪一份。<br>
     <span class="num">2</span> <b>config_version 与按版本复现</b>：成绩必须按“打分时刻的规则版本”复现（本页标 v3），否则页面上的“旧值”本身不可信；展示版本号 + 复现结果是裁定可自证的前提。<br>
     <span class="num">3</span> <b>证据脱敏</b>：签名图与留底截图属内部证据视图，选手姓名走脱敏（卫*九），与对外公示产物同源不同权。<br>
-    <span class="num">4</span> <b>「取消资格」是独立档位、与红牌不是一回事</b>：红牌＝累计 3 张黄牌升级、<b>成绩保留</b>、比赛结束；取消资格＝<b>成绩作废</b>、不进榜单、不计奖项，由裁判长在本页按证据单独判定，<b>不因红牌自动触发</b>。黄 / 红牌本身<b>不扣分</b>，与名次有关的唯一影响是排名（总分相同先比用时升序、再用时相同比黄牌少，见 P11 公示页）。<br>
+    <span class="num">4</span> <b>「取消资格」是独立档位、与红牌不是一回事</b>：红牌＝累计 3 张黄牌升级、<b>成绩保留</b>、比赛结束；取消资格＝<b>成绩作废</b>、不进榜单，由裁判长在本页按证据单独判定，<b>不因红牌自动触发</b>。黄 / 红牌本身<b>不扣分</b>，与名次有关的唯一影响是排名（总分相同先比用时升序、再用时相同比黄牌少，见 P11 公示页）。<br>
     <span class="num">5</span> <b>裁定不可撤销</b>：只能再裁定一次并留痕（旧值→新值 + 原因），全程进审计。<br>
     <span class="num">6</span> <b>两层留底要分清（本页只呈现证据、不重复生成）</b>：① <b>证据层 ＝ 裁判端产生</b>——裁判在<b>提交成绩时</b>自动生成「成绩表 + 签名图 + 提交留底截图」并落本地，随成绩<b>异步同步</b>到本页；裁判长打开工单时三件已到齐，故其状态是「<b>已同步</b>」。本页<b>只读呈现、不重新生成证据</b>，签名图之所以要显示出来，就是为了当场核对两份记录的笔迹归属。② <b>裁定层 ＝ 裁判长端产生</b>——点「提交裁定」成功瞬间，系统自动截「本页裁定结论」并<b>先落本地</b>（路径 /sdcard/裁判留底/{赛事}/{日期}/{工单号}_{HHmmss}.jpg，同目录生成同名 .json 元数据：工单号 / 队伍 / 结论 / 裁判长 / 设备 ID / 时间 / config_version），有网时再异步上云，所以状态是「<b>已落本地 · 待同步</b>」。两层共用同一套「本地优先 · 异步同步」，但<b>触发点不同、不可混谈</b>——把裁定时截的图当作“原始证据”是错的。③ <b>证据只在「提交成绩」时生成</b>：成绩表 / 签名图 / 提交留底截图三件均由裁判端在提交瞬间自动生成并落本地，<b>全册不设任何手动补截 / 补录入口</b>（避免造出第二份来源不明的证据）；裁判长端以「提交裁定即自动截」为准。<br>
     <span class="num">7</span> <b>对抗场次（未来之城 A vs B）的裁定口径</b>：三态同样适用于对抗场次，但影响范围按「结论对象」区分——① <b>只涉一队的判罚 / 用时争议</b>：只改该队成绩，对手方成绩不变；② <b>涉及场次胜负或双队共用的道具 / 场地争议</b>：需同时评估 A / B 两队，取消资格后该场次改为「单队完赛」，对手方的净胜与名次会连带变化；③ 双队选手代表<b>均需在结论页签字确认</b>（与打分页的 A / B 双签同口径），只签一队不算结论成立。<br>
@@ -2014,7 +2020,7 @@
 <!-- ============ P8c 裁定详情 · 取消资格态 ============ -->
 <div class="page">
   <div class="page-title">P8c · 裁定详情（争议裁定 · <b>取消资格</b>态 · 成绩作废）</div>
-  <div class="page-desc">与 <b>P8a</b> 是<b>同一裁定详情页的不同结论态</b>：裁判长选「取消资格」→ 该队成绩<b>作废</b>（不进榜单、不计奖项）。取消资格是<b>独立档位</b>，<b>与红牌无关</b>（红牌＝比赛结束、<b>成绩保留</b>）</div>
+  <div class="page-desc">与 <b>P8a</b> 是<b>同一裁定详情页的不同结论态</b>：裁判长选「取消资格」→ 该队成绩<b>作废</b>（不进榜单）。取消资格是<b>独立档位</b>，<b>与红牌无关</b>（红牌＝比赛结束、<b>成绩保留</b>）</div>
   <div class="tablet">
     <div class="appbar"><span>⛓ 裁定台 · 脑机星球 · 小学组</span><span style="font-size:12px;">裁判长：张老师</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
     <div class="screen">
@@ -2064,12 +2070,12 @@
           </div>
           <div class="card" style="background:#fff5f5; border-color:#fc8181; margin-bottom:10px;">
             <div style="font-size:13px; color:#9b2c2c;">
-              <b>取消资格的后果（成绩作废）</b>：该队第 1 轮的两份冲突记录 <b>250 / 350 均作废</b>，<b>不进榜单、不计奖项</b>。<br>
-              <span style="font-size:12px;">这是<b>独立档位</b>——与红牌无关（红牌＝比赛结束、成绩保留）；作废后榜单位次顺延与奖项调整需工作人员在后台处理，并触发 <b>P11 重发提示</b>。</span>
+              <b>取消资格的后果（成绩作废）</b>：该队第 1 轮的两份冲突记录 <b>250 / 350 均作废</b>，<b>不进榜单</b>。<br>
+              <span style="font-size:12px;">这是<b>独立档位</b>——与红牌无关（红牌＝比赛结束、成绩保留）；作废后榜单位次顺延需工作人员在后台处理，并触发 <b>P11 重发提示</b>。</span>
             </div>
           </div>
           <div class="qrow"><span>影响范围</span><span>T-005 飞向蓝天队 · 脑机星球 · 小学组 · 第 1 轮（该轮两份冲突记录一并作废）</span></div>
-          <div class="qrow"><span>连带影响</span><span>榜单位次顺延 · 奖项名单需工作人员重发</span></div>
+          <div class="qrow"><span>连带影响</span><span>榜单位次顺延需工作人员重发</span></div>
           <div style="border:1px solid #d2dae3; border-radius:6px; padding:10px; font-size:13px; color:#a0aec0; margin:10px 0;">裁定原因（必填）—— 写明依据：证据 / 规则条款 / 配置版本号</div>
           <div style="border:2px dashed #a0aec0; border-radius:8px; height:100px; color:#a0aec0; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 裁判长手写签名（与选手签名同口径存档）</div>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:12px;">
@@ -2082,12 +2088,12 @@
   </div>
   <div class="note">
     <span class="num">1</span> <b>三态共用同一份争议详情</b>：P8 / P8b / P8c 只有结论档位不同，上半部分完全相同；本页是<b>最高危</b>的一态，故结论区用红色警示，按钮也做成红色以区别于常规提交。<br>
-    <span class="num">2</span> <b>取消资格 ≠ 红牌</b>：红牌＝累计 3 黄升级、<b>比赛结束但成绩保留</b>（只影响排名：<b>总分相同</b>先比用时、再用时同比黄牌少）；取消资格＝<b>成绩作废</b>、不进榜单、不计奖项，<b>不因红牌自动触发</b>，只能在本页按证据单独判定。<br>
+    <span class="num">2</span> <b>取消资格 ≠ 红牌</b>：红牌＝累计 3 黄升级、<b>比赛结束但成绩保留</b>（只影响排名：<b>总分相同</b>先比用时、再用时同比黄牌少）；取消资格＝<b>成绩作废</b>、不进榜单，<b>不因红牌自动触发</b>，只能在本页按证据单独判定。<br>
     <span class="num">3</span> <b>作废的是该轮全部记录</b>：本队第 1 轮的两份冲突记录（250 / 350）一并作废（不是只作废被争议的那一份）——这一点必须让裁判长在提交前看清，所以做成了显式的影响范围行。<br>
-    <span class="num">4</span> <b>连带影响要交代清楚</b>：作废会改变榜单位次与奖项归属，因此提示“需工作人员重发榜单”，与 P11 的<b>常驻重发提示</b>口径一致。<br>
-    <span class="num">5</span> <b>不可撤销 ＋ 留痕威慑</b>：只能再裁定一次并留痕（旧值→新值 + 原因），全程进审计；提交即生成<b>独立告警</b>推送后台、供事后抽样复核——与 P9 自批、P10 解锁同款「<b>留痕威慑</b>」。取消资格虽为最高危档，但与改分<b>同档处理</b>（不强制第二人复核），以“告警 + 可抽查”兜底。<br>
+    <span class="num">4</span> <b>连带影响要交代清楚</b>：作废会改变榜单位次，因此提示“需工作人员重发榜单”，与 P11 的<b>常驻重发提示</b>口径一致。<br>
+    <span class="num">5</span> <b>不可撤销 ＋ 留痕威慑</b>：只能再裁定一次并留痕（旧值→新值 + 原因），全程进审计；提交即生成<b>独立告警</b>推送后台、供事后抽样复核——与 P9 自批同款「<b>留痕威慑</b>」。取消资格虽为最高危档，但与改分<b>同档处理</b>（不强制第二人复核），以“告警 + 可抽查”兜底。<br>
     <span class="num">6</span> <b>两层留底要分清（本页只呈现证据、不重复生成）</b>：① <b>证据层 ＝ 裁判端产生</b>——裁判在<b>提交成绩时</b>自动生成「成绩表 + 签名图 + 提交留底截图」并落本地，随成绩<b>异步同步</b>到本页；裁判长打开工单时三件已到齐，故其状态是「<b>已同步</b>」。本页<b>只读呈现、不重新生成证据</b>，签名图之所以要显示出来，就是为了当场核对两份记录的笔迹归属。② <b>裁定层 ＝ 裁判长端产生</b>——点「提交裁定」成功瞬间，系统自动截「本页裁定结论」并<b>先落本地</b>（路径 /sdcard/裁判留底/{赛事}/{日期}/{工单号}_{HHmmss}.jpg，同目录生成同名 .json 元数据：工单号 / 队伍 / 结论 / 裁判长 / 设备 ID / 时间 / config_version），有网时再异步上云，所以状态是「<b>已落本地 · 待同步</b>」。两层共用同一套「本地优先 · 异步同步」，但<b>触发点不同、不可混谈</b>——把裁定时截的图当作“原始证据”是错的。③ <b>证据只在「提交成绩」时生成</b>：成绩表 / 签名图 / 提交留底截图三件均由裁判端在提交瞬间自动生成并落本地，<b>全册不设任何手动补截 / 补录入口</b>（避免造出第二份来源不明的证据）；裁判长端以「提交裁定即自动截」为准。<br>
-    <span class="num">7</span> <b>取消资格之后的链条不在本册闭合</b>：成绩作废会牵动榜单位次顺延、奖项归属与递补名额，这些动作由<b>工作人员在后台执行</b>（后台管理系统不在本册范围）。因此本页提交后只完成「作废 + 留痕 + 触发重发提示」，册内链路<b>到此为止</b>——建议后台侧补一个「递补处理」待办页，并与该赛项的重发提示联动，否则「作废了但榜单没动」会长时间无人认领。
+    <span class="num">7</span> <b>取消资格之后的链条不在本册闭合</b>：成绩作废会牵动榜单位次顺延与递补名额，这些动作由<b>工作人员在后台执行</b>（后台管理系统不在本册范围）。因此本页提交后只完成「作废 + 留痕 + 触发重发提示」，册内链路<b>到此为止</b>——建议后台侧补一个「递补处理」待办页，并与该赛项的重发提示联动，否则「作废了但榜单没动」会长时间无人认领。
     <span class="num">8</span> <b>提交裁定后去哪（本册定义）</b>：点「取消资格 · 提交裁定（留痕）」成功后<b>顶部滑入成功条、2 秒自动回返待裁定队列顶部</b>（三态共用的成功条形态见 <b>P8d</b>）；回返后再按 <b>P7b note 8</b> 处理下一张工单或返回工作台。成功条额外提示「已触发该赛项重发提示」——后续递补与重发由工作人员在后台执行（见 <b>P11</b>）。
   </div>
     <span class="num">9</span> <b>本页＝裁定详情（取消资格态）</b>：队列与入口在 <b>P8</b>，本页只做该单的详情呈现 + 结论档位 + 原因 / 签名 / 提交；点「← 返回待裁定队列」回 <b>P8</b>。另两档位见 <b>P8a</b> 维持原判 / <b>P8b</b> 授权改分。<br>
@@ -2206,7 +2212,7 @@
 <!-- ============ P9 改分审批 ============ -->
 <div class="page">
   <div class="page-title">P9 · 改分审批（裁判发起 → 裁判长授权）</div>
-  <div class="page-desc">申请来源＝<b>裁判端 P2b 改分模式</b>（裁判发起）或 <b>裁定台 P8b</b>（裁定“授权改分”生成）；旧值→新值 diff + 原因 + 申诉件；申请人 / 审批人双留痕；改分后排名按各队绑定版本自动重算；<b>该赛项已锁定时，批准即联动解锁</b></div>
+  <div class="page-desc">申请来源＝<b>裁判端 P2b 改分模式</b>（裁判发起）或 <b>裁定台 P8b</b>（裁定“授权改分”生成）；旧值→新值 diff + 原因 + 申诉件；申请人 / 审批人双留痕；改分后排名按各队绑定版本自动重算；<b>该赛项已发布时，批准即触发重发提示</b></div>
   <div class="tablet">
     <div class="appbar"><span>⛓ 改分审批 · 全赛项</span><span style="font-size:12px;">裁判长：张老师</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
     <div class="screen">
@@ -2246,16 +2252,16 @@
         </div>
         <div class="card" style="background:#fff5f5; border-color:#fc8181;">
           <div style="font-size:12px; color:#9b2c2c;">
-            <b>🚩 自批态（申请人＝审批人时显示）</b>：若本单申请人与审批人为同一账号，审批区自动标红「<b>自批</b>」标签，批准即生成<b>独立告警记录</b>（推送后台 · 工作人员）并标注“申请人＝审批人”——<b>允许自批</b>（现场常只有一位裁判长），但自批必须“看得见 + 查得到”，与 P10 解锁同款「<b>留痕威慑</b>」。本示例 R-008 申请人为王老师、审批人为张老师，<b>不触发</b>此条。
+            <b>🚩 自批态（申请人＝审批人时显示）</b>：若本单申请人与审批人为同一账号，审批区自动标红「<b>自批</b>」标签，批准即生成<b>独立告警记录</b>（推送后台 · 工作人员）并标注“申请人＝审批人”——<b>允许自批</b>（现场常只有一位裁判长），但自批必须“看得见 + 查得到”，与 P9 自批同款「<b>留痕威慑</b>」。本示例 R-008 申请人为王老师、审批人为张老师，<b>不触发</b>此条。
           </div>
         </div>
         <div class="card">
-          <div style="border:1px solid #d2dae3; border-radius:6px; padding:10px; font-size:13px; color:#a0aec0; margin-bottom:10px;">审批意见（必填）—— 批准 / 驳回都要写明依据；<b>本单批准时，该意见同时作为「解锁原因」写入 P10 的解锁告警记录</b></div>
+          <div style="border:1px solid #d2dae3; border-radius:6px; padding:10px; font-size:13px; color:#a0aec0; margin-bottom:10px;">审批意见（必填）—— 批准 / 驳回都要写明依据；<b>本单批准时，该意见作为更正留痕写入审计</b></div>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
             <span style="font-size:12px; color:#a0aec0;">裁判长本人改分同样须走审批并留痕；<b>若申请人＝审批人（自批）</b>，系统强制标红「自批」并生成独立告警，供后台复核</span>
             <span style="display:flex; gap:10px; align-items:center; flex-shrink:0;">
               <span class="btn-outline" style="white-space:nowrap;">驳回</span>
-              <span class="btn-primary" style="white-space:nowrap;">批准并解锁留痕</span>
+              <span class="btn-primary" style="white-space:nowrap;">批准并留痕</span>
             </span>
           </div>
         </div>
@@ -2266,19 +2272,19 @@
     <span class="num">1</span> <b>待审批队列 + 防重复提交</b>：改分申请单独成单（R-00X），同队同轮未结单不允许再提，避免重复申请把分数改乱。<br>
     <span class="num">2</span> <b>diff 必看旧值 → 新值</b>：并排展示 + 变化量（本单为 +150），下方按构成公式（<b>base</b>）拆出明细，让审批人核对的是“算法结果”而不是一个孤立数字；<b>黄 / 红牌不在构成内</b>（不计分），因此改牌不改动分数；但牌面若在 <b>P2b</b> 一并修改，会作为本单的<b>附加项单列</b>展示，审批时同样要核对（见 P2b note 12）。<br>
     <span class="num">3</span> <b>已发布赛项必须常驻重发提示</b>：改分后榜单会变，但对外公示页仍是旧榜——若只在提交时弹一次提示，工作人员极易漏发新版，造成“现场屏 ≠ 后台真值”。该提示<b>只挂在已发布的赛项上</b>（示例见 <b>P11</b>「发布前确认」：火星救援 · 小学组 已于 11:20 发布 → R-006 改分已批准 → 待重发）；未发布的赛项（如本单所属的脑机星球 · 小学组）只变更排名、不触发重发。<br>
-    <span class="num">4</span> <b>留痕口径（留痕威慑 · 与 P10 同款）</b>：申请人 + 审批人分列记录，审批意见必填；裁判长本人改分须走审批并留痕——<b>允许自批</b>（现场常只有一位裁判长），但若申请人＝审批人，系统强制标红「<b>自批</b>」并生成<b>独立告警</b>推送后台、供事后抽样复核。自批不是禁止项，而是“必须看得见、查得到”的高危项。<br>
+    <span class="num">4</span> <b>留痕口径（留痕威慑）</b>：申请人 + 审批人分列记录，审批意见必填；裁判长本人改分须走审批并留痕——<b>允许自批</b>（现场常只有一位裁判长），但若申请人＝审批人，系统强制标红「<b>自批</b>」并生成<b>独立告警</b>推送后台、供事后抽样复核。自批不是禁止项，而是“必须看得见、查得到”的高危项。<br>
     <span class="num">8</span> <b>申诉件也是「有来源、有状态」的证据</b>：申诉书照片由<b>教练 / 选手代表在现场提交</b>，经<b>检录台代传</b>与本单关联（本册不做选手端上传），并以同样方式同步到裁判长端，故标「已同步」。凡是裁决 / 审批要看的东西（证据三件 + 申诉件），都要能回答「<b>谁产生、何时产生、同步到没到</b>」——否则会出现“审批时点开是空的”这种现场事故。<br>
     <span class="num">5</span> <b>通过后自动重算</b>：排名按每条成绩各自绑定的 config_version 逐队复现重算，不按“当前配置”回算历史成绩。<br>
     <span class="num">6</span> <b>申请来源 = 裁判端 P2b / 裁定台 P8b</b>：申请单有两条来源——<b>裁判在 P2b 改分模式</b>提交（P2 队列已完成队伍行的「改分」，或 P2e 成绩单底部「改分 →」进入），或<b>裁判长在 P8b 裁定“授权改分”</b>生成。本页只做<b>审批</b>——裁判端<b>不能直接改分</b>；裁判长自批按 note 4 的「留痕威慑」处理（标红「自批」+ 生成独立告警），两条来源在 diff 卡里用「申请来源」行标注区分。<br>
-    <span class="num">7</span> <b>与 P10 成绩锁定的关系（不重复 · 联动 = B 方案）</b>：<b>P10 是闸门</b>（赛项 × 组别级“能不能改”），<b>本页是通道</b>（单队单轮级“怎么改、谁批”）。锁定拦的是<b>未走审批的自由改分与改配置</b>；<b>已提交到本页的申请单不因锁定失效</b>——批准按钮随状态变化——<b>未锁定</b>为「批准并留痕」、<b>已锁定</b>为「<b>批准并解锁留痕</b>」（解锁原因复用审批意见并写入 P10 告警记录）。这样既保留锁定的留痕威慑，又避免“裁判长自己批的改分被自己上的锁拦住”，省掉“先跑 P10 解锁 → 回来审批 → 再回 P10 上锁”的三步来回。两者共用同一套「<b>留痕威慑</b>」口径：<b>P10 只做解锁（锁定由系统在完赛后自动执行）、P9 允许自批</b>，都以「强制原因 + 告警记录 + 后台可抽查」兜底。<b>改分生效后系统自动恢复锁定</b>，并生成第二条留痕「自动重锁 · 因 R-00X 改分生效」——避免已发布赛项的锁被一次解锁后长期裸奔。<br>
-    <span class="num">9</span> <b>批准后去哪（本册定义）</b>：点「批准并解锁留痕」成功后<b>顶部滑入成功条、2 秒自动回跳待审批队列顶部</b>（成功条形态见 <b>P9b</b>）。回到队列顶部后要接着批下一单，<b>直接点队列里的待审批行</b>（可点的蓝色队伍名）即载入该单——<b>不另设「处理下一单 →」按钮</b>（见 <b>P7b note 8</b>）。本页示例「待审批 <b>2</b> 件」＝当前 R-008 ＋ 待处理的 R-010（其队伍名为可点的蓝色）。
+    <span class="num">7</span> <b>与「评分状态机」的关系（不重复 · 终态即闸门）</b>：分数一经<b>提交并签名</b>即进入<b>「已提交待公示」终态</b>，不经过任何手动锁；任何改动都必须走本页（P9 改分审批）或 P8 裁定台，<b>批准即生成新版本</b>并触发 <b>P11 重发提示</b>（改分即重发，不回退终态）。本页是<b>唯一的分数变更通道</b>（单队单轮级“怎么改、谁批”），与“成绩一旦发布即不可直接编辑”的终态口径完全一致——既保证留痕威慑，又避免现场“先解后改再锁”的三步来回。改分 / 裁定都以「强制原因 + 告警记录 + 后台可抽查」兜底，不留“裸奔”窗口。<br>
+    <span class="num">9</span> <b>批准后去哪（本册定义）</b>：点「批准并留痕」成功后<b>顶部滑入成功条、2 秒自动回跳待审批队列顶部</b>（成功条形态见 <b>P9b</b>）。回到队列顶部后要接着批下一单，<b>直接点队列里的待审批行</b>（可点的蓝色队伍名）即载入该单——<b>不另设「处理下一单 →」按钮</b>（见 <b>P7b note 8</b>）。本页示例「待审批 <b>2</b> 件」＝当前 R-008 ＋ 待处理的 R-010（其队伍名为可点的蓝色）。
   </div>
 </div>
 
 <!-- ============ P9b 改分审批 · 已批准成功条（叠加态） ============ -->
 <div class="page">
   <div class="page-title">P9b · 改分审批 · <b>已批准成功条</b>（叠加态 · 2 秒自动回跳待审批队列顶部）</div>
-  <div class="page-desc">点「批准并解锁留痕」成功的那一瞬进入本态：顶部滑入<b>非阻断成功条</b>，只讲两件事——<b>成了</b>（R-008 已生效 +150、排名已重算）与<b>去哪</b>（2 秒后自动回跳<b>待审批队列顶部</b>）；审批结论、解锁留痕与排名重算均已在服务端落库，回跳 / 断网都不丢</div>
+  <div class="page-desc">点「批准并留痕」成功的那一瞬进入本态：顶部滑入<b>非阻断成功条</b>，只讲两件事——<b>成了</b>（R-008 已生效 +150、排名已重算）与<b>去哪</b>（2 秒后自动回跳<b>待审批队列顶部</b>）；审批结论、更正留痕与排名重算均已在服务端落库，回跳 / 断网都不丢</div>
   <div class="tablet" style="position:relative;">
     <div class="appbar"><span>⛓ 改分审批 · 全赛项</span><span style="font-size:12px;">裁判长：张老师</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
     <div class="screen">
@@ -2302,67 +2308,18 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>闭环：批准后去哪（补 P9 的缺口）</b>：在 P9 点「批准并解锁留痕」→ 本态顶部滑入成功条 → <b>2 秒后自动回跳待审批队列顶部</b>。回到队列顶部后再按需处理——<b>点队列里的待审批行</b>（可点的蓝色队伍名）即载入该单，<b>不另设「处理下一单 →」按钮</b>（见 <b>P7b note 8</b>）。本页示例＝批准后队列顶部<b>还剩 1 件待审批（R-010）</b>，<b>点它的队伍名即接着批</b>。<br>
+    <span class="num">1</span> <b>闭环：批准后去哪（补 P9 的缺口）</b>：在 P9 点「批准并留痕」→ 本态顶部滑入成功条 → <b>2 秒后自动回跳待审批队列顶部</b>。回到队列顶部后再按需处理——<b>点队列里的待审批行</b>（可点的蓝色队伍名）即载入该单，<b>不另设「处理下一单 →」按钮</b>（见 <b>P7b note 8</b>）。本页示例＝批准后队列顶部<b>还剩 1 件待审批（R-010）</b>，<b>点它的队伍名即接着批</b>。<br>
     <span class="num">2</span> <b>成功条只讲两件事（防呆）</b>：批准是<b>高频动作</b>（裁判长一天可能批十几单），所以不做整屏成功态、不要求阅读——只给<b>成了</b>（R-008 已生效 +150、排名已重算）与<b>去哪</b>（2 秒自动回队列顶部）。与 P2b note 9 的「✓ 已提交 · 待审批 R-00X」成功条同款口径；区别在于 P2c 用<b>整屏</b>承载（提交是单次动作），本页用<b>非阻断成功条</b>承载（审批要连着批）。<br>
-    <span class="num">3</span> <b>批准那一刻同时做了什么（联动，见 P9 note 4 / note 7）</b>：① 分数按该队绑定的 <b>config_version = v3</b> 复现重算，470 → 620；② 排名按各队绑定版本逐队重算，<b>不按“当前配置”回算历史成绩</b>；③ 该赛项<b>已锁定</b>时批准<b>联动解锁</b>，解锁原因复用审批意见并写入 P10 告警记录，改分生效后<b>系统自动重锁</b>并生成第二条留痕「自动重锁 · 因 R-008 改分生效」；④ 若<b>申请人＝审批人（自批）</b>，批准即生成<b>独立告警</b>推送后台（本示例 R-008 申请人为王老师、审批人为张老师，<b>不触发</b>自批）。<br>
+    <span class="num">3</span> <b>批准那一刻同时做了什么（联动，见 P9 note 4 / note 7）</b>：① 分数按该队绑定的 <b>config_version = v3</b> 复现重算，470 → 620；② 排名按各队绑定版本逐队重算，<b>不按“当前配置”回算历史成绩</b>；③ 该赛项<b>已发布</b>时批准即触发<b>重发提示</b>（不回退终态、直接重发），改分生效后生成第二条留痕「重发 · 因 R-008 改分生效」；④ 若<b>申请人＝审批人（自批）</b>，批准即生成<b>独立告警</b>推送后台（本示例 R-008 申请人为王老师、审批人为张老师，<b>不触发</b>自批）。<br>
     <span class="num">4</span> <b>计数联动</b>：批准瞬间「待审批 <b>2 → 1</b>」「今日已批准 <b>5 → 6</b>」；R-008 行状态由「去审批」变「已批准」，表格脚注同步为「1 待审批（R-010）+ 6 已批准 + 1 已作废」；P7b 的「待办」随之由 <b>3</b> 件降为 <b>2</b> 件（口径对应见 P7b note 6）。<br>
-    <span class="num">5</span> <b>提交即落库，回跳不丢</b>：点「批准」的瞬间结论已在服务端生效（含解锁与告警留痕），成功条只是本端反馈——2 秒回跳、断网、关页都不会让这次批准失效，也不会重复生效。
-  </div>
-</div>
-
-<!-- ============ P10 成绩锁定 · 解锁 ============ -->
-<div class="page">
-  <div class="page-title">P10 · 成绩锁定 · 解锁（双锁）</div>
-  <div class="page-desc">以 赛项 × 组别 为单位的双锁（成绩锁 + 配置锁）；<b>锁定由系统在赛项完赛后自动执行，本页人工只做「解锁」</b>——解锁须填写原因并触发告警推送后台 · 工作人员</div>
-  <div class="tablet">
-    <div class="appbar"><span>⛓ 锁定台 · 全赛项</span><span style="font-size:12px;">裁判长：张老师</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
-    <div class="screen">
-      <div class="main">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-          <span class="btn-gray btn-sm">← 返回工作台（待办队列顶部）</span>
-          <span style="font-size:12px; color:#a0aec0;">本页锁的是「成绩 / 配置」；与 P1.5 的「执裁范围预绑（只读不可改）」不是同一件事</span>
-        </div>
-        <table class="wf">
-          <tr><th class="l">赛项 · 组别</th><th>成绩完整度</th><th>成绩锁定</th><th>配置锁定</th><th>操作</th></tr>
-          <tr class="hl-row"><td class="l">脑机星球 · 小学组</td><td>13 / 48 队</td><td><span class="pill pub">已锁 12:05</span><br><span style="font-size:11px; color:#718096;">张老师</span></td><td><span class="pill pub">v3 已锁</span><br><span style="font-size:11px; color:#718096;">张老师</span></td><td><span class="btn-gray btn-sm">解锁</span></td></tr>
-          <tr><td class="l">脑机星球 · 中学组</td><td>18 / 18 队</td><td><span class="pill pub">已锁 13:05</span><br><span style="font-size:11px; color:#718096;">张老师</span></td><td><span class="pill pub">v3 已锁</span><br><span style="font-size:11px; color:#718096;">张老师</span></td><td><span class="btn-gray btn-sm">解锁</span></td></tr>
-          <tr><td class="l">火星救援 · 小学组</td><td>21 / 21 队</td><td><span class="pill pub">已锁 11:20</span><br><span style="font-size:11px; color:#718096;">李老师</span></td><td><span class="pill pub">v2 已锁</span></td><td><span class="btn-gray btn-sm">解锁</span></td></tr>
-          <tr><td class="l">未来之城 · 小学组</td><td>0 / 8 场</td><td style="color:#a0aec0;">—</td><td style="color:#a0aec0;">—</td><td style="color:#a0aec0;">比赛进行中 · 未完赛不锁</td></tr>
-        </table>
-        <div class="card" style="background:#ebf4ff; border-color:#2b6cb0;">
-          <div class="t-name">脑机星球 · 小学组 <span class="pts">13 / 48 队已完成（2 赛台汇总）</span></div>
-          <div class="qrow"><span>成绩锁定</span><span style="font-weight:bold; color:#22543d;">已锁 · 张老师 · 12:05</span></div>
-          <div class="qrow"><span>锁定后</span><span>改分（P9）、改配置（规则模板）均被拒绝</span></div>
-          <div class="qrow"><span>配置锁定</span><span style="font-weight:bold; color:#22543d;">config_version = v3 · 张老师 · 11:40</span></div>
-          <div class="qrow"><span>解锁原因（必填）</span><span style="color:#a0aec0;">例：发现任务④ 漏记，需解锁补分</span></div>
-          <div class="qrow"><span>告警推送</span><span>解锁即生成告警记录 → 推送后台 · 工作人员</span></div>
-        </div>
-        <div class="card" style="background:#fffaf0; border-color:#f6ad55;">
-          <div style="font-size:13px; color:#c05621;"><b>⚠ 解锁是“留痕威慑”，不是权限管控</b>：<b>锁定由系统在完赛时自动执行、解锁由裁判长本人执行</b>（同一赛项同一人也能自解），所以解锁必须填写原因并生成告警记录推送后台 · 工作人员——否则“锁定”只剩形式。</div>
-        </div>
-        <div style="display:flex; justify-content:flex-end; gap:10px; align-items:center;">
-          <span class="btn-outline">解锁并留痕</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="note">
-    <span class="num">1</span> <b>双锁分开显示</b>：成绩锁（冻结成绩）与配置锁（冻结 config_snapshots 变更）是两把独立的锁，矩阵里各占一列，状态与操作人分别可见。<br>
-    <span class="num">2</span> <b>锁 / 解锁人与时间必须显示</b>：锁定的实质是“留痕威慑”，看不到是谁在什么时候动的锁，威慑语义就落空了。<br>
-    <span class="num">3</span> <b>解锁必须填原因 + 告警推送</b>：解锁是高危动作，原因必填并生成告警事件推送后台 · 工作人员，不能静默解锁。<b>为什么不推给裁判长</b>：解锁人常常就是裁判长本人，推给自己没有意义——与 P9 自批告警同口径，一律推给「能管住裁判长」的角色（后台 · 工作人员），才构成真正的威慑。<br>
-    <span class="num">4</span> <b>与 P1.5 的「绑定」区分</b>：P1.5 那个是工作人员预绑的“执裁范围绑定”（<b>只读展示、不可修改</b>——其用词是「预绑 / 不可修改」，<b>不是</b>本页的「锁定」语义）；本页锁的是<b>成绩与配置</b>，两者<b>不同事</b>，界面文案一律带限定词。<br>
-    <span class="num">5</span> <b>锁定即闸门</b>：锁定生效后，<b>未走审批的自由改分</b>与改配置入口被拒绝（服务端校验，非仅前端置灰）；<b>已提交到 P9 的改分申请不因锁定失效</b>（见 note 6）。<br>
-    <span class="num">6</span> <b>与 P9 改分审批的边界（不重复）</b>：本页是<b>闸门</b>（赛项 × 组别级 · 能不能改），<b>P9 是通道</b>（单队单轮级 · 怎么改、谁批）——两者<b>串联而非替代</b>。锁定拦的是“未审批的自由改分”（防止绕过审批直接改分）；<b>已走完审批的改分不会因锁定失效</b>：P9 的批准按钮为「<b>批准并解锁留痕</b>」，解锁原因复用审批意见并写入本页告警记录——避免“裁判长自己批的改分被自己上的锁拦住”，也省掉「先来本页解锁 → 回去审批 → 再回来上锁」的三步来回；<b>改分生效后系统自动重锁并留痕</b>，无需人工回来上锁。
-    <span class="num">7</span> <b>完成度层级（与 P2 队列不是一回事）</b>：本页「13 / 48 队」是<b>赛项 × 组别整体完成度</b>（赛事级，跨赛台汇总：脑机星球 · 小学组 = 2 个赛台 × 24 队 = 48 队）；P2 / P7 队列里的进度行「<b>已完成 6 / 比赛中 1 / 候场 17</b> ｜ 当前第 7 位」（合计 24 队）是<b>单个赛台</b>的队列进度（赛台级，仅本台 24 队）。两者口径不同、不可混用，分母也不同（48 vs 24）：赛台级看“本台打到哪了”，赛事级看“整个组别发不发得了”。<b>注</b>：对抗赛项（未来之城）以「<b>场次</b>」为完成度单位，故表格中该行显示为「0 / 8 场」而非「队」——单位随赛项类型变化，分母口径一致。<br>
-    <span class="num">8</span> <b>两套版本号别混用</b>：<b>config_version</b>（v3 / v2）是该赛项<b>规则模板表的第 N 次快照</b>编号，标识「这批成绩按哪一版配置算出来的」；<b>规则文档版本</b>（脑机星球 V6.2 / 火星救援 V6.2 / 未来之城 V7.3）是赛规的对外版本号。两者是两套编号、不一一对应——改分复现看前者，对外沟通看后者。<br>
-    <span class="num">9</span> <b>锁定＝系统自动，本页人工只做解锁（口径）</b>：赛项<b>完赛后由系统自动上锁</b>（成绩锁 + 配置锁同时生效），<b>不需要裁判长手动锁定</b>——所以本页表格「操作」列<b>只有「解锁」，没有「锁定成绩」</b>；表格里的锁定人与时间＝<b>该赛项末场的执裁裁判长与完赛时刻</b>（不是他手动点的锁，而是他提交末场成绩触发了自动上锁——审计上仍能回答“谁在什么时候让这个赛项完赛”）。未完赛的赛项（如未来之城 · 小学组 0 / 8 场）<b>不锁、也无解锁入口</b>。人工唯一的动作是<b>解锁</b>，且必须填原因 + 生成告警（note 3）；改分生效后系统<b>自动重锁</b>（note 6），人工无需回来上锁。
+    <span class="num">5</span> <b>提交即落库，回跳不丢</b>：点「批准」的瞬间结论已在服务端生效（含更正与告警留痕），成功条只是本端反馈——2 秒回跳、断网、关页都不会让这次批准失效，也不会重复生效。
   </div>
 </div>
 
 <!-- ============ P11 发布前确认 ============ -->
 <div class="page">
-  <div class="page-title">P11 · 发布前确认（双锁 + 完整性校验 → 移交工作人员发布）</div>
-  <div class="page-desc">裁判长做双锁就绪确认与发布前完整性校验，确认后移交工作人员在后台执行发布；本册不提供“撤销发布”</div>
+  <div class="page-title">P11 · 发布前确认（完整性校验 → 移交工作人员发布）</div>
+  <div class="page-desc">裁判长做发布前完整性校验，确认后移交工作人员在后台执行发布；本册不提供“撤销发布”</div>
   <div class="tablet">
     <div class="appbar"><span>⛓ 发布前确认 · 脑机星球 · 小学组</span><span style="font-size:12px;">裁判长：张老师</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
     <div class="screen">
@@ -2380,9 +2337,9 @@
           <div class="qrow"><span>⚠ 未打分队伍是否获奖</span><span class="warn">业务未拍板 → 发布前须先确认（黄项 · 不计入硬阻断）</span></div>
         </div>
         <div class="card">
-          <div class="t-name">双锁状态 <span class="pts">两把全绿才可移交</span></div>
-          <div class="qrow"><span>成绩锁定</span><span style="font-weight:bold; color:#38a169;">已锁 · 12:05 · 张老师</span></div>
-          <div class="qrow"><span>配置锁定</span><span style="font-weight:bold; color:#38a169;">config_version = v3 · 张老师 · 11:40</span></div>
+          <div class="t-name">发布就绪 <span class="pts">各项满足才可移交</span></div>
+          <div class="qrow"><span>成绩提交</span><span style="font-weight:bold; color:#38a169;">已全部提交并签名 · 0 待公示</span></div>
+          <div class="qrow"><span>规则配置</span><span style="font-weight:bold; color:#38a169;">已冻结 v3 · 张老师 · 11:40</span></div>
         </div>
         <div class="card">
           <div class="t-name">发布产物分流</div>
@@ -2424,7 +2381,7 @@
   </div>
   <div class="note">
     <span class="num">1</span> <b>发布前 gate 全绿才放行</b>：完整度、待裁定、待审批改分三项为硬阻断（红），弃赛递补与未打分队伍获奖口径为提示项（黄）——把“能不能发”的判断从人脑搬到界面上。<br>
-    <span class="num">2</span> <b>双锁状态可视</b>：成绩锁 + 配置锁两把都绿，移交按钮才可用；发布是成绩的“锁定点”。<br>
+    <span class="num">2</span> <b>发布就绪可视</b>：成绩全部提交并签名、配置未改、无待裁定 / 待审批改分，各项满足时移交按钮才可用；发布是成绩的“定稿点”。<br>
     <span class="num">3</span> <b>产物分流</b>：对外公示表无分数无 PII（姓名脱敏），内部成绩表含 PII 仅归档——两者同源但不同权，避免把 PII 漏到对外产物。<br>
     <span class="num">4</span> <b>发布键在工作人员</b>：裁判长做“确认”、工作人员做“发布”，职责分离且双人可追溯（PRD §9.1 口径）。<br>
     <span class="num">5</span> <b>不做撤销发布</b>：已发布后成绩再变更，用常驻重发提示驱动“重新发布”，而不是引入“下架榜单”这类额外状态。重发提示<b>按赛项挂载</b>：本页发布单元（脑机星球 · 小学组）尚未发布、不涉及重发；已发布的火星救援 · 小学组因 R-006 改分批准而待重发，作为赛事级待办在本页可见。<br>
@@ -2496,7 +2453,7 @@
               <div style="border:2px dashed #2b6cb0; border-radius:8px; height:90px; color:#718096; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 王老师 手写签名</div>
             </div>
           </div>
-          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台）。</div>
+          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误。<b>提交硬闸</b>：<b>选手代表 + 裁判</b>两方签名齐全前，「提交成绩 →」按钮<b>置灰禁用</b>，缺一不可提交；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台；本册不提供"撤销提交"，改用 P11 重发提示）。</div>
         </div>
         </div>
         <div class="action-bar">
@@ -2582,7 +2539,7 @@
               <div style="border:2px dashed #2b6cb0; border-radius:8px; height:90px; color:#718096; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 王老师 手写签名</div>
             </div>
           </div>
-          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台）。</div>
+          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误。<b>提交硬闸</b>：<b>选手代表 + 裁判</b>两方签名齐全前，「提交成绩 →」按钮<b>置灰禁用</b>，缺一不可提交；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台；本册不提供"撤销提交"，改用 P11 重发提示）。</div>
         </div>
         </div>
         <div class="action-bar">
@@ -2668,7 +2625,7 @@
               <div style="border:2px dashed #2b6cb0; border-radius:8px; height:90px; color:#718096; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 王老师 手写签名</div>
             </div>
           </div>
-          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台）。</div>
+          <div style="font-size:12px; color:#718096; margin-top:10px;">签名即确认：本场成绩与判罚记录经复核无误。<b>提交硬闸</b>：<b>选手代表 + 裁判</b>两方签名齐全前，「提交成绩 →」按钮<b>置灰禁用</b>，缺一不可提交；签名后提交即不可修改（如需更正走 P9 改分审批 / P8 裁定台；本册不提供"撤销提交"，改用 P11 重发提示）。</div>
         </div>
         </div>
         <div class="action-bar">

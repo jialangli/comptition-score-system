@@ -109,9 +109,6 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .pub{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 24px}
 .pub h3{margin:0 0 4px;font-size:17px;text-align:center;font-weight:600}
 .pub .sub{text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:16px}
-.award1{color:#a32d2d;font-weight:500}
-.award2{color:#9a6410;font-weight:500}
-.award3{color:#2f6b0f;font-weight:500}
 .dd{position:relative;display:inline-block;min-width:240px;z-index:60}
 .dd-sum{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px;cursor:pointer;color:#222}
 .dd-sum:hover{border-color:#bbb}
@@ -149,7 +146,6 @@ var CONTEST_STATUS={prep:'筹备中',live:'进行中',done:'已结束',archived:
    索引里的 cur 只作为「新标签的默认起点」。 */
 var CKEY_CUR='brainco_contests_cur_tab';
 var REF_TIME=120;                 // 时间奖励基准时长（秒），demo 常量，实际由赛制给定
-var TIERS={'一等奖':0.1,'二等奖':0.2,'三等奖':0.3};
 
 var VIEW='dash';
 var CUR_EVENT='brain_planet';     // 赛项与规则页当前编辑赛项
@@ -178,6 +174,58 @@ function download(name,text,mime){
 }
 function nowStr(){var d=new Date();function p(n){return n<10?'0'+n:''+n;}return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
 
+/* ---------- 零依赖 .xlsx 写出（store ZIP + inlineStr；CRC32 正确，可被本页自带 xlsxReader 回读） ---------- */
+function xlsxEscapeXml(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');}
+function xlsxColName(idx){var s='';idx++;while(idx>0){s=String.fromCharCode(65+((idx-1)%26))+s;idx=Math.floor((idx-1)/26);}return s;}
+function xlsxCrc32(buf){var c=~0>>>0;for(var i=0;i<buf.length;i++){c^=buf[i];for(var k=0;k<8;k++)c=(c>>>1)^(0xEDB88320&-(c&1));}return (~c)>>>0;}
+function xlsxZipStore(files){
+  var enc=new TextEncoder();var parts=[];var central=[];var off=0;
+  files.forEach(function(f){
+    var data=enc.encode(f.data);var nb=enc.encode(f.name);var crc=xlsxCrc32(data);
+    var lh=new Uint8Array(30+nb.length);var dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true);dv.setUint16(4,20,true);dv.setUint16(6,0,true);dv.setUint16(8,0,true);
+    dv.setUint16(10,0,true);dv.setUint16(12,0,true);dv.setUint32(14,crc,true);dv.setUint32(18,data.length,true);dv.setUint32(22,data.length,true);
+    dv.setUint16(26,nb.length,true);dv.setUint16(28,0,true);lh.set(nb,30);
+    parts.push(lh);parts.push(data);
+    var ch=new Uint8Array(46+nb.length);var cv=new DataView(ch.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0,true);cv.setUint16(10,0,true);cv.setUint16(12,0,true);
+    cv.setUint32(16,crc,true);cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);
+    cv.setUint16(28,nb.length,true);cv.setUint16(30,0,true);cv.setUint16(32,0,true);cv.setUint16(34,0,true);cv.setUint16(36,0,true);cv.setUint32(38,0,true);cv.setUint32(42,off,true);
+    ch.set(nb,46);central.push(ch);off+=lh.length+data.length;
+  });
+  var cdSize=0;central.forEach(function(c){cdSize+=c.length;});var cdOff=off;
+  var eo=new Uint8Array(22);var ev=new DataView(eo.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);
+  ev.setUint32(12,cdSize,true);ev.setUint32(16,cdOff,true);ev.setUint16(20,0,true);
+  var total=off+cdSize+22;var out=new Uint8Array(total);var pos=0;
+  parts.forEach(function(pp){out.set(pp,pos);pos+=pp.length;});
+  central.forEach(function(c){out.set(c,pos);pos+=c.length;});
+  out.set(eo,pos);return out;
+}
+function buildXlsx(rows){
+  var sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+  rows.forEach(function(row,ri){
+    var r=ri+1,cells='';
+    row.forEach(function(cell,ci){
+      var ref=xlsxColName(ci)+r;
+      if(typeof cell==='number'&&isFinite(cell)){cells+='<c r="'+ref+'"><v>'+cell+'</v></c>';}
+      else{cells+='<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+xlsxEscapeXml(cell==null?'':cell)+'</t></is></c>';}
+    });
+    sheet+='<row r="'+r+'">'+cells+'</row>';
+  });
+  sheet+='</sheetData></worksheet>';
+  var wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>';
+  var ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>';
+  var rr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  var wr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>';
+  return xlsxZipStore([{name:'[Content_Types].xml',data:ct},{name:'_rels/.rels',data:rr},{name:'xl/workbook.xml',data:wb},{name:'xl/_rels/workbook.xml.rels',data:wr},{name:'xl/worksheets/sheet1.xml',data:sheet}]);
+}
+
 /* ---------- 种子数据 ---------- */
 function seedData(){
   return {
@@ -189,25 +237,17 @@ function seedData(){
     published:{mars_rescue:{at:'2026-09-17 11:20',count:1}},
     /* 发布流转（裁判长移交 → 工作人员发布 → 回流）：与平板端 P11 note 8 同口径 */
     handoff:{
-      brain_planet:{by:'张老师',at:'2026-09-17 13:05',note:'双锁确认后移交发布',status:'待发布',publishedAt:'',publishedBy:''},
+      brain_planet:{by:'张老师',at:'2026-09-17 13:05',note:'完整性校验后移交发布',status:'待发布',publishedAt:'',publishedBy:''},
       mars_rescue:{by:'张老师',at:'2026-09-17 11:18',note:'赛前冻结后移交发布',status:'已发布',publishedAt:'2026-09-17 11:20',publishedBy:'赵工作人员'}
     },
     pubDirty:{mars_rescue:{at:'2026-09-17 12:31',why:'改分 R-006 批准生效（火星一号 · 救援主任务 85 → 92）'}},
-    locks:{
-      'brain_planet|小学组':{score:{by:'张老师',at:'2026-09-17 12:05'},config:{by:'张老师',at:'2026-09-17 11:40',v:3}},
-      'brain_planet|初中组':{config:{by:'张老师',at:'2026-09-17 11:40',v:3}},
-      'mars_rescue|小学组':{score:{by:'李老师',at:'2026-09-17 11:20'},config:{by:'李老师',at:'2026-09-17 11:05',v:2}}
-    },
     /* 统一告警收件箱：平板端四类告警的落点（推送对象 = 后台） */
     alerts:[
-      {id:'al1',ts:'2026-09-17 11:15',type:'解锁',level:'warn',target:'火星救援 · 小学组',
-       detail:'成绩锁被解锁（原锁 李老师 · 11:20；解锁后已重锁）',reason:'发现任务④ 漏记，需解锁补分',
-       by:'李老师',push:'后台',status:'待处理',handledBy:'',handledAt:''},
       {id:'al2',ts:'2026-09-17 13:10',type:'自批',level:'danger',target:'R-007 · 追光队（1002）',
        detail:'改分申请人 = 审批人（张老师），同一账号自批，系统强制标注并生成独立告警',
        reason:'—',by:'张老师',push:'后台',status:'待处理',handledBy:'',handledAt:''},
       {id:'al3',ts:'2026-09-17 11:38',type:'取消资格',level:'danger',target:'D-004 · 晨曦队（1003）',
-       detail:'取消资格裁定已提交（不可撤销 + 成绩作废 + 不进榜单不计奖项），供事后抽样复核',
+       detail:'取消资格裁定已提交（不可撤销 + 成绩作废 + 不进榜单），供事后抽样复核',
        reason:'恶意破坏比赛设备或道具（R04 · 红牌）',by:'张老师',push:'后台',status:'待处理',handledBy:'',handledAt:''},
       {id:'al4',ts:'2026-09-17 13:05',type:'超时催办',level:'warn',target:'D-002 · 星河队（1001）',
        detail:'争议工单入队超 30 分钟未处理（12:35 入队 → 13:05 触发），已向裁判长推送催办',
@@ -291,6 +331,7 @@ function seedData(){
     /* 本系统只有一个登录身份：工作人员，且享有全部 10 项权限（无多角色、无身份切换） */
     currentUserId:'u1',
     schemaV:2,
+    chiefReferee:'rf1',
     referees:[
       {id:'rf1',name:'张老师',phone:'138****0001',role:'chief',code:'K7M2QD',status:'activated',
        bind:{eventId:'brain_planet',group:'小学组',seatId:'s1'},activatedAt:'2026-09-17 08:40',lastSeen:'2026-09-17 11:52',device:'平板-03'},
@@ -298,7 +339,7 @@ function seedData(){
        bind:{eventId:'brain_planet',group:'小学组',seatId:'s1'},activatedAt:'2026-09-17 08:42',lastSeen:'2026-09-17 11:47',device:'平板-01'},
       {id:'rf3',name:'李老师',phone:'138****0003',role:'judge',code:'P5XN4K',status:'issued',
        bind:{eventId:'mars_rescue',group:'小学组',seatId:'s3'},activatedAt:'',lastSeen:'',device:''},
-      {id:'rf4',name:'陈老师',phone:'138****0004',role:'chief',code:'B8GY6T',status:'activated',
+      {id:'rf4',name:'陈老师',phone:'138****0004',role:'judge',code:'B8GY6T',status:'activated',
        bind:{eventId:'mars_rescue',group:'初中组',seatId:'s4'},activatedAt:'2026-09-17 08:50',lastSeen:'2026-09-17 11:30',device:'平板-05'},
       {id:'rf5',name:'周老师',phone:'138****0005',role:'judge',code:'M2CJ7W',status:'issued',
        bind:{eventId:'brain_planet',group:'初中组',seatId:''},activatedAt:'',lastSeen:'',device:''}
@@ -353,7 +394,7 @@ function seedData(){
           {code:'D03',label:'用时争议（计时 / 停表异议）'},
           {code:'D04',label:'器材故障 / 其他'}
         ],
-        rankRule:{tieBreak:['score','time'],awardTiers:clone(TIERS)} },
+        rankRule:{tieBreak:['score','time']} },
       { id:'mars_rescue', name:'火星救援', groups:['小学组','初中组'], customFormula:null, rounds:1, configSN:2, ruleDoc:'V6.2',
         tasks:[
           {id:'base',name:'救援主任务',type:'numeric',maxScore:100,weight:1.0,control:'slider'}
@@ -383,7 +424,7 @@ function seedData(){
           {code:'D03',label:'用时争议（计时 / 停表异议）'},
           {code:'D04',label:'器材故障 / 其他'}
         ],
-        rankRule:{tieBreak:['score','time'],awardTiers:clone(TIERS)} },
+        rankRule:{tieBreak:['score','time']} },
       { id:'future_city', name:'未来之城', groups:['小学组','初中组'], customFormula:null, rounds:1, configSN:1, ruleDoc:'V7.3',
         phases:[
           {id:'auto', name:'自动阶段', durationSec:120, timerMode:'countdown', source:'colorcard',
@@ -428,7 +469,7 @@ function seedData(){
           {code:'D04',label:'器材故障 / 其他'},
           {code:'D05',label:'对抗场次争议（A / B 队同场判定）'}
         ],
-        rankRule:{tieBreak:['score','time'],awardTiers:clone(TIERS)} }
+        rankRule:{tieBreak:['score','time']} }
     ],
     teams:[
       {id:'bp1',no:'1001',name:'星河队',school:'杭州实验小学',coach:'张老师',eventId:'brain_planet',group:'小学组',members:'张一 / 李二',status:'active',source:'manual',seatId:'s1',order:1},
@@ -477,6 +518,14 @@ function readonlyGuard(){
 function staffOf(cid){var c=contestById(cid);return (c&&c.staff)?c.staff:[];}
 function staffLabel(cid){var a=staffOf(cid);return a.length?a.join(' / '):'未登记值守人';}
 function parseStaff(txt){return String(txt||'').split(/[，,、;；\/\s]+/).filter(function(x){return !!x;});}
+/* 一场赛事一个裁判长：裁判长是赛事级角色，统管全部赛项 / 赛台，不按场次各设一名 */
+function contestChief(){return findRef(S.chiefReferee);}
+function setContestChief(rid){if(!perm('ref'))return;
+  var b=(contestChief()||{}).name||'—',r=findRef(rid);
+  S.chiefReferee=rid||'';
+  logAudit('排班','本场裁判长',b,r?r.name:'（清空）','赛事级裁判长指派（管全部赛项）');
+  save();render();
+}
 /* 「当前赛事」按标签独立：sessionStorage 优先，索引里的 cur 只当新标签的默认起点 */
 function readTabCur(){try{var v=sessionStorage.getItem(CKEY_CUR);if(v&&contestById(v))return v;}catch(e){}return '';}
 function writeTabCur(id){try{sessionStorage.setItem(CKEY_CUR,id);}catch(e){}}
@@ -578,7 +627,7 @@ function pushAudit(d,action,target,before,after,reason){
 function blankContestData(){
   var d=seedData();
   d.teams=[];d.scores={};
-  d.published={};d.pubDirty={};d.handoff={};d.locks={};
+  d.published={};d.pubDirty={};d.handoff={};
   d.alerts=[];d.changeRequests=[];d.disputes=[];d.dqCases=[];d.evidence=[];
   d.auditLogs=[];d.importLogs=[];d.snapshots=[];
   d.slots=(d.slots||[]).map(function(x){return Object.assign({},x,{teams:[],chief:'',judges:[],snapshot:null});});
@@ -590,6 +639,7 @@ function blankContestData(){
 function seedQuzhou(){
   var d=seedData();
   d.events=d.events.filter(function(e){return e.id!=='future_city';});
+  d.chiefReferee='rfq1';
   var NT={
     bp1:{no:'1101',name:'星辰队',school:'衢州市实验学校',coach:'徐老师',group:'小学组',members:'徐一 / 徐二',seatId:'s1',order:1},
     bp2:{no:'1102',name:'追风队',school:'衢州市柯城区实验小学',coach:'方老师',group:'小学组',members:'方三 / 方四',seatId:'s1',order:2},
@@ -606,19 +656,15 @@ function seedQuzhou(){
     mr2:{tasks:{base:81,energy:5,bridge:3},time:109,yellow:0,red:0,signed:true}
   };
   d.slots=(d.slots||[]).filter(function(x){return x.period==='上午';}).map(function(x){
-    if(x.id==='sl1')return Object.assign({},x,{teams:['bp1','bp2'],chief:'何老师',judges:['何老师','许老师']});
-    if(x.id==='sl3')return Object.assign({},x,{teams:['mr1','mr2'],chief:'蒋老师',judges:['蒋老师','沈老师']});
-    return Object.assign({},x,{teams:[],chief:'',judges:[]});
+    if(x.id==='sl1')return Object.assign({},x,{teams:['bp1','bp2'],judges:['rfq2']});
+    if(x.id==='sl3')return Object.assign({},x,{teams:['mr1','mr2'],judges:['rfq3']});
+    return Object.assign({},x,{teams:[],judges:[]});
   });
   d.published={brain_planet:{at:'2026-06-13 12:40',count:1},mars_rescue:{at:'2026-06-13 12:42',count:1}};
   d.pubDirty={};
   d.handoff={
-    brain_planet:{by:'何老师',at:'2026-06-13 12:35',note:'双锁确认后移交发布',status:'已发布',publishedAt:'2026-06-13 12:40',publishedBy:'赵工作人员'},
-    mars_rescue:{by:'蒋老师',at:'2026-06-13 12:36',note:'双锁确认后移交发布',status:'已发布',publishedAt:'2026-06-13 12:42',publishedBy:'赵工作人员'}
-  };
-  d.locks={
-    'brain_planet|小学组':{score:{by:'何老师',at:'2026-06-13 12:30'},config:{by:'何老师',at:'2026-06-13 12:28',v:2}},
-    'mars_rescue|小学组':{score:{by:'蒋老师',at:'2026-06-13 12:32'},config:{by:'蒋老师',at:'2026-06-13 12:29',v:2}}
+    brain_planet:{by:'何老师',at:'2026-06-13 12:35',note:'完整性校验后移交发布',status:'已发布',publishedAt:'2026-06-13 12:40',publishedBy:'赵工作人员'},
+    mars_rescue:{by:'何老师',at:'2026-06-13 12:36',note:'完整性校验后移交发布',status:'已发布',publishedAt:'2026-06-13 12:42',publishedBy:'赵工作人员'}
   };
   d.alerts=[{id:'alq1',ts:'2026-06-13 11:02',type:'自批',level:'danger',target:'R-102 · 星辰队（1101）',
     detail:'改分申请人 = 审批人（何老师），同一账号自批，系统强制标注并生成独立告警',
@@ -649,7 +695,7 @@ function seedQuzhou(){
     {ts:'2026-06-13 09:05',operator:'赵工作人员',role:'staff',action:'改配置',target:'脑机星球 · 专注力任务权重',before:'0.6',after:'0.5',reason:'赛前规则复核'},
     {ts:'2026-06-13 10:30',operator:'赵工作人员',role:'staff',action:'改分',target:'追风队（1102）· 第 1 轮 搭建任务',before:'78',after:'83',reason:'漏记完成件，裁判长批准后更正'},
     {ts:'2026-06-13 11:02',operator:'赵工作人员',role:'staff',action:'改分',target:'星辰队（1101）· 第 1 轮 专注力任务',before:'88',after:'86',reason:'裁定更正（自批告警已生成）'},
-    {ts:'2026-06-13 12:30',operator:'赵工作人员',role:'staff',action:'锁成绩',target:'脑机星球 · 小学组',before:'未锁',after:'已锁',reason:'双锁确认'},
+    {ts:'2026-06-13 12:30',operator:'赵工作人员',role:'staff',action:'锁成绩',target:'脑机星球 · 小学组',before:'未锁',after:'已锁',reason:'完整性校验确认'},
     {ts:'2026-06-13 12:42',operator:'赵工作人员',role:'staff',action:'发布公示',target:'火星救援 · 小学组',before:'待发布',after:'已发布',reason:'收官公示'}
   ];
   d.importLogs=[{ts:'2026-06-01 15:10',source:'excel',operator:'赵工作人员',status:'success',
@@ -659,7 +705,7 @@ function seedQuzhou(){
   d.referees=[
     {id:'rfq1',name:'何老师',phone:'139****0101',role:'chief',code:'H4KQ2N',status:'activated',bind:{eventId:'brain_planet',group:'小学组',seatId:'s1'},activatedAt:'2026-06-13 08:20',lastSeen:'2026-06-13 12:30',device:'平板-01'},
     {id:'rfq2',name:'许老师',phone:'139****0102',role:'judge',code:'X7TW5B',status:'activated',bind:{eventId:'brain_planet',group:'小学组',seatId:'s1'},activatedAt:'2026-06-13 08:22',lastSeen:'2026-06-13 12:28',device:'平板-02'},
-    {id:'rfq3',name:'蒋老师',phone:'139****0103',role:'chief',code:'J2MF8R',status:'activated',bind:{eventId:'mars_rescue',group:'小学组',seatId:'s3'},activatedAt:'2026-06-13 08:25',lastSeen:'2026-06-13 12:32',device:'平板-03'}
+    {id:'rfq3',name:'蒋老师',phone:'139****0103',role:'judge',code:'J2MF8R',status:'activated',bind:{eventId:'mars_rescue',group:'小学组',seatId:'s3'},activatedAt:'2026-06-13 08:25',lastSeen:'2026-06-13 12:32',device:'平板-03'}
   ];
   return d;
 }
@@ -813,11 +859,10 @@ function migrate(d){
   d.handoff=d.handoff||{};
   if(Object.keys(d.handoff).length===0){
     d.handoff={
-      brain_planet:{by:'张老师',at:'2026-09-17 13:05',note:'双锁确认后移交发布',status:'待发布',publishedAt:'',publishedBy:''},
+      brain_planet:{by:'张老师',at:'2026-09-17 13:05',note:'完整性校验后移交发布',status:'待发布',publishedAt:'',publishedBy:''},
       mars_rescue:{by:'张老师',at:'2026-09-17 11:18',note:'赛前冻结后移交发布',status:'已发布',publishedAt:'2026-09-17 11:20',publishedBy:'赵工作人员'}
     };
   }
-  d.locks=d.locks||{};
   d.alerts=d.alerts||[];
   if((d.unlockAlerts||[]).length&&!d.alerts.length){
     d.alerts=d.unlockAlerts.map(function(a){return {id:uid('al'),ts:a.ts,type:'解锁',level:'warn',target:a.target,
@@ -840,8 +885,10 @@ function migrate(d){
   d.users=[{id:'u1',name:'赵工作人员',role:'staff'}];
   d.currentUserId='u1';
   d.schemaV=3;
+  if(!d.chiefReferee)d.chiefReferee='';
   d.unlockAlerts=d.unlockAlerts||[];
   (d.events||[]).forEach(function(e){if(e.configSN==null)e.configSN=1;if(e.ruleDoc==null)e.ruleDoc='—';});
+  Object.keys(d.scores||{}).forEach(function(k){var sc=d.scores[k];if(sc&&!sc.state){sc.state=(sc.signed?'submitted':'draft');}});
   Object.keys(d.published).forEach(function(k){
     if(d.published[k]===true)d.published[k]={at:'（历史数据）',count:1};
   });
@@ -935,7 +982,7 @@ function phaseSubtotal(ev,rec,phaseId){
   });
   return sum;
 }
-/* 「取消资格」= 不可撤销 + 成绩作废 + 不进榜单不计奖项；与「弃赛」（队伍主动退赛，可恢复）是两件事 */
+/* 「取消资格」= 不可撤销 + 成绩作废 + 不进榜单；与「弃赛」（队伍主动退赛，可恢复）是两件事 */
 function activeDqOf(teamId){
   var a=S.dqCases||[];
   for(var i=0;i<a.length;i++){if(a[i].teamId===teamId&&a[i].status==='已生效')return a[i];}
@@ -947,7 +994,7 @@ function voidedTeamsOf(evId){
 }
 function substituteMode(){return (S.substituteRule&&S.substituteRule.mode)==='rank'?'rank':'none';}
 function substituteModeName(){return substituteMode()==='rank'?'按名次顺延':'不递补（空缺不补）';}
-/* 原榜 = 取消资格之前的排名与奖项（含作废队），用于「影响预览」与「空缺奖项」判定 */
+/* 原榜 = 取消资格之前的排名（含作废队），用于「影响预览」与名次空缺判定 */
 function rankAll(evId){
   var ev=find(evId);if(!ev)return [];
   var tb=(ev.rankRule&&ev.rankRule.tieBreak)||['score','time'];
@@ -961,51 +1008,25 @@ function rankAll(evId){
     for(var i=0;i<tb.length;i++){if(tb[i]==='time'&&a.time!==b.time)return a.time-b.time;}
     return a.team.name.localeCompare(b.team.name,'zh');
   });
-  var tiers=(ev.rankRule&&ev.rankRule.awardTiers)||{};
-  var idx=0;
-  Object.keys(tiers).forEach(function(name){
-    var cnt=Math.ceil(list.length*(Number(tiers[name])||0));
-    for(var i=0;i<cnt&&idx<list.length;i++,idx++)list[idx].origAward=name;
-  });
-  list.forEach(function(r,i){r.origRank=i+1;r.award=r.origAward||'';});
+  list.forEach(function(r,i){r.origRank=i+1;});
   return list;
-}
-function applyAwards(list,n,tiers){
-  list.forEach(function(r){r.award='';});
-  var idx=0;
-  Object.keys(tiers).forEach(function(name){
-    var cnt=Math.ceil(n*(Number(tiers[name])||0));
-    for(var i=0;i<cnt&&idx<list.length&&idx<n;i++,idx++)list[idx].award=name;
-  });
 }
 function standings(evId){
   var ev=find(evId);if(!ev)return [];
-  var tiers=(ev.rankRule&&ev.rankRule.awardTiers)||{};
   var all=rankAll(evId);
   var rows=all.filter(function(r){return !isVoided(r.team.id);});
-  if(substituteMode()==='rank'){
-    applyAwards(rows,rows.length,tiers);                       /* 顺延：下一名替补上位 */
-  }else{
-    rows.forEach(function(r){r.award=r.origAward||'';});        /* 不递补：沿用原榜奖项，作废队的奖项空缺 */
-  }
+  var useGap=(substituteMode()!=='rank');   /* 不递补（空缺不补）：保留原名次，作废队位置留空 */
   rows.forEach(function(r,i){
-    r.rank=i+1;
+    r.rank=useGap?r.origRank:(i+1);
     r.tie=(i>0&&rows[i-1].total===r.total);
   });
   return rows;
 }
-/* 作废队 + 因此空缺的奖项（不递补时才可能空缺） */
+/* 作废队清单（用于「影响预览」与公示声明） */
 function voidedInfo(evId){
   var all=rankAll(evId);
-  var rows=all.filter(function(r){return !isVoided(r.team.id);});
   var voided=all.filter(function(r){return isVoided(r.team.id);});
-  var vacant=[];
-  if(substituteMode()!=='rank'){
-    voided.forEach(function(v){
-      if(v.origAward&&!rows.some(function(r){return r.award===v.origAward;})&&vacant.indexOf(v.origAward)<0)vacant.push(v.origAward);
-    });
-  }
-  return {voided:voided,vacant:vacant,all:all};
+  return {voided:voided,all:all};
 }
 function validateEvent(ev){
   var errs=[],warns=[];
@@ -1029,9 +1050,6 @@ function validateEvent(ev){
       }
     }
   });
-  var tierSum=Object.keys(ev.rankRule&&ev.rankRule.awardTiers||{}).reduce(function(a,k){return a+Number(ev.rankRule.awardTiers[k]||0);},0);
-  if(tierSum>1.0001)warns.push('奖项占比之和 = '+tierSum.toFixed(2)+'，建议 ≤ 1.0');
-  if(tierSum===0)warns.push('奖项占比全为 0，榜单将不分配奖项');
   if(ev.customFormula!=null)errs.push('customFormula 必须为 null（本期 A 档不支持自定义公式）');
   var rds=Number(ev.rounds||1);
   if(rds>=2){
@@ -1056,14 +1074,14 @@ function render(){
 }
 /* ---------- 页内分页：一级入口合并后，用 tab 承载原来的页 ----------
    关键取舍：**保留原有页面 id 作为子页 id**，不动 VIEW 的语义。
-   这样原有的页名可以原样当 tab 名，正文文案（"到「成绩锁定与解锁」解锁"）与
+   这样原有的页名可以原样当 tab 名，正文文案与
    全部跨页跳转（gotoView / alertDrillView / gotoPub）都不用改。 */
 var PAGE_TABS=[
   {page:'control', label:'跨赛事', items:[['control','并行总控'],['crossrank','跨赛事汇总榜']]},
   {page:'teams', label:'队伍与报名', items:[['teams','队伍管理'],['import','WRC 报名导入']]},
   {page:'referees', label:'裁判与排班', items:[['referees','裁判档案与裁判码'],['duty','执裁排班']]},
   {page:'watch', label:'处理进度看板', items:[['watch','处理进度看板']]},
-  {page:'lock', label:'锁定与发布', items:[['lock','成绩锁定与解锁'],['publish','公示与导出'],['dq','资格与递补']]},
+  {page:'publish', label:'公示与发布', items:[['publish','公示与导出'],['dq','资格与递补']]},
   {page:'roles', label:'合规', items:[['roles','角色与权限'],['audit','全操作审计']]}
 ];
 function pageOf(v){
@@ -1095,13 +1113,13 @@ function sidebar(){
     /* 22 项 / 6 组 → 15 项 / 4 组 + 总览置顶。
        合并的 6 处：跨赛事(并行总控+汇总榜) / 队伍与报名(队伍管理+报名导入) /
        裁判与排班(档案与裁判码+执裁排班) / 处理进度看板(告警+台账·只读) /
-       锁定与发布(双锁+公示导出) / 合规(权限+审计)。子页用页内 tab 切。 */
+       公示与发布(公示导出) / 合规(权限+审计)。子页用页内 tab 切。 */
   var groups=[
     ['',[['dash','总览']]],
     ['赛事',[['contests','赛事管理'],['control','跨赛事']]],
     ['赛前准备',[['events','赛项与规则'],['seats','赛台与赛程'],['teams','队伍与报名'],['referees','裁判与排班']]],
     ['赛中',[['score','裁判打分'],['rank','实时榜单'],['screen','大屏展示'],['watch','处理进度看板']]],
-    ['赛后与合规',[['lock','锁定与发布'],['evidence','留底证据库'],['roles','合规']]]
+    ['赛后与合规',[['publish','公示与发布'],['evidence','留底证据库'],['roles','合规']]]
   ];
   var nav=groups.map(function(g){
     return (g[0]?'<div class="ngroup">'+g[0]+'</div>':'')+g[1].map(function(it){
@@ -1115,7 +1133,7 @@ function sidebar(){
   '</aside>';
 }
 function topbar(){
-  var titles={contests:'赛事管理（一场赛事一份数据 · 隔离与归档）',control:'跨赛事 · 并行总控（只读汇总，不切当前赛事）',crossrank:'跨赛事 · 跨赛事汇总榜（多场成绩对照）',dash:'总览（开赛就绪度 · 赛项状态）',events:'赛项与规则配置',seats:'赛台与赛程编排',teams:'队伍与报名 · 队伍管理',import:'队伍与报名 · WRC 报名导入',referees:'裁判与排班 · 裁判档案与裁判码',duty:'裁判与排班 · 执裁排班（赛台 × 时段 × 人）',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',lock:'锁定与发布 · 成绩锁定与解锁（赛项 × 组别 · 双锁）',watch:'处理进度看板（告警收件箱 + 改分 / 争议台账 · 只读看板）',dq:'锁定与发布 · 资格与递补（取消资格登记 + 递补）',evidence:'留底证据库（服务端那一端）',publish:'锁定与发布 · 公示与导出',roles:'合规 · 角色与权限',audit:'合规 · 全操作审计'};
+  var titles={contests:'赛事管理（一场赛事一份数据 · 隔离与归档）',control:'跨赛事 · 并行总控（只读汇总，不切当前赛事）',crossrank:'跨赛事 · 跨赛事汇总榜（多场成绩对照）',dash:'总览（开赛就绪度 · 赛项状态）',events:'赛项与规则配置',seats:'赛台与赛程编排',teams:'队伍与报名 · 队伍管理',import:'队伍与报名 · WRC 报名导入',referees:'裁判与排班 · 裁判档案与裁判码',duty:'裁判与排班 · 执裁排班（赛台 × 时段 × 人）',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',watch:'处理进度看板（告警收件箱 + 改分 / 争议台账 · 只读看板）',dq:'公示与发布 · 资格与递补（取消资格登记 + 递补）',evidence:'留底证据库（服务端那一端）',publish:'公示与发布 · 公示与导出',roles:'合规 · 角色与权限',audit:'合规 · 全操作审计'};
   var contestPicker='<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;margin:0">'+
     '<span class="muted">赛事</span>'+
     '<select onchange="switchContest(this.value)" style="width:auto;min-width:230px;max-width:320px" title="切换赛事 = 切换整套数据（队伍 / 成绩 / 规则 / 留底 / 审计）">'+
@@ -1147,7 +1165,6 @@ function viewHtml(){
   if(VIEW==='watch')return viewWatch();
   if(VIEW==='dq')return viewDq();
   if(VIEW==='evidence')return viewEvidence();
-  if(VIEW==='lock')return viewLock();
   if(VIEW==='publish')return viewPublish();
   if(VIEW==='roles')return viewRoles();
   if(VIEW==='audit')return viewAudit();
@@ -1157,14 +1174,29 @@ function viewHtml(){
 function nav(v){if(v==='screen'&&VIEW!=='screen')SCREEN.needPin=true;VIEW=v;render();}
 
 /* ---------- 视图 0：赛事管理（多次赛事 · 一次建库多场复用） ---------- */
-var NC={name:'',season:'',start:'',end:'',venue:'',host:'',staff:'',mode:'template',src:'',copyRefs:true,error:''};
+var NC={name:'',season:'',start:'',end:'',venue:'',host:'',staff:'',mode:'template',src:'',copyRefs:true,events:['brain_planet','mars_rescue','future_city'],error:''};
 function ncSet(k,v){NC[k]=v;NC.error='';render();}
+function ncToggleEvent(id,on){var i=NC.events.indexOf(id);if(on&&i<0)NC.events.push(id);if(!on&&i>=0)NC.events.splice(i,1);NC.error='';render();}
+function eventPickerHtml(){
+  if(NC.mode!=='template')return '';
+  var Q=String.fromCharCode(39);   /* 单引号字符 —— 避免在单引号字符串里再嵌单引号 */
+  var cards=clone(seedData().events).map(function(t){
+    var on=NC.events.indexOf(t.id)>=0;
+    return '<label style="display:flex;gap:10px;align-items:flex-start;border:1px solid '+(on?'#2b6cb0':'#e2e8f0')+';border-radius:8px;padding:10px 12px;cursor:pointer;background:'+(on?'#eef5ff':'#fff')+'">'
+      +'<input type="checkbox" style="width:auto;margin-top:3px" '+(on?'checked':'')+' onchange="ncToggleEvent('+Q+t.id+Q+',this.checked)">'
+      +'<span><b>'+esc(t.name)+'</b> <span class="tag">'+esc(t.ruleDoc||'')+'</span><br>'
+      +'<span class="small muted">组别：'+esc((t.groups||[]).join('/'))+' · 任务 '+(t.tasks?t.tasks.length:0)+' 项</span></span></label>';
+  }).join('');
+  return '<div class="card" style="margin-top:14px;background:#f8fbff"><h3 style="font-size:14px;margin:0 0 8px">选择赛项 <span class="muted">（勾选即带入该赛项完整规则：任务 / 分值 / 计分模板 / 判罚事由 / 争议类型）</span></h3>'
+    +'<div class="grid g3">'+cards+'</div></div>';
+}
 
 function createContest(){
   var n=(NC.name||'').trim();
   if(!n){NC.error='请填写赛事名称';render();return;}
   var dup=CONTESTS.some(function(c){return c.name===n;});
   if(dup){NC.error='已有同名赛事，请换一个名称（便于导出与追溯）';render();return;}
+  if(NC.mode==='template' && NC.events.length===0){NC.error='请至少勾选一个赛项（赛事至少要有一个比赛项目）';render();return;}
   var id=uid('ct_');
   var stf=parseStaff(NC.staff);
   if(!stf.length)stf=[currentUser().name];   /* 不填就默认当前登录人 */
@@ -1176,7 +1208,7 @@ function createContest(){
     data=clone(loadContest(NC.src));
     /* 复制赛项与规则配置，不复制队伍与成绩（新赛事的人是另一批、成绩从零开始） */
     data.teams=[];data.scores={};
-    data.published={};data.pubDirty={};data.handoff={};data.locks={};
+    data.published={};data.pubDirty={};data.handoff={};
     data.alerts=[];data.changeRequests=[];data.disputes=[];data.dqCases=[];data.evidence=[];
     data.auditLogs=[];data.importLogs=[];data.snapshots=[];
     data.slots=(data.slots||[]).map(function(x){return Object.assign({},x,{teams:[],chief:'',judges:[],snapshot:null});});
@@ -1187,12 +1219,17 @@ function createContest(){
     c.note='由「'+contestName(NC.src)+'」复制赛项与规则配置新建（不含队伍与成绩'+(NC.copyRefs?'，裁判名册沿用、裁判码需重发':'，裁判名册不带入')+'）';
   }else{
     data=blankContestData();
-    c.note='按空白模板新建（含三赛项规则模板，需自行调整规则）';
+    /* 只保留勾选的赛项模板，并同步过滤赛程排期（slots 按 eventId 绑定） */
+    var pick={};NC.events.forEach(function(id){pick[id]=true;});
+    data.events=clone(seedData().events).filter(function(e){return pick[e.id];});
+    data.slots=(data.slots||[]).filter(function(x){return pick[x.eventId];})
+      .map(function(x){return Object.assign({},x,{teams:[],chief:'',judges:[],snapshot:null});});
+    c.note='按勾选赛项模板新建（已带入 '+data.events.length+' 个赛项规则：'+data.events.map(function(e){return e.name;}).join('、')+'）';
   }
   try{localStorage.setItem(ckey(id),JSON.stringify(data));}
   catch(e){NC.error='本地存储写入失败（浏览器存储可能已满）';render();return;}
   CONTESTS.push(c);saveContests();
-  NC={name:'',season:'',start:'',end:'',venue:'',host:'',staff:'',mode:'template',src:'',copyRefs:true,error:''};
+  NC={name:'',season:'',start:'',end:'',venue:'',host:'',staff:'',mode:'template',src:'',copyRefs:true,events:['brain_planet','mars_rescue','future_city'],error:''};
   switchContest(id);
 }
 
@@ -1245,7 +1282,7 @@ function viewContests(){
       '「待办」= 待审批改分申请 + 待裁定争议 + 待处理告警。</div>'+
   '</div>'+
   editCardHtml()+
-  '<div class="card"><h2>新建赛事 <small>一场赛事配一次，之后每场只需「复制上一场」</small></h2>'+
+  '<div class="card"><h2>新建赛事 <small>一场赛事由若干赛项组成：勾选赛项即带入其规则（规则不常变，无需每场重配）</small></h2>'+
     '<div class="grid g3">'+
       '<div class="fld"><label>赛事名称 *</label><input value="'+esc(NC.name)+'" oninput="NC.name=this.value" placeholder="如：2027 WRC 华东区选拔赛"></div>'+
       '<div class="fld"><label>赛季</label><input value="'+esc(NC.season)+'" oninput="NC.season=this.value" placeholder="如：2027 赛季"></div>'+
@@ -1254,11 +1291,11 @@ function viewContests(){
       '<div class="fld"><label>结束日期</label><input type="date" value="'+esc(NC.end)+'" oninput="NC.end=this.value"></div>'+
       '<div class="fld"><label>主办</label><input value="'+esc(NC.host)+'" oninput="NC.host=this.value" placeholder="如：上海市科协 · BrainCo"></div>'+
       '<div class="fld"><label>值守人 <span class="muted">（多人用 / 分隔，不填默认当前登录人）</span></label><input value="'+esc(NC.staff)+'" oninput="NC.staff=this.value" placeholder="如：赵工作人员 / 钱工作人员"></div>'+
-    '</div>'+
+    '</div>'+    eventPickerHtml()+
     '<div class="row">'+
       '<div class="fld" style="margin:0;min-width:260px"><label>初始化方式</label>'+
         '<select onchange="ncSet(\'mode\',this.value)">'+
-          '<option value="template" '+(NC.mode==='template'?'selected':'')+'>空白模板（内置三赛项规则，队伍成绩从零开始）</option>'+
+          '<option value="template" '+(NC.mode==='template'?'selected':'')+'>勾选赛项模板（按勾选带入赛项规则，队伍成绩从零开始）</option>'+
           '<option value="copy" '+(NC.mode==='copy'?'selected':'')+'>复制已有赛事的规则配置（不含队伍与成绩）</option>'+
         '</select></div>'+
       (NC.mode==='copy'?('<div class="fld" style="margin:0;min-width:240px"><label>复制来源</label><select onchange="ncSet(\'src\',this.value)">'+srcOpts+'</select></div>'):'')+
@@ -1278,9 +1315,9 @@ function viewContests(){
     '<div class="note">'+
       '<b>① 赛事 vs 赛项，先分清</b>：<b>赛事</b>＝一次具体举办（如「2026 WRC 中国区总决赛 · 杭州」）；<b>赛项</b>＝赛事内的比赛项目（脑机星球 / 火星救援 / 未来之城）。'+
         '本页管<b>赛事</b>，「赛项与规则」页管<b>赛项</b>。过去只有赛项这一层，等于只服务当次赛事；现在补齐了赛事这一层。'+
-      '<b>② 隔离方式是「一份赛事一份数据空间」</b>：每场赛事的队伍、成绩、规则快照、成绩锁与配置锁、改分申请、争议工单、取消资格、留底证据、操作审计、裁判码与赛台绑定，'+
+      '<b>② 隔离方式是「一份赛事一份数据空间」</b>：每场赛事的队伍、成绩、规则快照、改分申请、争议工单、取消资格、留底证据、操作审计、裁判码与赛台绑定，'+
         '<b>全部按赛事分开存放</b>，互不污染；切换赛事 = 切换整套数据，不会串场。'+
-      '<b>③ 规则只配一次</b>：新建赛事选「复制已有赛事的规则配置」，带走全部赛项与规则，但不带人与成绩 —— 这是最省事的开新场方式（赛制一年内不变时）。'+
+      '<b>③ 规则只配一次</b>：建赛时在「勾选赛项模板」里勾选本次要办的赛项（脑机星球 / 火星救援 / 未来之城），其规则自动带入；赛制一年内不变时无需每场重配。若想完全沿用上一场的全部配置，可选「复制已有赛事的规则配置」（带走赛项与规则、不带人与成绩）作为快捷方式。'+
       '<b>④ 归档语义</b>：赛事收官后把状态改为<b>已归档</b>（只读历史快照，进入时会提示，仅用于追溯与导出）。归档不删数据，随时可改回「已结束」。'+
       '<b>⑤ 哪些是跨赛事共享的</b>：只有<b>登录身份</b>与<b>后端连接设置</b>。裁判「人」的档案可跨赛事复用，但<b>裁判码与赛台绑定是赛事级凭证</b> —— 换赛事必须重新建档发码，旧码在新赛事无效。'+
       '<b>⑥ 队伍编号可以重复</b>：编号只在赛事内唯一。同一支队伍在不同赛事里用同一编号不会冲突，成绩也各算各的。'+
@@ -1418,7 +1455,7 @@ function readinessOf(cid){
       ruleBad:evs.filter(function(e){return validateEvent(e).errs.length>0;}).length,
       unseated:teams.filter(function(t){return !t.seatId;}).length,
       emptySlots:slots.filter(function(x){return !((x.teams||[]).length);}).length,
-      unstaffed:slots.filter(function(x){return !x.chief&&!((x.judges||[]).length);}).length,
+      unstaffed:slots.filter(function(x){return !((x.judges||[]).length);}).length,
       idle:refs.filter(function(r){return r.status!=='activated';}).length
     };
   }
@@ -1503,10 +1540,10 @@ function crossRanks(){
           var key=(r.team.name||'')+'|'+(r.team.school||'');
           if(!byTeam[key]){byTeam[key]={key:key,name:r.team.name,school:r.team.school||'',members:r.team.members||'',items:[]};order.push(key);}
           byTeam[key].items.push({contestId:c.id,contest:c.name,event:ev.name,group:r.team.group||'',
-            rank:r.rank,total:r.total,award:r.award||'',of:rows.length});
+            rank:r.rank,total:r.total,of:rows.length});
         });
         if(rows.length)champs.push({contest:c.name,event:ev.name,group:rows[0].team.group||'',
-          name:rows[0].team.name,school:rows[0].team.school||'',total:rows[0].total,award:rows[0].award||''});
+          name:rows[0].team.name,school:rows[0].team.school||'',total:rows[0].total});
       });
     });
   });
@@ -1515,7 +1552,6 @@ function crossRanks(){
     t.count=t.items.length;
     t.best=Math.min.apply(null,t.items.map(function(x){return x.rank;}));
     t.avg=t.items.reduce(function(a,b){return a+b.total;},0)/t.count;
-    t.awards=t.items.map(function(x){return x.award;}).filter(function(a){return !!a;});
     t.froms=t.items.map(function(x){return x.contest;}).filter(function(v,i,a){return a.indexOf(v)===i;});
     t.multi=(t.froms.length>1);
     return t;
@@ -1536,27 +1572,26 @@ function viewCrossRank(){
   }).join('');
   var rows=r.list.map(function(t){
     var det=t.items.map(function(x){
-      return '<div class="small"><b>'+esc(x.contest)+'</b> · '+esc(x.event)+' · 第 <b>'+x.rank+'</b> 名（共 '+x.of+'）· 总分 '+x.total.toFixed(1)+(x.award?(' · <b>'+esc(x.award)+'</b>'):'')+'</div>';
+      return '<div class="small"><b>'+esc(x.contest)+'</b> · '+esc(x.event)+' · 第 <b>'+x.rank+'</b> 名（共 '+x.of+'）· 总分 '+x.total.toFixed(1)+'</div>';
     }).join('');
     return '<tr'+(t.multi?' style="background:#fbfdff"':'')+'>'+
       '<td><b>'+esc(t.name)+'</b>'+(t.multi?' <span class="tag b">跨场</span>':'')+'<div class="small muted">'+esc(t.school||'—')+'</div></td>'+
       '<td class="num">'+t.count+'</td>'+
       '<td class="num">第 '+t.best+'</td>'+
       '<td class="num">'+t.avg.toFixed(1)+'</td>'+
-      '<td>'+(t.awards.length?t.awards.map(function(a){return '<span class="tag ok">'+esc(a)+'</span>';}).join(' '):'<span class="muted">—</span>')+'</td>'+
       '<td>'+det+'</td>'+
     '</tr>';
   }).join('');
   var champRows=r.champs.map(function(c){
     return '<tr><td>'+esc(c.contest)+'</td><td>'+esc(c.event)+'</td><td>'+esc(c.group||'—')+'</td>'+
       '<td><b>'+esc(c.name)+'</b><div class="small muted">'+esc(c.school||'—')+'</div></td>'+
-      '<td class="num">'+c.total.toFixed(1)+'</td><td>'+(c.award?esc(c.award):'—')+'</td></tr>';
+      '<td class="num">'+c.total.toFixed(1)+'</td></tr>';
   }).join('');
   return '<div class="grid g4">'+
       kpi('纳入赛事',r.used+' 场',CONTESTS.length+' 场中选中')+
       kpi('归并队伍',r.list.length+' 支','按「队名 + 学校」归并')+
       kpi('跨场参赛队伍',multi+' 支','在两场及以上出现过')+
-      kpi('各场冠军',r.champs.length+' 个','场次 × 赛项')+
+      kpi('各场第一名',r.champs.length+' 个','场次 × 赛项')+
     '</div>'+
   '<div class="card" style="margin-top:16px"><h2>筛选 <small>范围口径直接决定下面的数字</small></h2>'+
     '<div class="row" style="margin-bottom:10px"><span class="small muted">赛事</span>'+cOpts+
@@ -1570,13 +1605,13 @@ function viewCrossRank(){
       '<button class="btn" style="margin-top:18px" onclick="xrExport()">导出对照表 CSV</button>'+
     '</div>'+
   '</div>'+
-  '<div class="card"><h2>队伍跨赛事成绩对照 <small>同一支队伍在多场里的名次 / 总分 / 奖项</small></h2>'+
-    '<table><thead><tr><th>队伍</th><th class="num">参赛场次</th><th class="num">最佳名次</th><th class="num">平均总分</th><th>获奖</th><th style="min-width:360px">各场明细</th></tr></thead>'+
-    '<tbody>'+(rows||'<tr><td colspan="6" class="muted">没有选中任何赛事，或选中赛事暂无成绩</td></tr>')+'</tbody></table>'+
+  '<div class="card"><h2>队伍跨赛事成绩对照 <small>同一支队伍在多场里的名次 / 总分</small></h2>'+
+    '<table><thead><tr><th>队伍</th><th class="num">参赛场次</th><th class="num">最佳名次</th><th class="num">平均总分</th><th style="min-width:360px">各场明细</th></tr></thead>'+
+    '<tbody>'+(rows||'<tr><td colspan="5" class="muted">没有选中任何赛事，或选中赛事暂无成绩</td></tr>')+'</tbody></table>'+
   '</div>'+
-  '<div class="card"><h2>各场冠军一览 <small>场次 × 赛项 的第一名</small></h2>'+
-    '<table><thead><tr><th>赛事</th><th>赛项</th><th>组别</th><th>冠军</th><th class="num">总分</th><th>奖项</th></tr></thead>'+
-    '<tbody>'+(champRows||'<tr><td colspan="6" class="muted">暂无数据</td></tr>')+'</tbody></table>'+
+  '<div class="card"><h2>各场第一名一览 <small>场次 × 赛项 的第一名</small></h2>'+
+    '<table><thead><tr><th>赛事</th><th>赛项</th><th>组别</th><th>第一名</th><th class="num">总分</th></tr></thead>'+
+    '<tbody>'+(champRows||'<tr><td colspan="5" class="muted">暂无数据</td></tr>')+'</tbody></table>'+
   '</div>'+
   '<div class="card"><h2>设计说明 <small>这张表能用来干什么、不能用来干什么</small></h2>'+
     '<div class="note">'+
@@ -1584,7 +1619,7 @@ function viewCrossRank(){
         '所以本表按「<b>参赛场次 → 最佳名次 → 平均分</b>」排序，只回答"谁参加过哪几场、各场表现如何"。'+
       '<b>② 同一支队伍怎么识别</b>：队伍编号只在赛事内唯一，跨场不能当身份用，所以这里按「<b>队名 + 学校</b>」归并 —— '+
         '<b>同名同校视为同一支队伍</b>。真要做严格的跨赛事队伍身份，需要在队伍上加一个跨场唯一 ID（见 PRD 待办）。'+
-      '<b>③ 各场名次都是「该场当时的官方名次」</b>：已剔除取消资格的队伍、按该场的递补规则算奖项，与各场公示一致。'+
+      '<b>③ 各场名次都是「该场当时的官方名次」</b>：已剔除取消资格的队伍、按该场的递补规则算名次，与各场公示一致。'+
       '<b>④ 用途</b>：总部看晋级队伍在后续赛事的表现、赛后复盘、给赞助/媒体出素材。'+
       '<b>⑤ 导出</b>：CSV 带 BOM，Excel 直接打开不分列乱码。'+
     '</div>'+
@@ -1592,11 +1627,11 @@ function viewCrossRank(){
 }
 function xrExport(){
   var r=crossRanks();
-  var head=['队伍','学校','参赛场次','最佳名次','平均总分','获奖','各场明细'];
+  var head=['队伍','学校','参赛场次','最佳名次','平均总分','各场明细'];
   var lines=[head.join(',')];
   r.list.forEach(function(t){
     lines.push(['"'+String(t.name).replace(/"/g,'""')+'"','"'+String(t.school||'').replace(/"/g,'""')+'"',
-      t.count,t.best,t.avg.toFixed(1),'"'+t.awards.join(' / ')+'"',
+      t.count,t.best,t.avg.toFixed(1),
       '"'+t.items.map(function(x){return x.contest+' '+x.event+' 第'+x.rank+'名 总分'+x.total.toFixed(1);}).join('；').replace(/"/g,'""')+'"'].join(','));
   });
   download('跨赛事成绩对照_'+nowStr().replace(/[: ]/g,'')+'.csv','\ufeff'+lines.join('\n')+'\n','text/csv;charset=utf-8');
@@ -1708,7 +1743,7 @@ function viewDash(){
   '</div>'+
   '<div class="card"><h2>设计说明 <small>这套后台的设计取舍</small></h2>'+
     '<div class="note">'+
-      '<b>① 规则自由配</b>：赛项、任务、得分、奖项全部写在配置里 —— 换赛项只需换配置，打分引擎不用改。<br>'+
+      '<b>① 规则自由配</b>：赛项、任务、得分全部写在配置里 —— 换赛项只需换配置，打分引擎不用改。<br>'+
       '<b>② 评分方式就三类</b>：数值评分、计数得分、等级评分 —— 任何赛项的评分项都能用这三类描述。<br>'+
       '<b>③ 配置可留档回滚</b>：改配置前先存快照，出问题一键回滚。<br>'+
       '<b>④ 报名统一从 WRC 来</b>：官网导出 → 变更比对 → 合并入库；已有成绩的队伍不会被冲掉，退赛只标记不删除。<br>'+
@@ -1894,7 +1929,6 @@ function eventForm(ev){
     return out.join('');
   }
   var disputeTypeRows=disputeTypeRowsOf();
-  var tiers=ev.rankRule&&ev.rankRule.awardTiers||{};
   var tb=(ev.rankRule&&ev.rankRule.tieBreak||[]).join(',');
 
   return '<h2>赛项配置 <small>'+esc(ev.name)+'</small></h2>'+
@@ -1939,13 +1973,6 @@ function eventForm(ev){
         '<option value="score,time" '+(tb==='score,time'?'selected':'')+'>按用时少者优先</option>'+
         '<option value="score" '+(tb==='score'?'selected':'')+'>并列（不额外裁决）</option>'+
       '</select></div>'+
-    '</div>'+
-    '<div class="fld"><label>排名奖项占比（小数，如 0.1 = 前 10%）</label>'+
-      '<div class="row">'+
-        ['一等奖','二等奖','三等奖'].map(function(k){
-          return '<span class="small">'+k+' <input type="number" step="0.05" style="width:70px;display:inline-block" value="'+(tiers[k]==null?'':tiers[k])+'" oninput="updTier(\''+k+'\',this.value)"></span>';
-        }).join('')+
-      '</div>'+
     '</div>'+
     '<hr class="sep">'+
     '<div class="row" style="justify-content:space-between"><label class="small muted">奖励规则（bonusRules）</label>'+
@@ -2018,7 +2045,7 @@ function updTieBreakPreset(v){
   logAudit('改配置',ev.name+' · 同分裁决规则',before,tieName(ev.rankRule.tieBreak),'赛项规则调整');
   save();
 }
-function updTier(k,v){var ev=find(CUR_EVENT);if(!ev)return;if(!ev.rankRule.awardTiers)ev.rankRule.awardTiers={};ev.rankRule.awardTiers[k]=Number(v)||0;save();}
+
 function penName(t){return {record_only:'仅记录不扣分',per_card:'按牌扣分',none:'不扣分'}[t]||t||'仅记录不扣分';}
 function ensureCardRules(){
   var ev=find(CUR_EVENT);if(!ev)return null;
@@ -2682,7 +2709,7 @@ function changeTeamGroup(id,g){
 }
 /* ---------- 分台与顺位（队伍管理页内） ---------- */
 /* 依据《裁判打分系统》P2：平板端队列 = 本赛台队伍（按绑定自动过滤）+ 第 X 顺位 / 共 N 队；
-   P10 完成度 = 赛项 × 组别级（多赛台汇总）。故此处维护「队伍 → 赛台 + 赛台内顺位」。 */
+   提交即终态下，完成度 = 赛项 × 组别级（多赛台汇总）。故此处维护「队伍 → 赛台 + 赛台内顺位」。 */
 var TEAM_SEAT_GROUP='';
 function selSeatGroup(v){TEAM_SEAT_GROUP=v;render();}
 function findTeam(id){var a=S.teams||[];for(var i=0;i<a.length;i++){if(a[i].id===id)return a[i];}return null;}
@@ -2719,7 +2746,7 @@ function seatPanel(){
     var sOpts='<option value="">（未分台）</option>'+S.seats.map(function(x){
       return '<option value="'+x.id+'" '+(t.seatId===x.id?'selected':'')+'>'+esc(x.name)+'</option>';}).join('');
     return '<tr>'+
-      '<td class="num">'+(pos||'—')+'</td>'+
+      '<td><input type="checkbox" class="seatpick" value="'+t.id+'"></td>'+'<td class="num">'+(pos||'—')+'</td>'+
       '<td><b>'+esc(t.no||'—')+'</b></td>'+
       '<td>'+esc(t.name)+'<div class="small muted">'+esc(t.members||'—')+'</div></td>'+
       '<td class="small">'+esc(t.group||'—')+'</td>'+
@@ -2739,7 +2766,7 @@ function seatPanel(){
         '<span class="small muted">'+list.length+' 支队伍 · 出赛顺位 1–'+list.length+'</span>'+
       '</div>'+
       '<div style="overflow:auto">'+
-      '<table style="margin-top:6px"><thead><tr><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:90px">组别</th><th style="width:88px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
+      '<table style="margin-top:6px"><thead><tr><th style="width:40px">选</th><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:90px">组别</th><th style="width:88px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
       '<tbody>'+(rows||'<tr><td colspan="6" class="muted">该赛台暂无队伍</td></tr>')+'</tbody></table></div>'+
     '</div>';
   }).join('');
@@ -2747,7 +2774,7 @@ function seatPanel(){
   var unBlock=unassigned.length
     ? '<div style="margin-top:12px;border:1px dashed #f6ad55;border-radius:8px;padding:10px 12px;background:#fffaf0">'+
       '<div class="row" style="justify-content:space-between"><b>未分台</b><span class="small muted">'+unassigned.length+' 支 · 平板端不会出现在任何赛台队列里</span></div>'+
-      '<div style="overflow:auto"><table style="margin-top:6px"><thead><tr><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:90px">组别</th><th style="width:88px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
+      '<div style="overflow:auto"><table style="margin-top:6px"><thead><tr><th style="width:40px">选</th><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:90px">组别</th><th style="width:88px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
       '<tbody>'+unassigned.map(function(t){return teamRow(t,'—');}).join('')+'</tbody></table></div></div>'
     : '';
 
@@ -2755,21 +2782,21 @@ function seatPanel(){
       '<h2 style="margin:0">分台与顺位 <small>'+esc(ev.name)+' · 平板端队列口径</small></h2>'+
       '<span class="sp" style="flex:1"></span>'+
       '<select style="max-width:140px" onchange="selSeatGroup(this.value)">'+gOpts+'</select>'+
-      '<button class="btn primary" onclick="autoDistributeSeats()">按人数均分到赛台</button>'+
+      '<button class="btn primary" onclick="autoDistributeSeats()">按人数均分到赛台</button>'+'<button class="btn" onclick="autoDistributeSeatsSel()">按编号均分选中队伍</button>'+
       '<button class="btn" onclick="clearTeamSeats()">清空分台</button>'+
     '</div>'+
     '<div class="grid g4" style="margin-top:12px">'+
       kpi('该赛项队伍',pool.length,TEAM_SEAT_GROUP?('组别：'+TEAM_SEAT_GROUP):'全部组别（不含退赛）')+
       kpi('已分台',assigned,'未分台 '+unassigned.length+' 支')+
       kpi('占用赛台',usedSeats.length,'仅统计有队伍的赛台')+
-      kpi('完成度',done+' / '+pool.length,'已签字确认 · 平板端 P10 按此口径汇总')+
+      kpi('完成度',done+' / '+pool.length,'已签字确认 · 平板端按此口径汇总')+
     '</div>'+
     (blocks||'<div class="hint" style="margin-top:12px">当前没有已分台的队伍。点「按人数均分到赛台」快速铺开，或逐队在右侧下拉里指定赛台。</div>')+
     unBlock+
     '<div class="hint" style="margin-top:12px">'+
       '<b>① 分台决定平板端看到什么</b>：裁判登录后只见<b>本人预绑赛台</b>的队伍队列（P2 队列标题即「本赛台队列」），顺序就是这里的<b>出赛顺位</b>；未分台的队伍不会出现在任何赛台，等于漏赛。<br>'+
       '<b>② 顺位 = 出赛顺序</b>：平板端「第 X 顺位 / 共 N 队」徽标、以及提交后自动切下一队的指针，都按此顺位推进。<br>'+
-      '<b>③ 完成度是赛项 × 组别级</b>：平板端 P10 锁定台的「已完成 X / 共 Y 队」按此口径（多赛台汇总后）计算，是"这个组别能不能发榜"的依据 —— 与单个赛台的队列进度不是一回事。<br>'+
+      '<b>③ 完成度是赛项 × 组别级</b>：平板端打分端的「已完成 X / 共 Y 队」按此口径（多赛台汇总后）计算，是"这个组别能不能发榜"的依据 —— 与单个赛台的队列进度不是一回事。<br>'+
       '<b>④ 分台可跨赛项复用</b>：同一张赛台在不同时段可承载不同赛项 / 组别（见「赛台与赛程编排」），分台与顺位不冲突。<br>'+
       '<b>⑤ 留痕</b>：均分、改派、调顺位、清空都写入操作审计（新增「分台」类型）。'+
     '</div>'+
@@ -2817,6 +2844,25 @@ function autoDistributeSeats(){if(!perm('ref'))return;
   logAudit('分台','按人数均分赛台',pool.length+' 支待分台',detail,'自动均分（可手动调整）');
   save();render();
 }
+function autoDistributeSeatsSel(){
+  if(!perm('ref'))return;
+  var ev=find(CUR_EVENT);if(!ev)return;
+  var ids=[];var nodes=document.querySelectorAll('.seatpick:checked');
+  for(var ni=0;ni<nodes.length;ni++)ids.push(nodes[ni].value);
+  ids=ids.filter(function(id){var t=findTeam(id);return t&&t.eventId===ev.id&&t.status!=='withdrawn';});
+  if(!ids.length){alert('请先在下方列表左侧勾选要均分的队伍（勾选后会按编号均衡铺到各赛台；未勾选的队伍保持原分台不动）。');return;}
+  if(!S.seats.length){alert('还没有配置赛台，请先到「赛台与赛程编排」新建赛台');return;}
+  ids.sort(function(a,b){return Number(findTeam(a).no||0)-Number(findTeam(b).no||0);});
+  var buckets={};S.seats.forEach(function(x){buckets[x.id]=[];});
+  ids.forEach(function(id,i){buckets[S.seats[i%S.seats.length].id].push(id);});
+  S.seats.forEach(function(x){
+    buckets[x.id].forEach(function(tid,k){var t=findTeam(tid);if(t){t.seatId=x.id;t.order=k+1;}});
+  });
+  var detail=S.seats.map(function(x){return x.name+' '+buckets[x.id].length+' 队';}).join('；');
+  logAudit('分台','按编号均分选中队伍',ids.length+' 支勾选',detail,'按编号均分（保留未勾选队伍原分台）');
+  save();render();
+}
+
 function clearTeamSeats(){if(!perm('ref'))return;
   var ev=find(CUR_EVENT);if(!ev)return;
   if(!confirm('清空该赛项全部队伍的分台与顺位？'))return;
@@ -3003,7 +3049,7 @@ function delReferee(i){if(!perm('ref'))return;
   if(!confirm('删除裁判档案「'+r.name+'」（含裁判码）？'))return;
   S.referees.splice(i,1);
   S.slots.forEach(function(sl){
-    if(sl.chief===r.id)sl.chief='';
+    if(S.chiefReferee===r.id)S.chiefReferee='';
     if(sl.judges)sl.judges=sl.judges.filter(function(x){return x!==r.id;});
   });
   logAudit('裁判码','删除 '+r.name,'码 '+r.code,'—','档案清理（同时解除其排班）');
@@ -3030,24 +3076,13 @@ function dutySortedSlots(){
 }
 function refsOfSlot(sl){
   var out=[];
-  if(sl.chief){var c=findRef(sl.chief);if(c)out.push({r:c,role:'chief'});}
   slotJudges(sl).forEach(function(id){var r=findRef(id);if(r)out.push({r:r,role:'judge'});});
   return out;
 }
 function refDutyRefs(refId){
   return dutySortedSlots().filter(function(sl){
-    if(sl.chief===refId)return true;
     return (sl.judges||[]).indexOf(refId)>=0;
   });
-}
-function assignChief(sid,rid){if(!perm('ref'))return;
-  var sl=slotById(sid);if(!sl)return;
-  var b=sl.chief?(findRef(sl.chief)||{}).name||sl.chief:'—';
-  if(sl.chief===rid)return;
-  sl.chief=rid||'';
-  var r=findRef(rid);
-  logAudit('排班',slotTitle(sl),b,r?r.name:'（清空）','场次裁判长指派');
-  save();render();
 }
 function addJudgeToSlot(sid){if(!perm('ref'))return;
   var sl=slotById(sid);if(!sl)return;
@@ -3055,7 +3090,6 @@ function addJudgeToSlot(sid){if(!perm('ref'))return;
   var rid=el.value;if(!rid){alert('请先在下拉里选择裁判');return;}
   sl.judges=sl.judges||[];
   if(sl.judges.indexOf(rid)>=0){alert('该裁判已在本场次');return;}
-  if(sl.chief===rid){alert('此人已是本场次裁判长，无需重复指派为裁判');return;}
   sl.judges.push(rid);
   var r=findRef(rid);
   logAudit('排班',slotTitle(sl),'—','增加裁判 '+(r?r.name:rid),'场次裁判指派');
@@ -3073,7 +3107,7 @@ function clearSlotDuty(sid){if(!perm('ref'))return;
   var n=refsOfSlot(sl).length;
   if(!n)return;
   if(!confirm('清空该场次执裁安排（'+n+' 人）？'))return;
-  sl.chief='';sl.judges=[];
+  sl.judges=[];
   logAudit('排班',slotTitle(sl),n+' 人已排','已清空','重新排班');
   save();render();
 }
@@ -3086,9 +3120,7 @@ function autoAssignDuty(){if(!perm('ref'))return;
              r.bind.eventId===sl.eventId&&r.bind.group===sl.group;
     });
     if(!pool.length){miss.push(slotTitle(sl));return;}
-    var chief=pool.filter(function(r){return r.role==='chief';})[0];
     var judges=pool.filter(function(r){return r.role!=='chief';});
-    sl.chief=chief?chief.id:'';
     sl.judges=judges.map(function(r){return r.id;});
     hit++;
   });
@@ -3099,7 +3131,7 @@ function autoAssignDuty(){if(!perm('ref'))return;
 }
 function clearAllDuty(){if(!perm('ref'))return;
   if(!confirm('清空今日全部场次的执裁排班？'))return;
-  S.slots.forEach(function(sl){sl.chief='';sl.judges=[];});
+  S.slots.forEach(function(sl){sl.judges=[];});
   logAudit('排班','清空今日排班',S.slots.length+' 个场次','—','重新排班');
   save();render();
 }
@@ -3108,7 +3140,7 @@ function viewDuty(){
   var refs=(S.referees||[]).filter(function(r){return r.status!=='disabled';});
   var chiefRefs=refs.filter(function(r){return r.role==='chief';});
   var judgeRefs=refs.filter(function(r){return r.role!=='chief';});
-  var noChief=slots.filter(function(sl){return !sl.chief;}).length;
+  var noChief=S.chiefReferee?0:slots.length;
   var noJudge=slots.filter(function(sl){return slotJudges(sl).length===0;}).length;
   var kpi=function(lb,nm,ft){return '<div class="kpi"><div class="lb">'+lb+'</div><div class="nm">'+nm+'</div><div class="ft">'+ft+'</div></div>';};
 
@@ -3128,7 +3160,6 @@ function viewDuty(){
       '<td><span class="tag b">第 '+Number(sl.round||1)+' 轮</span>'+(sl.type==='extra'?' <span class="tag warn">加时赛</span>':'')+'</td>'+
       '<td>'+esc(seatName(sl.seatId))+'</td>'+
       '<td class="small">'+esc((find(sl.eventId)||{name:'—'}).name)+'<div class="small muted">'+esc(sl.group||'—')+'</div></td>'+
-      '<td><select style="max-width:130px" onchange="assignChief(\''+sl.id+'\',this.value)">'+opt(chiefRefs,sl.chief)+'</select></td>'+
       '<td><div style="min-width:170px">'+chips+'</div>'+
         '<div class="row tight" style="margin-top:4px">'+
           '<select id="jd_'+sl.id+'" style="max-width:120px">'+opt(judgeRefs,'','选择裁判…')+'</select>'+
@@ -3138,22 +3169,33 @@ function viewDuty(){
   }).join('');
 
   var byPerson=refs.map(function(r){
+    if(r.id===S.chiefReferee){
+      return '<tr>'+
+        '<td><b>'+esc(r.name)+'</b><div class="small muted">裁判长（赛事级）</div></td>'+
+        '<td class="small">'+refBindText(r)+'</td>'+
+        '<td>'+refStatusTag(r)+'</td>'+
+        '<td class="small"><b>'+slots.length+'</b> 个场次（管全部）</td>'+
+        '<td><span class="pill" style="margin:2px 4px 2px 0">管全部 '+slots.length+' 个场次（裁判长）</span></td></tr>';
+    }
     var my=refDutyRefs(r.id);
-    var isChief=my.some(function(sl){return sl.chief===r.id;});
     var detail=my.length?my.map(function(sl){
-      return '<span class="pill" style="margin:2px 4px 2px 0">'+esc(sl.period)+' · '+esc(seatName(sl.seatId))+' · 第'+Number(sl.round||1)+'轮'+(sl.chief===r.id?' · 裁判长':'')+'</span>';
+      return '<span class="pill" style="margin:2px 4px 2px 0">'+esc(sl.period)+' · '+esc(seatName(sl.seatId))+' · 第'+Number(sl.round||1)+'轮</span>';
     }).join(''):'<span class="muted small">今日无执裁场次（平板端将呈现「今日无需执裁」空状态）</span>';
     return '<tr>'+
       '<td><b>'+esc(r.name)+'</b><div class="small muted">'+refRoleName(r.role)+'</div></td>'+
       '<td class="small">'+refBindText(r)+'</td>'+
       '<td>'+refStatusTag(r)+'</td>'+
-      '<td class="small">'+(my.length?('<b>'+my.length+'</b> 个场次'+(isChief?'（含裁判长）':'')):'0 个场次')+'</td>'+
+      '<td class="small">'+(my.length?('<b>'+my.length+'</b> 个场次'):'0 个场次')+'</td>'+
       '<td>'+detail+'</td></tr>';
   }).join('');
 
-  return '<div class="grid g4">'+
+  var chiefOpt='<select style="max-width:180px" onchange="setContestChief(this.value)">'+opt(chiefRefs,S.chiefReferee,'（未指派 · 全部场次缺裁判长）')+'</select>';
+  return '<div class="card" style="margin-bottom:16px"><div class="row"><h2 style="margin:0">本场裁判长 <small>管全部赛项 · 一场赛事一位</small></h2>'+
+      '<span class="sp" style="flex:1"></span>'+chiefOpt+'</div>'+
+      '<div class="hint" style="margin-top:8px"><b>一场赛事一个裁判长</b>：裁判长是<b>赛事级</b>角色，统管全部赛项 / 赛台，是裁定 / 审批 / 发布确认的唯一责任人；各场次只排<b>普通裁判</b>。改此前请先在「裁判档案」把某人身份设为「裁判长」。'+(S.chiefReferee?'':'<br><b style="color:#c53030">尚未指派本场裁判长</b>：按规则，缺裁判长的赛事无法进入裁定 / 审批环节。')+'</div></div>'
+    +'<div class="grid g4">'+
       kpi('今日场次',slots.length,DUTY_DATE+' · 含加时赛')+
-      kpi('缺裁判长',noChief,noChief?'这些场次不能进入裁定 / 审批':'全部场次已指派裁判长')+
+      kpi('缺裁判长',noChief,noChief?('本场缺裁判长（'+noChief+' 个场次均无裁判长负责），无法进入裁定 / 审批'):'已指派本场裁判长（管全部赛项）')+
       kpi('缺裁判',noJudge,noJudge?'这些场次单人执裁':'全部场次至少 1 名裁判')+
       kpi('可排班裁判',refs.length,'不含已停用；裁判长 '+chiefRefs.length+' 人')+
     '</div>'+
@@ -3164,7 +3206,7 @@ function viewDuty(){
       '<button class="btn" onclick="clearAllDuty()">清空今日排班</button>'+
     '</div>'+
     '<div style="overflow:auto;margin-top:10px">'+
-    '<table><thead><tr><th>时段</th><th>轮次</th><th>赛台</th><th>赛项 / 组别</th><th>裁判长</th><th>裁判</th><th></th></tr></thead>'+
+    '<table><thead><tr><th>时段</th><th>轮次</th><th>赛台</th><th>赛项 / 组别</th><th>裁判</th><th></th></tr></thead>'+
     '<tbody>'+(rows||'<tr><td colspan="7" class="muted">今日暂无场次，请先到「赛台与赛程编排」配置</td></tr>')+'</tbody></table>'+
     '</div>'+
   '</div>'+
@@ -3178,7 +3220,7 @@ function viewDuty(){
     '<div class="hint">'+
       '<b>① 排班来源就是这里</b>：平板端裁判长的「执裁」页签按<b>本页排班</b>判定；若某人今日<b>无任何场次</b>，平板端直接呈现 <b>P7c 空状态</b>（「今日无需执裁」+ 引导去管理权限处理待办），不展示空队列 / 空计时。<br>'+
       '<b>② 触发条件是「有赛台、无场次」</b>：登录本身已要求预绑赛台（见「裁判档案与裁判码」），所以空状态只可能是「今日没排到活」，不可能是「没绑赛台」。<br>'+
-      '<b>③ 一个场次要有人负责</b>：<b>裁判长</b>是裁定 / 审批 / 锁定 / 发布确认的责任人，缺裁判长的场次按规则无法进入裁定与审批环节，故本页单列「缺裁判长」KPI。<br>'+
+      '<b>③ 一场赛事一个裁判长</b>：裁判长是<b>赛事级</b>角色，统管全部赛项 / 赛台，是裁定 / 审批 / 发布确认的唯一责任人；本页「缺裁判长」KPI 看的是<b>整场</b>是否指派了裁判长（不是按场次），缺裁判长的赛事按规则无法进入裁定与审批环节。<br>'+
       '<b>④ 预绑优先、现场可调</b>：「按预绑一键排班」只填<b>预绑范围与本场次完全一致</b>的裁判；范围不符的场次需手动指派，或先回「裁判档案」换绑。<br>'+
       '<b>⑤ 排班变更全部留痕</b>：每一次指派 / 取消 / 清空都写入操作审计（新增「排班」类型），可回答"这场是谁排的、什么时候改的"。'+
     '</div>'+
@@ -3201,7 +3243,7 @@ function viewScore(){
       (sc.signed?'<span class="tag ok">签</span>':(done?'<span class="tag b">录</span>':'<span class="tag">空</span>'))+
     '</div>';
   }).join('');
-  return scoreLockBanner()+'<div class="card" style="margin-bottom:16px"><div class="row">'+
+  return scoreStateBanner()+'<div class="card" style="margin-bottom:16px"><div class="row">'+
       '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selScoreEvent(this.value)">'+opts+'</select>'+
       '<span class="small muted">录入身份</span><select style="max-width:200px" onchange="setEntryRole(this.value)">'+
         '<option value="ops" '+(SCORE_ENTRY_ROLE==='ops'?'selected':'')+'>工作人员代录</option>'+
@@ -3222,7 +3264,7 @@ function scoreForm(ev){
   var team=S.teams.find(function(t){return t.id===CUR_TEAM;});
   var rec=S.scores[CUR_TEAM]||(S.scores[CUR_TEAM]={tasks:{},time:0,yellow:0,red:0,signed:false});
   rec.tasks=rec.tasks||{};
-  var locked=!!(team&&scoreLockOf(ev.id,team.group));
+  var locked=!!(team&&scoreStateOf(team)!=='draft');
   var items=getInputItems(ev);
   function fieldHTML(it){
     var v=rec.tasks[it.id];
@@ -3296,7 +3338,7 @@ function lockReadonlyHtml(html){
   html=html.replace(/\son(input|change)="[^"]*"/g,'');
   html=html.replace('<button class="btn primary" onclick="saveScoreEntry()">','<button class="btn primary" disabled onclick="saveScoreEntry()">')
       .replace('<button class="btn" onclick="requestScoreChange()">','<button class="btn primary" onclick="requestScoreChange()">')
-      .replace('选手代表已签字确认</span>','选手代表已签字确认（锁定态不可变更）</span>');
+      .replace('选手代表已签字确认</span>','选手代表已签字确认（提交后不可变更）</span>');
   return html;
 }
 function curRec(){
@@ -3336,6 +3378,7 @@ function saveScoreEntry(){
     diff.length+' 项改动','已保存录入',scoreEntryRemark()+'；改动：'+diff.join('；'));
   r.logBase=clone(r.tasks||{});
   r.logBase.time=r.time;r.logBase.yellow=r.yellow;r.logBase.red=r.red;
+  if(r.signed){var _tt=findTeam(CUR_TEAM);if(_tt)submitScoreState(_tt);}
   save();render();
   alert('本次录入已保存并留痕（'+diff.length+' 项）：\n'+diff.join('\n')+'\n\n'+scoreEntryRemark());
 }
@@ -3386,7 +3429,6 @@ function viewRank(){
   var ev=find(RANK_EVENT)||S.events[0];
   var rows=ev?standings(ev.id):[];
   var body=rows.map(function(r){
-    var ac=r.award?(r.award==='一等奖'?'award1':(r.award==='二等奖'?'award2':(r.award==='三等奖'?'award3':''))):'';
     return '<tr>'+
       '<td class="num"><b>'+r.rank+'</b>'+(r.tie?' <span class="tag warn">并列</span>':'')+'</td>'+
       '<td><b>'+esc(r.team.name)+'</b><div class="small muted">'+esc(r.team.group)+'</div></td>'+
@@ -3396,7 +3438,6 @@ function viewRank(){
       '<td class="num"><b style="font-size:14px">'+r.total.toFixed(1)+'</b></td>'+
       '<td class="num">'+(r.time||'—')+'</td>'+
       '<td>'+(r.complete?'<span class="tag ok">完成</span>':'<span class="tag warn">待完成</span>')+'</td>'+
-      '<td class="'+ac+'">'+(r.award?esc(r.award):'—')+'</td>'+
     '</tr>';
   }).join('');
   return '<div class="card"><div class="row">'+
@@ -3405,9 +3446,9 @@ function viewRank(){
       '<span class="sp" style="flex:1"></span>'+
       '<span class="small muted">计分模板：'+esc(tplName(ev&&ev.scoreRule&&ev.scoreRule.template))+' · 同分裁决：'+esc(tieName((ev&&ev.rankRule&&ev.rankRule.tieBreak)||[]))+'</span>'+
     '</div></div>'+
-  '<div class="card"><h2>实时榜单 <small>两轮取优 → 加权计分 → 加分 → 判罚记录（不计分）→ 排名 → 按比例分配奖项</small></h2>'+
-    '<table><thead><tr><th class="num">名次</th><th>队伍</th><th class="num">基础分</th><th class="num">加分</th><th class="num">判罚（不计分）</th><th class="num">总分</th><th class="num">用时(s)</th><th>完成度</th><th>奖项</th></tr></thead>'+
-    '<tbody>'+(body||'<tr><td colspan="9" class="muted">该赛项暂无队伍或成绩</td></tr>')+'</tbody></table>'+
+  '<div class="card"><h2>实时榜单 <small>两轮取优 → 加权计分 → 加分 → 判罚记录（不计分）→ 排名</small></h2>'+
+    '<table><thead><tr><th class="num">名次</th><th>队伍</th><th class="num">基础分</th><th class="num">加分</th><th class="num">判罚（不计分）</th><th class="num">总分</th><th class="num">用时(s)</th><th>完成度</th></tr></thead>'+
+    '<tbody>'+(body||'<tr><td colspan="8" class="muted">该赛项暂无队伍或成绩</td></tr>')+'</tbody></table>'+
   '</div>'+
   '<div class="card"><h2>计分明细校验 <small>用于裁判复核</small></h2><div class="note">'+
     '基础分 = Σ(各任务得分)；加分 = 时间奖励 + 计数奖励；<b>总分 = max(0, 基础分 + 加分)</b>。<br>'+
@@ -3420,9 +3461,9 @@ function selRankEvent(id){RANK_EVENT=id;render();}
 function exportStandings(){
   var ev=find(RANK_EVENT);if(!ev)return;
   var rows=standings(ev.id);
-  var csv='排名,队伍,组别,基础分,加分,黄牌,红牌,总分,用时(秒),完成度,奖项\n';
+  var csv='排名,队伍,组别,基础分,加分,黄牌,红牌,总分,用时(秒),完成度\n';
   rows.forEach(function(r){
-    csv+=[r.rank,r.team.name,r.team.group,r.base.toFixed(1),r.bonus.toFixed(1),r.yellow||0,r.red||0,r.total.toFixed(1),r.time||'',r.complete?'完成':'待完成',r.award||''].join(',')+'\n';
+    csv+=[r.rank,r.team.name,r.team.group,r.base.toFixed(1),r.bonus.toFixed(1),r.yellow||0,r.red||0,r.total.toFixed(1),r.time||'',r.complete?'完成':'待完成'].join(',')+'\n';
   });
   download('榜单_'+contestName(CUR_CONTEST)+'_'+ev.name+'_'+nowStr().replace(/[: ]/g,'')+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
 }
@@ -3436,16 +3477,16 @@ function republishTodoHtml(){
   if(!keys.length)return '';
   var rows=keys.map(function(evId){
     var ev=find(evId)||{name:evId},d=S.pubDirty[evId]||{},p=pubObj(evId)||{};
-    var lg=publishLockGate(evId);
+    var lg=publishReadyGate(evId);
     return '<tr><td><b>'+esc(ev.name)+'</b></td>'+
       '<td class="small">'+esc(p.at||'—')+'<div class="small muted">已发布 v'+Number(p.count||1)+'</div></td>'+
       '<td class="small">'+esc(d.at||'—')+'</td>'+
       '<td class="small">'+esc(d.why||'—')+'</td>'+
       '<td class="small">'+evEvidenceCount(evId)+' 个<div class="small muted">公示表 / 内部成绩表</div></td>'+
-      '<td>'+(lg.ok?'<span class="tag ok">双锁就位</span>':'<span class="tag err">双锁未就位</span> '+        '<span class="small" style="color:#185FA5;cursor:pointer" onclick="gotoView(\'lock\')">去解锁 →</span>')+'</td>'+
+      '<td>'+(lg.ok?'<span class="tag ok">完整性就位</span>':'<span class="tag err">完整性未就位</span>')+'</td>'+
       '<td><button class="btn sm" onclick="gotoPub(\''+evId+'\')">去重发</button></td></tr>';
   }).join('');
-  return '<div class="card" style="margin-top:16px"><h2>赛事级重发待办 <small>已发布赛项一旦成绩 / 奖项变化即置位 · 与平板端 P11 常驻重发提示同源</small></h2>'+
+  return '<div class="card" style="margin-top:16px"><h2>赛事级重发待办 <small>已发布赛项一旦成绩 / 名次变化即置位 · 与平板端 P11 常驻重发提示同源</small></h2>'+
     '<div style="overflow:auto"><table><thead><tr><th>赛项</th><th style="width:150px">上次发布</th><th style="width:130px">变更时刻</th><th>变更原因</th><th style="width:150px">关联留底</th><th style="width:110px">前置状态</th><th style="width:100px"></th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table></div>'+
     '<div class="hint" style="margin-top:8px">'+
@@ -3466,22 +3507,22 @@ function viewPublish(){
     var hf=ev?((S.handoff||{})[ev.id]||null):null;
   var body=rows.map(function(r){
     var name=PUB_ANON?('参赛队 '+r.rank):r.team.name;
-    return '<tr><td class="num">'+r.rank+'</td><td>'+esc(name)+'</td><td class="num">'+r.total.toFixed(1)+'</td><td>'+(r.award?esc(r.award):'—')+'</td></tr>';
+    return '<tr><td class="num">'+r.rank+'</td><td>'+esc(name)+'</td><td class="num">'+r.total.toFixed(1)+'</td></tr>';
   }).join('');
   return '<div class="card"><div class="row">'+
       '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selPubEvent(this.value)">'+opts+'</select>'+
       '<label class="row tight small" style="cursor:pointer"><input type="checkbox" style="width:auto" '+(PUB_ANON?'checked':'')+' onchange="toggleAnon(this.checked)"> 匿名公示（仅显示参赛队序号）</label>'+
       '<span class="sp" style="flex:1"></span>'+
       (pub?(dirty?'<button class="btn primary" onclick="doPublish()">重新发布（覆盖公示榜）</button>':'<button class="btn" onclick="doPublish()">重新发布</button>'):((hf&&hf.status==='待发布')?'<button class="btn primary" onclick="doPublish()">发布公示（裁判长已移交）</button>':'<button class="btn primary" onclick="doPublish()">发布公示</button>'))+
-      '<button class="btn" onclick="exportPublishCsv()">导出公示 CSV</button>'+
+      '<button class="btn" onclick="exportPublishCsv()">导出公示 CSV</button>'+'<button class="btn" onclick="exportPublishXlsx()">导出公示 Excel</button>'+
     '</div>'+
     '<div class="hint" style="margin-top:10px">按赛事决策：现场大屏与实时直播不做，<b>公示页为对外唯一出口</b>；内部实时排名不外投。'+
       '<br><b>发布后不可撤销</b>：成绩再变更时<b>不提供「下架榜单」</b>，而是用本页的<b>待重发</b>提示驱动<b>覆盖式重新发布</b>——对外始终有一版有效成绩，不留空窗。发布键在本页（工作人员后台），裁判长端只做发布前确认。</div>'+
     (pub&&dirty?('<div class="note" style="margin-top:10px;background:#fefcbf;border-color:#f6ad55">'+
       '<b>⚠ 待重发</b>：该赛项已于 <b>'+esc(pubAt)+'</b> 发布，之后成绩发生变更（<b>'+esc(dirty.why)+'</b> · '+esc(dirty.at)+'）。'+
       '对外公示页仍是<b>旧榜</b>，请点右上「<b>重新发布（覆盖公示榜）</b>」刷新。</div>'):'')+
-    (hf&&hf.status==='待发布'?('<div class="note" style="margin-top:10px;background:#ebf8ff;border-color:#63b3ed">'+        '<b>📥 裁判长已移交发布</b>：'+esc(hf.by||'—')+' 于 <b>'+esc(hf.at||'—')+'</b> 确认并移交（'+esc(hf.note||'双锁确认后移交发布')+'）。'+        '当前状态：<b>待我发布</b> —— 发布后自动回流为「已发布（发布人 / 时间）」并同步裁判长端。</div>'):'')+
-      (ev?lockStatusHtml(ev.id):'')+
+    (hf&&hf.status==='待发布'?('<div class="note" style="margin-top:10px;background:#ebf8ff;border-color:#63b3ed">'+        '<b>📥 裁判长已移交发布</b>：'+esc(hf.by||'—')+' 于 <b>'+esc(hf.at||'—')+'</b> 确认并移交（'+esc(hf.note||'完整性校验后移交发布')+'）。'+        '当前状态：<b>待我发布</b> —— 发布后自动回流为「已发布（发布人 / 时间）」并同步裁判长端。</div>'):'')+
+      (ev?publishReadinessHtml(ev.id):'')+
       (ev?handoffFlowHtml(ev.id):'')+
     (ev?voidedDeclareHtml(ev.id):'')+
   '</div>'+
@@ -3489,8 +3530,8 @@ function viewPublish(){
     republishTodoHtml()+
   '<div class="pub"><h3>'+esc(ev?ev.name:'')+' · 成绩公示</h3>'+
     '<div class="sub">config_version = '+configVersionOf(ev?ev.id:'')+' · 规则文档 '+esc((ev&&ev.ruleDoc)||'—')+' · '+(pub?'已发布':'草稿（未发布）')+' · 组别 '+esc(((ev&&ev.groups)||[]).join(' / '))+'</div>'+
-    '<table><thead><tr><th class="num">名次</th><th>队伍</th><th class="num">总分</th><th>奖项</th></tr></thead>'+
-    '<tbody>'+(body||'<tr><td colspan="4" class="muted">暂无可公示成绩</td></tr>')+'</tbody></table>'+
+    '<table><thead><tr><th class="num">名次</th><th>队伍</th><th class="num">总分</th></tr></thead>'+
+    '<tbody>'+(body||'<tr><td colspan="3" class="muted">暂无可公示成绩</td></tr>')+'</tbody></table>'+
     '<div class="hint" style="margin-top:14px;text-align:center">公示内容为最终成绩；未成年人信息已做匿名化处理。</div>'+
   '</div>';
 }
@@ -3518,13 +3559,12 @@ function handoffTodoHtml(){
   var keys=Object.keys(hs).filter(function(k){return (hs[k]||{}).status==='待发布';});
   if(!keys.length)return '';
   var rows=keys.map(function(evId){
-    var ev=find(evId)||{name:evId},hf=hs[evId]||{},lg=publishLockGate(evId);
+    var ev=find(evId)||{name:evId},hf=hs[evId]||{},lg=publishReadyGate(evId);
     return '<tr><td><b>'+esc(ev.name)+'</b></td>'+
       '<td class="small">'+esc(hf.by||'—')+'<div class="small muted">'+esc(hf.at||'—')+'</div></td>'+
-      '<td class="small">'+esc(hf.note||'双锁确认后移交发布')+'</td>'+
+      '<td class="small">'+esc(hf.note||'完整性校验后移交发布')+'</td>'+
       '<td class="small">'+evLockSummary(evId)+'</td>'+
-      '<td>'+(lg.ok?'<span class="tag ok">双锁就位</span>':'<span class="tag err">双锁未就位</span> '+
-        '<span class="small" style="color:#185FA5;cursor:pointer" onclick="gotoView(\'lock\')">先去解锁 →</span>')+'</td>'+
+      '<td>'+(lg.ok?'<span class="tag ok">完整性就位</span>':'<span class="tag err">完整性未就位</span>')+'</td>'+
       '<td><button class="btn sm primary" onclick="gotoPub(\'+evId+\')">去发布</button></td></tr>';
   }).join('');
   return '<div class="card" style="margin-top:16px;border-color:#63b3ed"><h2>待我发布 <small>裁判长已确认移交 · 发布后自动回流「已发布（发布人 / 时间）」到裁判长端</small></h2>'+
@@ -3548,10 +3588,10 @@ function markScoresDirty(why){
 }
 function doPublish(){if(!perm('publish'))return;
   var ev=find(PUB_EVENT);if(!ev)return;
-  var lg=publishLockGate(ev.id);
+  var lg=publishReadyGate(ev.id);
   if(!lg.ok){
-    alert('「'+ev.name+'」双锁未就位，暂不可发布：\n'+lg.miss.map(function(x){return '· '+x;}).join('\n')+
-      '\n\n与平板端 P11「双锁状态 · 两把全绿才可移交」同口径。\n请先到「成绩锁定与解锁」为该赛项所有组别锁定成绩与配置。');
+    alert('「'+ev.name+'」发布前完整性校验未就位，暂不可发布：\n'+lg.miss.map(function(x){return '· '+x;}).join('\n')+
+      '\n\n与平板端 P11 发布前确认同口径。\n请先完成上述待办（签字提交 / 裁定 / 改分审批）后再发布。');
     return;
   }
   var prev=pubObj(PUB_EVENT);
@@ -3577,9 +3617,16 @@ function doPublish(){if(!perm('publish'))return;
 function exportPublishCsv(){
   var ev=find(PUB_EVENT);if(!ev)return;
   var rows=standings(ev.id);
-  var csv='名次,队伍,总分,奖项\n';
-  rows.forEach(function(r){csv+=[r.rank,(PUB_ANON?'参赛队 '+r.rank:r.team.name),r.total.toFixed(1),r.award||''].join(',')+'\n';});
+  var csv='名次,队伍,总分\n';
+  rows.forEach(function(r){csv+=[r.rank,(PUB_ANON?'参赛队 '+r.rank:r.team.name),r.total.toFixed(1)].join(',')+'\n';});
   download('公示_'+contestName(CUR_CONTEST)+'_'+ev.name+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
+}
+function exportPublishXlsx(){
+  var ev=find(PUB_EVENT);if(!ev)return;
+  var rows=standings(ev.id);
+  var head=['名次','队伍','组别','申报单位','总分'];
+  var data=rows.map(function(r){return [r.rank,(PUB_ANON?'参赛队 '+r.rank:r.team.name),r.team.group||'',r.team.school||'',r.total];});
+  download('公示_'+contestName(CUR_CONTEST)+'_'+ev.name+'.xlsx', buildXlsx([head].concat(data)), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
 /* ---------- 配置导出 / 快照 ---------- */
@@ -3608,13 +3655,6 @@ function makeSnapshot(){if(!perm('cfg'))return;
 }
 function restoreSnapshot(i){if(!perm('cfg'))return;
   var s=S.snapshots[i];if(!s)return;
-  var locked=S.events.filter(function(e){return !!eventConfigLockOf(e.id);});
-  if(locked.length){
-    alert('以下赛项的配置已锁定（配置锁生效），按规则不能回滚配置：\n'+
-      locked.map(function(e){return '· '+e.name;}).join('\n')+
-      '\n\n请先到「成绩锁定与解锁」解锁并填写原因（会生成告警记录推送后台）。');
-    return;
-  }
   if(!confirm('回滚到「'+s.note+'」？当前配置将被覆盖。'))return;
   S.events=clone(s.events);save();render();
 }
@@ -3822,7 +3862,7 @@ function viewSeats(){
   }).join('');
   return '<div class="card"><h2>赛台配置 <small>数量由工作人员按参赛人数自行配置；同一赛台可跨时段、跨赛项复用</small></h2>'+
       '<div class="row" style="margin-bottom:10px">'+
-        '<button class="btn primary sm" onclick="addSeat()">+ 添加赛台</button>'+
+        '<button class="btn primary sm" onclick="addSeat()">+ 添加赛台</button>'+'<button class="btn sm" onclick="exportCallSheetXlsx()">导出叫号表 Excel</button>'+
       '</div>'+
       '<div class="grid g12">'+
         '<div><div class="list">'+(seatList||'<div class="hint" style="padding:10px">暂无赛台</div>')+'</div></div>'+
@@ -3849,7 +3889,7 @@ function maskMembers(m){
 function screenRows(evId){
   return standings(evId).map(function(r){
     return {rank:r.rank,name:r.team.name,school:r.team.school||'—',group:r.team.group,
-            members:maskMembers(r.team.members),award:r.award||'—'};
+            members:maskMembers(r.team.members)};
   });
 }
 function screenPages(){
@@ -3897,9 +3937,27 @@ function screenPinToggle(){
 function publishScreenRows(evId){
   return standings(evId).map(function(r){
     var name=PUB_ANON?('参赛队 '+r.rank):r.team.name;
-    return {rank:r.rank,name:name,school:r.team.school||'—',group:r.team.group||'—',total:r.total,award:r.award||'—'};
+    return {rank:r.rank,name:name,school:r.team.school||'—',group:r.team.group||'—',total:r.total};
   });
 }
+function exportCallSheetXlsx(){
+  if(!S.slots.length){alert('还没有编排任何场次');return;}
+  var head=['时段','赛台','赛项','组别','轮次','出场顺位','队伍编号','队伍名称','申报单位'];
+  var data=[];var periods=['上午','下午'];
+  periods.forEach(function(p){
+    S.seats.forEach(function(s){
+      var sl=slotOfSeat(s.id,p);if(!sl)return;
+      var ev=find(sl.eventId)||{name:'—'};
+      var list=slotTeams(sl);
+      list.forEach(function(t,i){
+        data.push([p,s.name,ev.name,sl.group,Number(sl.round||1),i+1,t.no||'',t.name,t.school||'']);
+      });
+    });
+  });
+  if(!data.length){alert('所有场次都没有队伍，无可导出叫号表');return;}
+  download('叫号表_'+contestName(CUR_CONTEST)+'.xlsx', buildXlsx([head].concat(data)), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+
 function viewScreen(){
   var isPub=SCREEN.mode==='publish';
   var opts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===SCREEN.eventId?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
@@ -3912,11 +3970,11 @@ function viewScreen(){
       return '<div class="screen-row"><div class="rk">'+r.rank+'</div><div class="tm">'+esc(r.name)+'</div>'+
         '<div class="sc">'+esc(r.school)+' · '+esc(r.group)+'</div>'+
         '<div class="sc" style="flex:1.1;color:#cfe3f7">总分 '+Number(r.total).toFixed(1)+'</div>'+
-        '<div class="aw">'+esc(r.award)+'</div></div>';
+        '</div>';
     }
     return '<div class="screen-row"><div class="rk">'+r.rank+'</div><div class="tm">'+esc(r.name)+'</div>'+
       '<div class="sc">'+esc(r.school)+' · '+esc(r.group)+' · 选手 '+esc(r.members)+'</div>'+
-      '<div class="aw">'+esc(r.award)+'</div></div>';
+      '</div>';
   }).join('')||'<div class="screen-row"><div class="sc">该赛项暂无可展示成绩</div></div>';
   var total=(isPub?publishScreenRows(SCREEN.eventId):screenRows(SCREEN.eventId)).length;
   /* 大屏默认锁定赛事：进本页即钉在当前赛事，避免被别的标签/误操作切场带走。
@@ -3946,7 +4004,7 @@ function viewScreen(){
     '</div>'+
     '<div class="hint" style="margin-top:10px">'+
       (isPub
-        ? '【赛后公示表模式】展示<b>正式公示成绩</b>（名次 / 队伍 / 学校 / 总分 / 奖项），与「公示与导出」页同源、遵循'+(PUB_ANON?'<b>匿名公示</b>（仅显示参赛队序号）':'公示脱敏规则')+'；'+(S.published[SCREEN.eventId]?'该赛项<b>已发布</b>':'<span class="warn">该赛项尚未发布公示，当前为草稿预览</span>')+((S.dqCases||[]).filter(function(c){return c.eventId===SCREEN.eventId&&c.status==='已生效';}).length?('<br><b>⛔ 本组别有 '+voidedTeamsOf(SCREEN.eventId).length+' 支队伍被取消资格</b>：成绩与奖项均不计入；'+substituteModeName()+(voidedInfo(SCREEN.eventId).vacant.length?(' → 空缺奖项 '+voidedInfo(SCREEN.eventId).vacant.map(esc).join(' / ')):'')):'')
+        ? '【赛后公示表模式】展示<b>正式公示成绩</b>（名次 / 队伍 / 学校 / 总分），与「公示与导出」页同源、遵循'+(PUB_ANON?'<b>匿名公示</b>（仅显示参赛队序号）':'公示脱敏规则')+'；'+(S.published[SCREEN.eventId]?'该赛项<b>已发布</b>':'<span class="warn">该赛项尚未发布公示，当前为草稿预览</span>')+((S.dqCases||[]).filter(function(c){return c.eventId===SCREEN.eventId&&c.status==='已生效';}).length?('<br><b>⛔ 本组别有 '+voidedTeamsOf(SCREEN.eventId).length+' 支队伍被取消资格</b>：成绩不计入名次；'+substituteModeName()):'')
         : '【实时榜单模式】展示<b>全部队伍排名</b>（每屏 '+esc(S.screen.pageSize)+' 条，共 '+pages.length+' 屏 / '+total+' 支），<b>姓名脱敏</b>、队名与学校保留；由工作人员用「置顶 / 锁定本屏」干预。')+
     '</div>'+
   '</div>'+
@@ -3990,7 +4048,7 @@ function viewRoles(){
     '<tbody><tr style="background:#f0f7ff"><td><b>'+esc(u.name)+'</b> <span class="tag b">当前登录</span></td>'+
       '<td><span class="tag b">'+esc(roleName(u.role))+'</span></td>'+
       '<td class="num">'+keys.length+' / '+keys.length+' 项</td>'+
-      '<td class="small">现场唯一操作身份：改配置、裁判码与排班、分台、成绩录入与代录、锁定与解锁、取消资格与递补、发布、告警处理、留底补传、台账接管 —— 全部动作均由本人执行并留痕</td></tr></tbody></table></div>'+
+      '<td class="small">现场唯一操作身份：改配置、裁判码与排班、分台、成绩录入与代录、取消资格与递补、发布、告警处理、留底补传、台账接管 —— 全部动作均由本人执行并留痕</td></tr></tbody></table></div>'+
   '</div>'+
   '<div class="card"><h2>权限矩阵 <small>共 '+keys.length+' 项动作 · 全部可执行</small></h2>'+
     '<div style="overflow:auto"><table><thead><tr><th style="width:270px">动作</th><th style="width:200px">允许身份</th><th style="width:150px">当前状态</th><th>说明</th></tr></thead>'+
@@ -4004,13 +4062,13 @@ function viewRoles(){
     '<div class="hint">'+
       '<b>① 单一登录身份</b>：平板端 P7 note 5 明确「后台管理系统仅工作人员登录，<b>不做裁判身份语义</b>」——'+
         '裁判长 / 裁判是平板端角色，后台只有现场工作人员一个身份，因此本系统<b>不做多角色、不做身份切换</b>。<br>'+
-      '<b>② 工作人员享有全部权限</b>：改配置、锁定、<b>解锁</b>、<b>取消资格 / 递补执行</b>、<b>台账接管</b> 等 10 项动作全部可执行，'+
+      '<b>② 工作人员享有全部权限</b>：改配置、<b>取消资格 / 递补执行</b>、<b>台账接管</b> 等 10 项动作全部可执行，'+
         '不再出现「权限不足」的阻断路径 —— 现场就一个人一台机器，缺权限等于做不了事。<br>'+
       '<b>③ 权限矩阵为什么保留</b>：矩阵、校验层与 <b>31 处入口守卫</b>都在位，定位是<b>规格说明</b>而非空壳 ——'+
         '将来若引入多角色，直接改 roles 即可生效，无需返工。'+
         '注意它保护的是「动作」而不是「身份」：所有动作当前身份均可执行，因此本页越权留痕通常为空。<br>'+
       '<b>④ 不靠权限管，靠留痕管</b>：既然全部动作都能做，约束就落在<b>留痕</b>上 —— 每条留痕都带操作人真实姓名与身份；'+
-        '解锁 / 取消资格这类高危动作必须填写原因并生成告警记录，越权尝试同样写「账号」类型审计。<br>'+
+        '取消资格这类高危动作必须填写原因并生成告警记录，越权尝试同样写「账号」类型审计。<br>'+
       '<b>⑤ 与代录留痕的衔接</b>：成绩录入页的「录入来源（工作人员代录 / 现场回传）」+ 这里的真实姓名，'+
         '一起构成 P7 note 5 要求的「工作人员代录」标识。'+
     '</div>'+
@@ -4160,7 +4218,7 @@ function viewEvidence(){
 /* ---------- 视图 16：取消资格与递补 ---------- */
 /* 依据《裁判打分系统》P8c note 7（「取消资格之后的链条不在本册闭合，建议后台补一个『递补处理』页」）
    与 P2 note 12（队列状态含「⛔ 成绩作废」）。
-   关键区分：弃赛（队伍主动退赛 · 可恢复）≠ 取消资格（裁判长裁定 · 不可撤销 + 成绩作废 + 不进榜单不计奖项）。 */
+   关键区分：弃赛（队伍主动退赛 · 可恢复）≠ 取消资格（裁判长裁定 · 不可撤销 + 成绩作废 + 不进榜单）。 */
 function gotoView(v){VIEW=v;render();}
 function dqCaseOf(id){var a=S.dqCases||[];for(var i=0;i<a.length;i++){if(a[i].id===id)return a[i];}return null;}
 function setSubstituteRule(mode){
@@ -4168,9 +4226,9 @@ function setSubstituteRule(mode){
   var before=substituteModeName();
   S.substituteRule.mode=(mode==='rank')?'rank':'none';
   var after=substituteModeName();
-  logAudit('递补','赛事级递补规则',before,after,'取消资格 / 弃赛后的奖项处理口径');
+  logAudit('递补','赛事级递补规则',before,after,'取消资格 / 弃赛后的名次处理口径');
   S.pubDirty=S.pubDirty||{};
-  var why='递补规则由「'+before+'」改为「'+after+'」→ 奖项分布变化，需重发';
+  var why='递补规则由「'+before+'」改为「'+after+'」→ 名次分布变化，需重发';
   Object.keys(S.published||{}).forEach(function(evId){
     var prev=S.pubDirty[evId];
     /* 已有多项变更原因时**追加不覆盖** —— 待重发要能完整回答「为什么现在这版和线上不一样」 */
@@ -4183,7 +4241,7 @@ function doSubstitute(caseId){
   var c=dqCaseOf(caseId);if(!c)return;
   if(c.substituteDone){alert('该案已登记递补处理。');return;}
   c.substituteDone=true;c.substituteAt=nowStr();
-  logAudit('递补',c.caseNo+' · '+teamLabel(c.teamId),'待处理','已按「'+substituteModeName()+'」处理','取消资格后的奖项处理');
+  logAudit('递补',c.caseNo+' · '+teamLabel(c.teamId),'待处理','已按「'+substituteModeName()+'」处理','取消资格后的名次处理');
   save();render();
 }
 function reopenSubstitute(caseId){
@@ -4198,15 +4256,13 @@ function voidedDeclareHtml(evId){
   var info=voidedInfo(evId);
   if(!info.voided.length)return '';
   var names=info.voided.map(function(r){
-    return '<b>'+esc(r.team.name)+'（'+esc(r.team.no)+'）</b> 原第 '+r.origRank+' 名'+
-      (r.origAward?(' · 原'+esc(r.origAward)):'')+' — 已取消资格';
+    return '<b>'+esc(r.team.name)+'（'+esc(r.team.no)+'）</b> 原第 '+r.origRank+' 名 — 已取消资格';
   }).join('；');
   return '<div class="note" style="margin-top:10px;background:#fff5f5;border-color:#fc8181">'+
-    '<b>⛔ 作废队声明（不进榜单、不计奖项）</b>：'+names+'。'+
-    '当前递补规则：<b>'+substituteModeName()+'</b>'+
-    (info.vacant.length?('，因此空缺奖项：<b>'+info.vacant.map(esc).join(' / ')+'</b>'):'')+'。'+
+    '<b>⛔ 作废队声明（不进榜单）</b>：'+names+'。'+
+    '当前递补规则：<b>'+substituteModeName()+'</b>。'+
     '<div class="small muted" style="margin-top:6px">对外口径：作废队不出现在公示表内；'+
-    '但对外仍需说明"本组别存在被取消资格队伍，其成绩与奖项均不计入"——与未成年人匿名化规则一并声明，避免出现"榜上少了一队却无人解释"。</div>'+
+    '但对外仍需说明"本组别存在被取消资格队伍，其成绩不计入名次"——与未成年人匿名化规则一并声明，避免出现"榜上少了一队却无人解释"。</div>'+
   '</div>';
 }
 function viewDq(){
@@ -4235,28 +4291,26 @@ function viewDq(){
     var before=info.all.map(function(r){
       var v=isVoided(r.team.id);
       return '<tr'+(v?' style="background:#fff5f5"':'')+'><td class="num">'+r.origRank+'</td><td>'+esc(r.team.name)+'（'+esc(r.team.no)+'）</td>'+
-        '<td class="num">'+r.total.toFixed(1)+'</td><td>'+(r.origAward?esc(r.origAward):'—')+'</td>'+
+        '<td class="num">'+r.total.toFixed(1)+'</td>'+
         '<td>'+(v?'<span class="tag err">作废</span>':'')+'</td></tr>';
     }).join('');
     var after=now.map(function(r){
-      var up=(r.award!==r.origAward)?'<span class="tag warn">↑ 递补</span>':'';
+      var up=(r.rank<r.origRank)?'<span class="tag warn">↑ 递补</span>':'';
       return '<tr><td class="num">'+r.rank+'</td><td>'+esc(r.team.name)+'（'+esc(r.team.no)+'）</td>'+
-        '<td class="num">'+r.total.toFixed(1)+'</td><td>'+(r.award?esc(r.award):'—')+'</td><td>'+up+'</td></tr>';
+        '<td class="num">'+r.total.toFixed(1)+'</td><td>'+up+'</td></tr>';
     }).join('');
-    return '<div style="margin-top:12px;border:1px solid '+(info.vacant.length?'#fc8181':'#9ae6b4')+';border-radius:8px;padding:10px 12px">'+
+    return '<div style="margin-top:12px;border:1px solid '+(substituteMode()!=='rank'?'#fc8181':'#9ae6b4')+';border-radius:8px;padding:10px 12px">'+
       '<div class="row" style="justify-content:space-between"><b>'+esc(ev.name)+' · 取消资格影响预览</b>'+
         '<span class="small muted">当前规则：'+substituteModeName()+'</span></div>'+
       '<div class="grid g12" style="margin-top:6px">'+
         '<div><div class="small muted">① 取消资格之前的原榜（含作废队）</div>'+
-          '<table><thead><tr><th style="width:52px">原名次</th><th>队伍</th><th style="width:70px">总分</th><th style="width:80px">原奖项</th><th style="width:70px"></th></tr></thead><tbody>'+before+'</tbody></table></div>'+
+          '<table><thead><tr><th style="width:52px">原名次</th><th>队伍</th><th style="width:70px">总分</th><th style="width:70px"></th></tr></thead><tbody>'+before+'</tbody></table></div>'+
         '<div><div class="small muted">② 当前生效榜单（作废队已剔除）</div>'+
-          '<table><thead><tr><th style="width:52px">名次</th><th>队伍</th><th style="width:70px">总分</th><th style="width:80px">奖项</th><th style="width:70px"></th></tr></thead><tbody>'+after+'</tbody></table></div>'+
+          '<table><thead><tr><th style="width:52px">名次</th><th>队伍</th><th style="width:70px">总分</th><th style="width:70px"></th></tr></thead><tbody>'+after+'</tbody></table></div>'+
       '</div>'+
       '<div class="hint" style="margin-top:8px">'+
-        (info.vacant.length
-          ? '因当前规则为「<b>不递补（空缺不补）</b>」，原属作废队的奖项 <b>'+info.vacant.map(esc).join(' / ')+'</b> <b>空缺</b>，后续名次不顺延。'
-          : '因当前规则为「<b>按名次顺延</b>」，作废队腾出的奖项由下一名<b>递补上位</b>。')+
-        '切换规则会改变榜单与奖项分布，已发布赛项将自动置为「<b>待重发</b>」。'+
+        '当前规则为「<b>'+substituteModeName()+'</b>」：'+(substituteMode()==='rank'?'下一名<b>递补上位</b>（名次顺延）':'作废队的位置<b>空缺</b>（后续名次不顺延）')+'。'+
+        '切换规则会改变名次分布，已发布赛项将自动置为「<b>待重发</b>」。'+
       '</div></div>';
   }).join('');
   var modeBtns='<span class="row tight">'+
@@ -4266,7 +4320,7 @@ function viewDq(){
   return '<div class="grid g4">'+
       kpi('取消资格生效',cases.length+' 件','不可撤销 · 成绩作废')+
       kpi('待递补处理',pending+' 件','需工作人员登记处理')+
-      kpi('作废队伍数',vCount+' 支','不进榜单、不计奖项')+
+      kpi('作废队伍数',vCount+' 支','不进榜单')+
       kpi('当前递补规则',substituteModeName(),'赛事级通用口径')+
     '</div>'+
   '<div class="card" style="margin-top:16px"><div class="row">'+
@@ -4284,14 +4338,14 @@ function viewDq(){
   '<div class="card"><h2>口径说明 <small>与平板端 P8c note 7 / P2 note 12 衔接</small></h2>'+
     '<div class="hint">'+
       '<b>① 弃赛 ≠ 取消资格</b>：<b>弃赛</b>是队伍主动退赛（<b>可恢复</b>），队伍管理页按软删除处理；'+
-        '<b>取消资格</b>是裁判长裁定（<b>不可撤销 + 成绩作废 + 不进榜单不计奖项</b>），只能再裁定一次并留痕。两者后续动作完全不同，不能共用一套处理。<br>'+
+        '<b>取消资格</b>是裁判长裁定（<b>不可撤销 + 成绩作废 + 不进榜单</b>），只能再裁定一次并留痕。两者后续动作完全不同，不能共用一套处理。<br>'+
       '<b>② 本页是平板端 P8c 的下游</b>：平板端 P8c note 7 明确写了「取消资格之后的链条不在本册闭合」，本页把这条链补上 —— '+
         '台账（裁定单号 / 原因 / 生效时间 / 留底证据）+ 递补规则 + 影响预览 + 与重发的联动。<br>'+
-      '<b>③ 递补规则是「赛事级通用口径」</b>：<b>不递补（空缺不补）</b>＝作废队腾出的奖项空缺，后续名次不顺延；'+
-        '<b>按名次顺延</b>＝下一名递补上位。「空不空、补不补」直接改变公示表上的奖项分布，所以必须先定口径再发布。<br>'+
-      '<b>④ 递补会连锁到重发</b>：切换规则或登记递补后，已发布赛项的奖项分布可能变化 → 系统自动置为「<b>待重发</b>」，'+
+      '<b>③ 递补规则是「赛事级通用口径」</b>：<b>不递补（空缺不补）</b>＝作废队的位置空缺，后续名次不顺延；'+
+        '<b>按名次顺延</b>＝下一名递补上位。「空不空、补不补」直接改变公示表上的名次分布，所以必须先定口径再发布。<br>'+
+      '<b>④ 递补会连锁到重发</b>：切换规则或登记递补后，已发布赛项的名次分布可能变化 → 系统自动置为「<b>待重发</b>」，'+
         '在「公示与导出」页用<b>覆盖式重新发布</b>刷新（与平板端 P11「已发布赛项必须常驻重发提示」同口径）。<br>'+
-      '<b>⑤ 对外口径要一并声明</b>：作废队不出现在公示表内，但对外必须说明"本组别存在被取消资格队伍，成绩与奖项均不计入"——'+
+      '<b>⑤ 对外口径要一并声明</b>：作废队不出现在公示表内，但对外必须说明"本组别存在被取消资格队伍，成绩不计入名次"——'+
         '否则会出现"榜上少了一队却无人解释"。<br>'+
       '<b>⑥ 权限</b>：登记递补与切换规则属工作人员职责（当前操作身份：'+currentUser().name+' · '+roleName(currentUser().role)+'）。'+
     '</div>'+
@@ -4385,21 +4439,21 @@ function viewCases(){
         '不提供催办 / 改派 / 接管等主动处置入口。<br>'+
       '<b>③ 裁判长本人负责</b>：裁判长响应慢、临时不在，属其本人的 accountability；其联系方式已知，'+
         '如需换人直接在「裁判与排班」调整，本页不重复提供改派 / 接管。<br>'+
-      '<b>④ 待裁定工单影响发榜</b>：待裁定工单未闭环时该组别不应发榜，发布前请确认双锁 + 工单已结；'+
-        '真正的发布闸门在「锁定与发布 · 公示与导出」。<br>'+
+      '<b>④ 待裁定工单影响发榜</b>：待裁定工单未闭环时该组别不应发榜，发布前请确认完整性校验 + 工单已结；'+
+        '真正的发布闸门在「公示与导出」。<br>'+
       '<b>⑤ 超时信息同时进入告警收件箱</b>：类型 = 超时催办，可在本看板上方「告警收件箱」查看，便于事后追溯。'+
     '</div>'+
   '</div>';
 }
 
 /* ---------- 视图 14：告警中心（平板端四类告警的接收方） ---------- */
-/* 依据《裁判打分系统》：① 自批告警（P9 note 4/6/7）② 解锁告警（P10 note 6）
+/* 依据《裁判打分系统》：① 自批告警（P9 note 4/6/7）② 资格 / 递补告警
    ③ 取消资格告警（P8c note 5）④ 裁定超时催办（P8 note 8）。四类都明确「推送后台」。
    为什么不推给裁判长：执行人常常就是裁判长本人，推给自己没有意义。 */
-var ALERT_TYPES=['自批','解锁','取消资格','超时催办'];
+var ALERT_TYPES=['自批','取消资格','超时催办'];
 var ALERT_FILTER={type:'',status:''};
 function alertOf(i){return (S.alerts||[])[i]||null;}
-/* 统一收件箱 = 单源：解锁告警由本册解锁动作写入，其余三类来自平板端推送 */
+/* 统一收件箱 = 单源：取消资格 / 裁定超时催办来自本册动作，自批告警来自平板端推送 */
 function pushAlert(type,level,target,detail,reason,by,push){
   S.alerts=S.alerts||[];
   S.alerts.unshift({id:uid('al'),ts:nowStr(),type:type,level:level||'warn',target:target,
@@ -4427,7 +4481,7 @@ function alertTypeTag(t){
 }
 /* 下钻：告警必须能落到「对应的那条业务对象」，否则只是一面通知墙 */
 function alertDrillView(a){
-  if(a.type==='解锁')return 'lock';
+  if(a.type==='解锁')return 'publish';
   if(a.type==='取消资格')return 'dq';
   return 'watch';
 }
@@ -4482,15 +4536,13 @@ function viewAlerts(){
     '<div class="hint">'+
       '<b>① 自批告警</b>：来源 <b>P9 note 4 / 6 / 7</b> —— 改分申请人 = 审批人（同一账号）时，系统强制标红并生成独立告警。'+
         '平板端允许自批（「留痕威慑」而非权限管控），兜底就是这条告警。<br>'+
-      '<b>② 解锁告警</b>：来源 <b>P10 note 6</b> —— 已锁赛项被解锁（原因必填）。本册的解锁动作会直接写入同一张收件箱（<b>单源</b>），'+
-        '「成绩锁定与解锁」页显示的是本表的解锁子集。<br>'+
-      '<b>③ 取消资格告警</b>：来源 <b>P8c note 5</b> —— 提交取消资格裁定（最高危档：不可撤销 + 成绩作废），供事后抽样复核；'+
+      '<b>② 取消资格告警</b>：来源 <b>P8c note 5</b> —— 提交取消资格裁定（最高危档：不可撤销 + 成绩作废），供事后抽样复核；'+
         '本册的「取消资格与递补」页是该告警的下钻目标。<br>'+
-      '<b>④ 裁定超时催办</b>：来源 <b>P8 note 8</b> —— 工单入队超 <b>30 分钟</b>未处理，向裁判长推送催办；'+
-        '待裁定工单未闭环时该组别不应发榜（发布闸门见「锁定与发布 · 公示与导出」）。<br>'+
-      '<b>⑤ 为什么都推给「后台」</b>：执行人常常就是裁判长本人，推给自己没有意义 —— 与平板端 P9 自批告警同口径，'+
+      '<b>③ 裁定超时催办</b>：来源 <b>P8 note 8</b> —— 工单入队超 <b>30 分钟</b>未处理，向裁判长推送催办；'+
+        '待裁定工单未闭环时该组别不应发榜（发布闸门见「公示与导出」）。<br>'+
+      '<b>④ 为什么都推给「后台」</b>：执行人常常就是裁判长本人，推给自己没有意义 —— 与平板端 P9 自批告警同口径，'+
         '一律推给「能管住裁判长」的角色，才构成真正的威慑。<br>'+
-      '<b>⑥ 告警要能下钻</b>：每条告警都有「查看对象」直达对应业务页（解锁 → 锁定页 / 取消资格 → 递补页 / 自批与超时 → 台账页），'+
+      '<b>⑤ 告警要能下钻</b>：每条告警都有「查看对象」直达对应业务页（取消资格 → 递补页 / 自批与超时 → 台账页），'+
         '不然它就只是一面通知墙。'+
     '</div>'+
   '</div>';
@@ -4514,193 +4566,84 @@ function viewWatch(){
     '不提供催办 / 改派 / 接管 / 复核等主动处置入口。</div>';
   return intro+viewAlerts()+viewCases();
 }
-/* ---------- 视图 13：成绩锁定与解锁（对齐平板端 P10 锁定台） ---------- */
-/* 依据《裁判打分系统》P10：以 赛项 × 组别 为单位；成绩锁 + 配置锁 双锁分开；
-   锁 / 解锁人与时间必须显示；解锁必须填写原因并生成告警记录推送后台；
-   锁定即闸门（未走审批的自由改分被拒）；解锁是"留痕威慑"，不是权限管控。 */
-function lockKey(evId,group){return evId+'|'+group;}
-function lockCell(evId,group){return (S.locks||{})[lockKey(evId,group)]||{};}
-function scoreLockOf(evId,group){return lockCell(evId,group).score||null;}
-function configLockOf(evId,group){return lockCell(evId,group).config||null;}
-function eventConfigLockOf(evId){
-  var ev=find(evId);if(!ev)return null;
-  var gs=ev.groups||[];
-  for(var i=0;i<gs.length;i++){var c=configLockOf(evId,gs[i]);if(c)return c;}
-  return null;
-}
-/* config_version = 规则模板表第 N 次快照编号（与平板端同一套编号） */
-function configVersionOf(evId){var e=find(evId);return 'v'+Number((e&&e.configSN)||1);}
-function hhmm(at){at=String(at||'');return at.length>=16?at.slice(11,16):at;}
-function ensureLockCell(evId,group){
-  S.locks=S.locks||{};
-  var k=lockKey(evId,group);
-  if(!S.locks[k])S.locks[k]={};
-  return S.locks[k];
-}
-function lockUnits(){
-  var out=[];
-  (S.events||[]).forEach(function(e){
-    (e.groups||[]).forEach(function(g){out.push({ev:e,group:g});});
-  });
-  return out;
-}
-function unitTeams(evId,group){
-  return (S.teams||[]).filter(function(t){return t.eventId===evId&&t.group===group&&t.status!=='withdrawn';});
-}
-function unitDone(evId,group){
-  return unitTeams(evId,group).filter(function(t){var sc=S.scores[t.id]||{};return !!sc.signed;}).length;
-}
-function eventLockState(evId){
-  var ev=find(evId);
-  var gs=(ev&&ev.groups)||[];
-  var missScore=[],missConfig=[];
-  gs.forEach(function(g){
-    if(!scoreLockOf(evId,g))missScore.push(g);
-    if(!configLockOf(evId,g))missConfig.push(g);
-  });
-  return {ev:ev,groups:gs,missScore:missScore,missConfig:missConfig,
-          scoreAll:gs.length>0&&missScore.length===0,
-          configAll:gs.length>0&&missConfig.length===0};
-}
-function publishLockGate(evId){
-  var st=eventLockState(evId),miss=[];
-  if(!st.scoreAll)miss.push('成绩锁未就位：'+(st.missScore.join(' / ')||'—'));
-  if(!st.configAll)miss.push('配置锁未就位：'+(st.missConfig.join(' / ')||'—'));
-  return {ok:miss.length===0,miss:miss,state:st};
-}
-function lockStampText(l,kind){
-  if(!l)return '未锁';
-  return kind==='config'?('已锁 · config_version = v'+Number(l.v||1)+' · '+l.by+' · '+l.at)
-                        :('已锁 · '+l.by+' · '+l.at);
-}
-function doLock(evId,group,kind){if(!perm('lock'))return;
-  var ev=find(evId);if(!ev)return;
-  if(kind==='score'&&!confirm('锁定「'+ev.name+' · '+group+'」的成绩？\n\n锁定后该组别的成绩录入 / 修改会被拒绝（锁定即闸门）。'))return;
-  if(kind==='config'&&!confirm('锁定「'+ev.name+' · '+group+'」的配置？\n\n锁定后该赛项规则模板冻结，配置回滚会被拒绝。'))return;
-  var cell=ensureLockCell(evId,group);
-  var before=lockStampText(cell[kind],kind);
-  var stamp={by:operatorName(),at:nowStr()};
-  if(kind==='config')stamp.v=Number(ev.configSN||1);
-  cell[kind]=stamp;
-  logAudit('锁定成绩',ev.name+' · '+group+' · '+(kind==='score'?'成绩锁':'配置锁'),before,lockStampText(cell[kind],kind),
-    kind==='score'?'成绩冻结（发布前提）':'规则模板冻结（保证成绩可按 config_version 复现）');
-  save();render();
-}
-function doUnlock(evId,group,kind){if(!perm('unlock'))return;
-  var ev=find(evId);if(!ev)return;
-  var cell=(S.locks||{})[lockKey(evId,group)]||{};
-  var cur=cell[kind];if(!cur)return;
-  var label=(kind==='score'?'成绩锁':'配置锁');
-  var reason=prompt('解锁「'+ev.name+' · '+group+'」的'+label+' —— 解锁原因必填。\n（解锁会生成告警记录推送后台）','');
-  if(reason===null)return;
-  reason=String(reason).trim();
-  if(!reason){alert('解锁原因必填：未填写原因不能解锁。');return;}
-  var before=lockStampText(cur,kind);
-  delete cell[kind];
-  if(!Object.keys(cell).length)delete S.locks[lockKey(evId,group)];
-  pushUnlockAlert(ev,group,kind,reason);
-  logAudit('解锁',ev.name+' · '+group+' · '+label+' · 解锁',before,'未锁','解锁原因：'+reason);
-  save();render();
-}
-/* 解锁告警写入统一收件箱（与「告警中心」单源） */
-function pushUnlockAlert(ev,group,kind,reason){
-  pushAlert('解锁','warn',ev.name+' · '+group,
-    (kind==='score'?'成绩锁':'配置锁')+'被解锁（锁定即闸门：解锁后本组别恢复可改，需按流程重新锁定）',
-    reason,operatorName());
-}
-/* 成绩闸门：锁定即闸门（服务端校验的界面表达） */
+/* ---------- 视图 13：成绩状态机（替代手动锁 · 提交即终态） ----------
+   依据《裁判打分系统》#C：取消手动锁 / 解锁交互，改为状态机。
+   队轮状态：draft（草稿，可编辑）→ submitted（已签字提交，终态不可直接改）
+   → 更正走 P8 裁定 / P9 改分审批 + 重新发布（不是解锁，是重发）。
+   发布闸门改为「发布前完整性校验」，不再依赖双锁。 */
+function scoreStateOf(t){var sc=S.scores[t&&t.id];return (sc&&sc.state)||'draft';}
+function scoreStateLabel(st){return st==='submitted'?'已提交（终态）':(st==='archived'?'已归档':'草稿');}
+/* 闸门：草稿可直改；已提交 / 已归档不可直接改（服务端校验的界面表达，非仅置灰） */
 function scoreGateChk(){
   var t=findTeam(CUR_TEAM);if(!t)return true;
-  var l=scoreLockOf(t.eventId,t.group);
-  if(!l)return true;
-  alert('「'+(find(t.eventId)||{name:''}).name+' · '+t.group+'」成绩已锁定（'+l.by+' · '+l.at+'），按规则不能直接改分。\n\n'+
-    '请先到「成绩锁定与解锁」解锁并填写原因（会生成告警记录推送后台），改完再重新锁定。');
+  if(isReadOnly())return false;                 /* 赛事归档：整体只读 */
+  var st=scoreStateOf(t);
+  if(st==='draft')return true;
+  alert('「'+(find(t.eventId)||{name:''}).name+' · '+t.group+'」的成绩已提交（状态：'+scoreStateLabel(st)+'），按规则不能直接改分。\n\n'+
+    '如需修改，请走「裁定 P8 / 改分审批 P9」留痕链路，更正后重新发布（不是解锁）。');
   return false;
 }
-function scoreLockBanner(){
-  var t=findTeam(CUR_TEAM);if(!t)return '';
-  var l=scoreLockOf(t.eventId,t.group);if(!l)return '';
-  return '<div class="note" style="margin-bottom:16px;background:#fff5f5;border-color:#fc8181">'+
-    '<b>⛔ 成绩已锁定</b>：「'+esc((find(t.eventId)||{name:''}).name)+' · '+esc(t.group)+'」的成绩锁由 <b>'+esc(l.by)+'</b> 于 <b>'+esc(l.at)+'</b> 生效。'+
-    '按「<b>锁定即闸门</b>」规则，本组别的成绩录入 / 修改会被拒绝（服务端校验，非仅前端置灰）。'+
-    '如需修改，请先到「<b>成绩锁定与解锁</b>」解锁并填写原因（解锁会生成告警记录推送后台），改完再重新锁定。</div>';
+/* 签字 + 保存即把草稿转「已提交（终态）」 */
+function submitScoreState(t){
+  var sc=S.scores[t.id];if(!sc)return;
+  if(sc.state!=='submitted'){sc.state='submitted';sc.submittedAt=nowStr();sc.submittedBy=operatorName();}
 }
-/* 公示页的「发布前 · 双锁状态」（对齐平板端 P11） */
-function lockStatusHtml(evId){
-  var st=eventLockState(evId),gate=publishLockGate(evId);
+/* 发布前完整性校验（替代双锁）：完整度 / 签字 / 待裁定 / 待审批改分 / 弃赛 */
+function publishReadyGate(evId){
+  var ev=find(evId);if(!ev)return {ok:false,miss:['赛项不存在']};
+  var miss=[];
+  var teams=(S.teams||[]).filter(function(t){return t.eventId===evId&&t.status!=='withdrawn';});
+  var unsigned=teams.filter(function(t){return !(S.scores[t.id]||{}).signed;});
+  if(unsigned.length)miss.push('未签字提交队伍：'+(unsigned.map(function(t){return t.name;}).join('、')||'—'));
+  var noScore=teams.filter(function(t){var sc=S.scores[t.id];return !sc||!Object.keys(sc.tasks||{}).length;});
+  if(noScore.length)miss.push('无成绩记录队伍：'+noScore.length+' 支');
+  var dqN=(S.dqCases||[]).filter(function(c){return c.eventId===evId&&c.status==='待裁定';}).length;
+  if(dqN)miss.push('待裁定资格案例：'+dqN+' 件');
+  var chgN=(S.changeRequests||[]).filter(function(c){return c.eventId===evId&&c.status==='待审批';}).length;
+  if(chgN)miss.push('待审批改分：'+chgN+' 件');
+  var wdN=(S.teams||[]).filter(function(t){return t.eventId===evId&&t.status==='withdrawn';}).length;
+  return {ok:miss.length===0,miss:miss};
+}
+/* 公示页「发布前完整性校验」面板（替代双锁状态） */
+function publishReadinessHtml(evId){
+  var g=publishReadyGate(evId);
   function row(lb,ok,txt){
     return '<tr><td>'+lb+'</td><td><span class="tag '+(ok?'ok':'err')+'">'+(ok?'✅ 已就位':'❌ 未就位')+'</span></td><td class="small">'+txt+'</td></tr>';
   }
-  return '<div style="margin-top:12px;border:1px solid '+(gate.ok?'#9ae6b4':'#fc8181')+';border-radius:8px;padding:10px 12px">'+
+  var teams=(S.teams||[]).filter(function(t){return t.eventId===evId&&t.status!=='withdrawn';});
+  var signedN=teams.filter(function(t){return (S.scores[t.id]||{}).signed;}).length;
+  var scoredN=teams.filter(function(t){var sc=S.scores[t.id];return sc&&Object.keys(sc.tasks||{}).length;}).length;
+  var dqN=(S.dqCases||[]).filter(function(c){return c.eventId===evId&&c.status==='待裁定';}).length;
+  var chgN=(S.changeRequests||[]).filter(function(c){return c.eventId===evId&&c.status==='待审批';}).length;
+  var wdN=(S.teams||[]).filter(function(t){return t.eventId===evId&&t.status==='withdrawn';}).length;
+  return '<div style="margin-top:12px;border:1px solid '+(g.ok?'#9ae6b4':'#fc8181')+';border-radius:8px;padding:10px 12px">'+
     '<div class="row" style="justify-content:space-between">'+
-      '<b>发布前 · 双锁状态</b><span class="small muted">两把全绿才可发布（与平板端 P11 同口径）</span></div>'+
-    '<table style="margin-top:6px"><thead><tr><th style="width:110px">锁别</th><th style="width:110px">状态</th><th>说明</th></tr></thead><tbody>'+
-      row('成绩锁',st.scoreAll,st.scoreAll?('全部 '+st.groups.length+' 个组别已锁成绩'):('未锁组别：'+st.missScore.join(' / ')))+
-      row('配置锁',st.configAll,st.configAll?('config_version = '+configVersionOf(evId)+' · 全部 '+st.groups.length+' 个组别已锁'):('未锁组别：'+st.missConfig.join(' / ')))+
+      '<b>发布前完整性校验</b><span class="small muted">全部就位才可发布（替代原双锁闸门）</span></div>'+
+    '<table style="margin-top:6px"><thead><tr><th style="width:130px">校验项</th><th style="width:110px">状态</th><th>说明</th></tr></thead><tbody>'+
+      row('成绩完整度',teams.length>0&&scoredN===teams.length,teams.length?('全部 '+teams.length+' 队已录入（'+scoredN+'/'+teams.length+'）'):'本赛项暂无队伍')+
+      row('签字提交',teams.length>0&&signedN===teams.length,teams.length?('全部 '+teams.length+' 队已签字提交（'+signedN+'/'+teams.length+'）'):'本赛项暂无队伍')+
+      row('资格裁定',dqN===0,dqN?('仍有 '+dqN+' 件待裁定'):'无待裁定资格案例')+
+      row('改分审批',chgN===0,chgN?('仍有 '+chgN+' 件待审批改分'):'无待审批改分')+
+      row('弃赛处理',true,wdN?('弃赛 '+wdN+' 支已作废，不进榜单'):'无弃赛队伍')+
     '</tbody></table>'+
     '<div class="hint" style="margin-top:8px">'+
-      (gate.ok?'双锁已就位，可以发布。':('<b>当前未就位</b>：'+gate.miss.join('；')+' —— '+        '<span style="color:#185FA5;cursor:pointer" onclick="gotoView(\'lock\')"><b>去「成绩锁定与解锁」处理 →</b></span>'))+
+      (g.ok?'完整性校验已就位，可以发布。':('<b>当前未就位</b>：'+g.miss.join('；')))+
     '</div></div>';
 }
-function viewLock(){
-  var units=lockUnits();
-  var nScore=units.filter(function(u){return !!scoreLockOf(u.ev.id,u.group);}).length;
-  var nConfig=units.filter(function(u){return !!configLockOf(u.ev.id,u.group);}).length;
-  var unlockList=[];(S.alerts||[]).forEach(function(a,gi){if(a.type==='解锁')unlockList.push({a:a,gi:gi});});
-  var pending=unlockList.filter(function(x){return x.a.status==='待处理';}).length;
-  var kpi=function(lb,nm,ft){return '<div class="kpi"><div class="lb">'+lb+'</div><div class="nm">'+nm+'</div><div class="ft">'+ft+'</div></div>';};
-  var pill=function(l,kind){
-    if(!l)return '<span class="tag err">未锁</span>';
-    if(kind==='config')return '<span class="tag ok">v'+Number(l.v||1)+' 已锁</span><div class="small muted">'+esc(l.by)+'</div>';
-    return '<span class="tag ok">已锁 '+esc(hhmm(l.at))+'</span><div class="small muted">'+esc(l.by)+'</div>';
-  };
-  var rows=units.map(function(u){
-    var ev=u.ev,g=u.group;
-    var tms=unitTeams(ev.id,g),dn=unitDone(ev.id,g);
-    var sl=scoreLockOf(ev.id,g),cl=configLockOf(ev.id,g);
-    var ops='<span class="row tight">'+
-      (sl?'<button class="btn sm" onclick="doUnlock(\''+ev.id+'\',\''+g+'\',\'score\')">解锁</button>'
-         :'<button class="btn sm primary" onclick="doLock(\''+ev.id+'\',\''+g+'\',\'score\')">锁定成绩</button>')+
-      (cl?'<button class="btn sm" onclick="doUnlock(\''+ev.id+'\',\''+g+'\',\'config\')">解锁配置</button>'
-         :'<button class="btn sm" onclick="doLock(\''+ev.id+'\',\''+g+'\',\'config\')">锁定配置</button>')+
-      '</span>';
-    return '<tr><td><b>'+esc(ev.name)+'</b> · '+esc(g)+'</td><td class="num">'+dn+' / '+tms.length+' 队</td>'+
-      '<td>'+pill(sl,'score')+'</td><td>'+pill(cl,'config')+'</td><td>'+ops+'</td></tr>';
-  }).join('');
-  var alertRows=unlockList.map(function(x){
-    var a=x.a;
-    return '<tr><td class="small">'+esc(a.ts)+'</td><td>'+esc(a.target)+'</td>'+
-      '<td class="small">'+esc(a.detail)+'</td><td>'+esc(a.by)+'</td>'+
-      '<td class="small">'+esc(a.reason)+'</td><td class="small">'+esc(a.push)+'</td>'+
-      '<td>'+(a.status==='待处理'?'<span class="tag err">待复核</span>':'<span class="tag ok">已复核</span>')+'</td>'+
-      '<td><button class="btn sm" onclick="handleAlert('+x.gi+')">'+(a.status==='待处理'?'标记已复核':'撤销复核')+'</button></td></tr>';
-  }).join('');
-  return '<div class="grid g4">'+
-      kpi('已锁成绩',nScore+' / '+units.length,'成绩锁 = 冻结成绩')+
-      kpi('已锁配置',nConfig+' / '+units.length,'配置锁 = 冻结 config_version 变更')+
-      kpi('未锁锁位',(units.length*2-nScore-nConfig),'两把锁分别计数')+
-      kpi('解锁告警',pending+' 件待复核','解锁即推送后台')+
-    '</div>'+
-  '<div class="card" style="margin-top:16px"><h2>锁定矩阵 <small>赛项 × 组别 · 与平板端 P10 锁定台逐行对应</small></h2>'+
-    '<div style="overflow:auto"><table><thead><tr><th>赛项 · 组别</th><th class="num" style="width:110px">成绩完整度</th><th style="width:150px">成绩锁</th><th style="width:170px">配置锁</th><th style="width:230px">操作</th></tr></thead>'+
-    '<tbody>'+(rows||'<tr><td colspan="5" class="muted">暂无赛项</td></tr>')+'</tbody></table></div>'+
-  '</div>'+
-  '<div class="card"><h2>解锁告警记录 <small>解锁是高危动作 —— 原因必填，并推送后台；本表与「告警中心」<b>同源单条数据</b></small></h2>'+
-    '<div style="overflow:auto"><table><thead><tr><th style="width:130px">时间</th><th>锁定单元</th><th>详情</th><th style="width:90px">操作人</th><th>解锁原因</th><th style="width:130px">推送对象</th><th style="width:90px">复核</th><th style="width:110px"></th></tr></thead>'+
-    '<tbody>'+(alertRows||'<tr><td colspan="8" class="muted">暂无解锁告警</td></tr>')+'</tbody></table></div>'+
-  '</div>'+
-  '<div class="card"><h2>口径说明 <small>与平板端 P10 锁定台一一对应</small></h2>'+
-    '<div class="hint">'+
-      '<b>① 双锁分开</b>：<b>成绩锁</b>（冻结成绩）与<b>配置锁</b>（冻结 config_version / 规则模板变更）是两把独立的锁，矩阵里各占一列，状态与操作人分别可见。<br>'+
-      '<b>② 锁 / 解锁人与时间必须显示</b>：锁定的实质是「<b>留痕威慑</b>」，看不到是谁在什么时候动的锁，威慑语义就落空了。<br>'+
-      '<b>③ 解锁必须填原因 + 告警推送</b>：解锁原因必填，并生成告警记录推送<b>后台</b>，不能静默解锁。<b>为什么不推给裁判长</b>：解锁人常常就是裁判长本人，推给自己没有意义 —— 与平板端 P9 自批告警同口径，一律推给「能管住裁判长」的角色。<br>'+
-      '<b>④ 锁定即闸门</b>：成绩锁生效后，该组别的<b>成绩录入 / 修改会被拒绝</b>（服务端校验，非仅前端置灰）；配置锁生效后，该赛项<b>配置回滚被拒绝</b>。<br>'+
-      '<b>⑤ 发布前提</b>：该赛项<b>所有组别</b>的「成绩锁 + 配置锁」两把全绿，才可在「公示与导出」发布 —— 与平板端 P11「双锁状态 · 两把全绿才可移交」同口径。<br>'+
-      '<b>⑥ 不是权限管控</b>：同一账号可以自锁自解，控制强度靠「原因必填 + 告警推送 + 后台可抽查」，而不是靠禁止操作。<br>'+
-      '<b>⑦ 单元口径</b>：锁定单元 = 赛项 × 组别。未来之城为对抗赛，平板端按场计（0 / 8 场），本页按在册队伍汇总。'+
-    '</div>'+
-  '</div>';
+/* 打分页顶部状态横幅（替代原「成绩已锁定」横幅） */
+function scoreStateBanner(){
+  var t=findTeam(CUR_TEAM);if(!t)return '';
+  var sc=S.scores[t.id];if(!sc)return '';
+  var st=sc.state||'draft';
+  if(st==='draft')return '';
+  return '<div class="note" style="margin-bottom:16px;background:#fff5f5;border-color:#fc8181">'+
+    '<b>⛔ 成绩已提交（终态）</b>：「'+esc((find(t.eventId)||{name:''}).name)+' · '+esc(t.group)+'」的成绩已由 <b>'+(sc.submittedBy||'—')+'</b> 于 <b>'+(sc.submittedAt||'—')+'</b> 提交生效。'+
+    '按「<b>提交即终态</b>」规则，本组别不能直接改分（服务端校验，非仅前端置灰）。'+
+    '如需修改，请走「<b>裁定 P8 / 改分审批 P9</b>」，更正后重新发布。</div>';
 }
+/* 规则模板版本号（保留：与平板端编号一致，仅展示，不再有「配置锁」） */
+function configVersionOf(evId){var e=find(evId);return 'v'+Number((e&&e.configSN)||1);}
+
 
 /* ---------- 视图 10：全操作审计 ---------- */
 /* 本系统只有一个登录身份：工作人员（享有全部权限）。此处兜底只为极端情况下不报错。 */
@@ -4713,14 +4656,13 @@ function currentUser(){
 function operatorName(){return currentUser().name;}
 /* 角色名：本系统仅一个身份「工作人员」。历史留痕若带旧角色标识，也统一显示为工作人员。 */
 function roleName(r){return {staff:'工作人员'}[r]||'工作人员';}
-/* 动作 → 权限矩阵：本系统仅一个登录身份，10 项动作全部可执行。
-   保留这层校验的意义 = 机制在位（将来若引入多角色可直接启用），且越权动作仍会留痕。 */
+/* 动作 → 权限矩阵：本系统仅一个登录身份，动作全部可执行。
+   取消手动锁 / 解锁后，成绩终态由状态机保证（提交即终态，改动须走 P8 裁定 / P9 改分审批并留痕）；
+   保留其余权限校验 = 机制在位（将来若引入多角色可直接启用），且越权动作仍会留痕。 */
 var PERMS={
   cfg:      {label:'改配置 / 生成快照 / 回滚',          roles:['staff']},
   ref:      {label:'裁判档案 / 排班 / 分台',            roles:['staff']},
   score:    {label:'成绩录入（工作人员代录 / 现场回传）', roles:['staff']},
-  lock:     {label:'锁定成绩 / 锁定配置',              roles:['staff']},
-  unlock:   {label:'解锁（高危 · 留痕威慑）',           roles:['staff']},
   dq:       {label:'取消资格登记 / 递补执行',           roles:['staff']},
   publish:  {label:'发布 / 重新发布',                  roles:['staff']},
   evidence: {label:'留底补传 / 归档 / 导出',            roles:['staff']},
@@ -4753,7 +4695,7 @@ var AUDIT_TYPES=['改配置','改分','改组','调赛台','弃赛','删队','�
 var AUDIT_GROUPS=[
   {label:'配置与队伍',types:['改配置','改分','改组','调赛台','弃赛','删队']},
   {label:'裁判与排班',types:['裁判码','排班','分台']},
-  {label:'锁定与发布',types:['锁定成绩','解锁','发布','重发']},
+  {label:'公示与发布',types:['发布','重发','锁定成绩','解锁']},
   {label:'裁定与合规',types:['裁定','递补','告警']},
   {label:'证据与系统',types:['留底','账号']}
 ];
@@ -4783,7 +4725,7 @@ function viewAudit(){
   }).join('');
   return '<div class="card"><h2>留痕范围 <small>'+AUDIT_TYPES.length+' 类操作 + 队伍导入全部记录；每条留痕带操作人真实身份；保留 ≥ 2 年</small></h2>'+
       '<div class="grid g3">'+kpi+'</div>'+
-      '<div class="hint" style="margin-top:10px">每条记录含：操作人 / 时间 / 操作对象 / <b>旧值 → 新值</b> / 原因。锁定成绩与配置后，解锁必须填写原因并同样留痕 —— 解锁在本页留痕的同时会生成告警记录推送后台（见「成绩锁定与解锁」）。<b>每条留痕都带操作人的真实身份与角色</b>（工作人员），越权尝试同样会被记录（见「角色与权限」）。</div>'+
+      '<div class="hint" style="margin-top:10px">每条记录含：操作人 / 时间 / 操作对象 / <b>旧值 → 新值</b> / 原因。成绩提交后即进入终态，任何改动须走「裁定 P8 / 改分审批 P9」留痕链路（不提供直接解锁）。<b>每条留痕都带操作人的真实身份与角色</b>（工作人员），越权尝试同样会被记录（见「角色与权限」）。</div>'+
     '</div>'+
     '<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">操作日志 <small>共 '+logs.length+' 条</small></h2>'+
       '<button class="btn sm" onclick="exportAudit()">导出审计 CSV</button></div>'+
