@@ -906,7 +906,6 @@ function save(){
   try{localStorage.setItem(ckey(CUR_CONTEST),JSON.stringify(S));}catch(e){}
   var c=contestById(CUR_CONTEST);if(c){c.updatedAt=nowStr();saveContests();}
 }
-function resetSeed(){if(confirm('重置【'+contestName(CUR_CONTEST)+'】为内置三赛项种子数据？\n只影响本场赛事，其他赛事数据不受影响。当前改动将丢失。')){S=seedData();save();CUR_TEAM=null;render();}}
 
 function saveLocalOnly(){if(readonlyGuard())return;try{localStorage.setItem(ckey(CUR_CONTEST),JSON.stringify(S));}catch(e){}}
 /* ---------- 计分引擎（替代原 Excel 公式，对应引擎改造设计 compute_total） ---------- */
@@ -1144,8 +1143,6 @@ function topbar(){
     contestPicker+
     '<span class="pill" style="background:#eefaf1;border-color:#bfe8cc;color:#1f7a45">当前登录 '+esc(currentUser().name)+' · '+roleName(currentUser().role)+'</span>'+
     '<span class="sp"></span>'+
-    '<button class="btn sm" onclick="exportConfig()">导出配置文件</button>'+
-    '<button class="btn sm danger" onclick="resetSeed()">重置种子</button>'+
   '</div>';
 }
 function viewHtml(){
@@ -1775,7 +1772,7 @@ function controlOptions(cur){
 /* ---------- 视图 2：赛项与规则 ---------- */
 function viewEvents(){
   var ev=S.events.find(function(e){return e.id===CUR_EVENT;})||S.events[0];
-  if(!ev)return '<div class="card">暂无赛项，请重置种子。</div>';
+  if(!ev)return '<div class="card">暂无赛项，请先在赛项页新增或从快照恢复。</div>';
   var list=S.events.map(function(e){
     return '<div class="li'+(e.id===ev.id?' on':'')+'" onclick="selEvent(\''+e.id+'\')">'+
       '<span><b>'+esc(e.name)+'</b><div class="small muted">'+esc(e.id)+'</div></span>'+
@@ -1795,7 +1792,6 @@ function viewEvents(){
     '<div class="row" style="margin-bottom:10px">'+
       '<input id="snapNote" placeholder="快照备注（如：赛前冻结 → 生成 v4）" style="max-width:320px">'+
       '<button class="btn primary" onclick="makeSnapshot()">生成快照</button>'+
-      '<button class="btn" onclick="exportConfig()">导出全部配置</button>'+
     '</div>'+
     (S.snapshots.length?S.snapshots.map(function(s,i){
       return '<div class="snap"><span><b>'+esc(s.note)+'</b> <span class="muted">· '+esc(s.ts)+' · '+s.events.length+' 个赛项</span></span>'+
@@ -1806,7 +1802,7 @@ function viewEvents(){
 function selEvent(id){CUR_EVENT=id;render();}
 function addEvent(){
   var src=S.events.find(function(e){return e.id===CUR_EVENT;})||S.events[0];
-  if(!src){alert('暂无可复制的赛项，请先重置种子。');return;}
+  if(!src){alert('暂无可复制的赛项，请先选择本赛事已有的赛项。');return;}
   var n=1;
   S.events.forEach(function(e){var m=/^event_(\d+)$/.exec(e.id||'');if(m)n=Math.max(n,(+m[1])+1);});
   var id='event_'+n;
@@ -3630,10 +3626,6 @@ function exportPublishXlsx(){
 }
 
 /* ---------- 配置导出 / 快照 ---------- */
-function currentConfig(){var c=contestById(CUR_CONTEST)||{};return {schemaVersion:S.schemaVersion,
-  contest:{id:c.id||'',name:c.name||'',season:c.season||'',start:c.start||'',end:c.end||'',venue:c.venue||'',host:c.host||'',status:c.status||''},
-  events:clone(S.events)};}
-function exportConfig(){download('赛事配置_'+contestName(CUR_CONTEST)+'_'+nowStr().replace(/[: ]/g,'')+'.json',JSON.stringify(currentConfig(),null,2),'application/json');}
 function exportEvent(){
   var ev=find(CUR_EVENT);if(!ev)return;
   download('赛项配置_'+contestName(CUR_CONTEST)+'_'+ev.id+'.json',JSON.stringify({schemaVersion:S.schemaVersion,events:[ev]},null,2),'application/json');

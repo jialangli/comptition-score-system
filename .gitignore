@@ -40,3 +40,6 @@ vendor/
 
 # 基准文件的手工备份（正式基准在 testdata/frontend_golden.json）
 testdata/*.bak-*
+
+# 原型改前备份（带「改前备份」字样的副本，仅供本地回滚）
+*改前备份*
