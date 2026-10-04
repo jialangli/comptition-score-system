@@ -1686,15 +1686,6 @@ function eventForm(ev){
     '<table style="margin-top:8px"><thead><tr><th>阶段名</th><th>时长(秒)</th><th>录入方式</th><th>说明</th><th></th></tr></thead>'+
       '<tbody>'+(phaseRows||'<tr><td colspan="5" class="muted">暂无阶段</td></tr>')+'</tbody></table>'+
     '<div class="hint">本赛项走「自动阶段 → 手动阶段」双阶段：各阶段独立计时（同场两队共用一条阶段倒计时）、独立任务集；阶段小计 = 该阶段任务得分之和，本队总分 = 自动小计 + 手动小计 + 整体主观分 + 时间奖励。</div>'+
-    '<div style="margin-top:10px;border:1px dashed #cbd5e0;border-radius:8px;padding:10px 12px;background:#fff">'+
-      '<div class="row tight" style="justify-content:space-between"><b class="small">阶段计时演练（按配置时长轮播演示）</b>'+
-        '<span id="phaseDemoClock" style="font-size:18px;font-weight:bold;color:#185FA5">'+fmtMMSS(phaseDemoPhases().length?phaseDemoPhases()[0].durationSec:0)+'</span></div>'+
-      '<div class="row tight" style="margin-top:6px">'+
-        '<button id="phaseDemoBtn" class="btn sm primary" onclick="phaseDemoToggle()">'+(PHASE_DEMO.playing?'⏸ 暂停':'▶ 开始')+'</button>'+
-        '<button class="btn sm" onclick="phaseDemoReset()">↺ 重置</button>'+
-      '</div>'+
-      '<div class="small muted" style="margin-top:6px" id="phaseDemoLabel">'+(phaseDemoPhases().length?('当前阶段：'+phaseDemoPhases()[0].name+'  ·  共 '+phaseDemoPhases().length+' 阶段（同场两队共用一条阶段倒计时）'):'未配置阶段')+'</div>'+
-    '</div>'+
     '<hr class="sep">'+
     '<div class="row" style="justify-content:space-between"><label class="small muted">任务项（计分最小单元 · 四类原语 · 按阶段归属）</label>'+
       '<button class="btn sm" onclick="addTask()">+ 添加任务</button></div>'+
@@ -1890,41 +1881,6 @@ function updPhase(i,k,v){var ps=ensurePhases();if(!ps)return;ps[i][k]=(k==='dura
 function delPhase(i){var ps=ensurePhases();if(!ps)return;var p=ps[i];if(!p)return;ps.splice(i,1);
   logAudit('改配置',find(CUR_EVENT).name+' · 删除阶段',(p.name||'阶段')+' / '+(p.durationSec||'')+'s','—','赛项阶段配置');
   save();render();
-}
-/* ---- 阶段计时演练：按配置时长轮播演示「自动阶段 → 手动阶段」倒计时 ---- */
-var PHASE_DEMO={playing:false,timer:null,idx:0,remain:0};
-function phaseDemoPhases(){var ev=find(CUR_EVENT);return (ev&&ev.phases)||[];}
-function fmtMMSS(s){s=Math.max(0,Math.round(s||0));var m=Math.floor(s/60),ss=s%60;return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss;}
-function phaseDemoPaint(){
-  var ps=phaseDemoPhases(),clk=document.getElementById('phaseDemoClock'),lbl=document.getElementById('phaseDemoLabel');
-  if(!ps.length){if(clk)clk.textContent='--:--';if(lbl)lbl.textContent='未配置阶段';return;}
-  var ph=ps[PHASE_DEMO.idx]||ps[0];
-  if(clk)clk.textContent=fmtMMSS(PHASE_DEMO.remain);
-  if(lbl)lbl.textContent='当前阶段：'+ph.name+(ph.source?('（录入：'+ph.source+'）'):'')+'  ·  共 '+ps.length+' 阶段（同场两队共用一条阶段倒计时）';
-  var btn=document.getElementById('phaseDemoBtn');
-  if(btn)btn.textContent=PHASE_DEMO.playing?'⏸ 暂停':'▶ 开始';
-}
-function phaseDemoToggle(){
-  var ps=phaseDemoPhases();if(!ps.length){alert('请先配置阶段（含时长）。');return;}
-  if(PHASE_DEMO.playing){PHASE_DEMO.playing=false;if(PHASE_DEMO.timer){clearInterval(PHASE_DEMO.timer);PHASE_DEMO.timer=null;}save();render();return;}
-  if(PHASE_DEMO.remain<=0){PHASE_DEMO.idx=0;PHASE_DEMO.remain=ps[0].durationSec||0;}
-  PHASE_DEMO.playing=true;
-  if(PHASE_DEMO.timer)clearInterval(PHASE_DEMO.timer);
-  PHASE_DEMO.timer=setInterval(phaseDemoTick,1000);
-  save();render();
-}
-function phaseDemoPause(){PHASE_DEMO.playing=false;if(PHASE_DEMO.timer){clearInterval(PHASE_DEMO.timer);PHASE_DEMO.timer=null;}save();render();}
-function phaseDemoReset(){PHASE_DEMO.playing=false;if(PHASE_DEMO.timer){clearInterval(PHASE_DEMO.timer);PHASE_DEMO.timer=null;}PHASE_DEMO.idx=0;var ps=phaseDemoPhases();PHASE_DEMO.remain=ps.length?ps[0].durationSec||0:0;save();render();}
-function phaseDemoTick(){
-  PHASE_DEMO.remain--;
-  if(PHASE_DEMO.remain<0){
-    var ps=phaseDemoPhases();if(!ps.length){phaseDemoPause();return;}
-    var prev=ps[PHASE_DEMO.idx].name;
-    PHASE_DEMO.idx=(PHASE_DEMO.idx+1)%ps.length;
-    PHASE_DEMO.remain=ps[PHASE_DEMO.idx].durationSec||0;
-    logAudit('演练','阶段计时切换',prev,ps[PHASE_DEMO.idx].name,'赛项阶段配置·计时演练');
-  }
-  phaseDemoPaint();
 }
 function addBonus(){var ev=find(CUR_EVENT);if(!ev)return;ev.bonusRules=ev.bonusRules||[];ev.bonusRules.push({template:'time_bonus',params:{perSecond:0.5,cap:10}});save();render();}
 function delBonus(i){var ev=find(CUR_EVENT);if(!ev)return;ev.bonusRules.splice(i,1);save();render();}
