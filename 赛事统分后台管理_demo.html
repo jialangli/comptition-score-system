@@ -104,7 +104,7 @@ input[type=range]{padding:0;border:none;background:transparent}
 .vres .e{color:var(--err)}
 .vres .w{color:var(--warn)}
 .vres .k{color:var(--ok)}
-.snap{padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:12.5px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+
 hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .pub{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 24px}
 .pub h3{margin:0 0 4px;font-size:17px;text-align:center;font-weight:600}
@@ -135,7 +135,7 @@ var KEY='brainco_scoring_admin_v1';
    口径：「赛事」= 一次具体举办（如「2026 WRC 中国区总决赛 · 杭州」）；
          「赛项」= 赛事内的比赛项目（脑机星球 / 火星救援 / 未来之城），见 S.events。
    过去只有「赛项」这一层，全站数据是单场赛事的扁平库；
-   现在每场赛事拥有独立数据空间（独立 localStorage key），队伍 / 成绩 / 规则快照 / 锁 /
+   现在每场赛事拥有独立数据空间（独立 localStorage key），队伍 / 成绩 / 规则 / 锁 /
    工单 / 留底 / 审计 / 裁判码 全部按赛事隔离，切换赛事 = 切换整套数据。 */
 var CKEY='brainco_contests_v1';   /* 赛事索引（唯一一份，跨赛事共享） */
 var CONTESTS=[];                  /* [{id,name,season,start,end,venue,host,status,createdAt,updatedAt,archivedAt,note}] */
@@ -475,7 +475,7 @@ function blankContestData(){
     currentUserId:'u1',
     events:clone(EVENT_TEMPLATES),
     teams:[], scores:{}, published:{}, pubDirty:{}, handoff:{},
-    snapshots:[], importLogs:[], alerts:[], changeRequests:[], disputes:[],
+    importLogs:[], alerts:[], changeRequests:[], disputes:[],
     dqCases:[], evidence:[], auditLogs:[],
     substituteRule:{mode:'none',note:'赛事级通用规则：弃赛 / 取消资格均不递补；如需递补，由工作人员切换为「按名次顺延」并留痕'},
     users:[{id:'u1',name:'工作人员',role:'staff'}],
@@ -628,7 +628,6 @@ function migrate(d){
   d.referees=d.referees||[];
   d.auditLogs=d.auditLogs||[];
   d.importLogs=d.importLogs||[];
-  d.snapshots=d.snapshots||[];
   d.published=d.published||{};
   d.pubDirty=d.pubDirty||{};
   /* v4 迁移：发布流转（裁判长移交 → 工作人员发布 → 回流裁判长端） */
@@ -1031,7 +1030,7 @@ function viewContests(){
       kpi('已归档',arch,'只读历史快照 · 可导出追溯')+
       kpi('累计队伍 / 已签字',totTeams+' / '+totSigned,'跨赛事合计（隔离存储）')+
     '</div>'+
-  '<div class="card" style="margin-top:16px"><h2>赛事清单 <small>每场赛事一份独立数据空间：队伍 / 成绩 / 规则快照 / 锁 / 工单 / 留底 / 审计 / 裁判码</small></h2>'+
+  '<div class="card" style="margin-top:16px"><h2>赛事清单 <small>每场赛事一份独立数据空间：队伍 / 成绩 / 规则 / 锁 / 工单 / 留底 / 审计 / 裁判码</small></h2>'+
     '<table><thead><tr><th>赛事</th><th>场馆 / 主办</th><th>值守人</th><th class="num">赛项</th><th class="num">队伍</th><th class="num">已签字</th><th class="num">已公示</th><th class="num">待办</th><th>状态</th><th>操作</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table>'+
     '<div class="hint" style="margin-top:10px">顶部「赛事」下拉可随时切换；切换后<b>整套数据随之切换</b>，上一场的队伍、成绩、工单、留底不会出现在本场里。'+
@@ -1052,8 +1051,8 @@ function viewContests(){
       '<button class="btn primary" onclick="createContest()" style="margin-top:18px">创建赛事</button>'+
       (NC.error?'<span class="tag err" style="margin-top:18px">'+esc(NC.error)+'</span>':'')+
     '</div>'+
-    '<div class="hint" style="margin-top:8px">新建后自动切换为当前赛事。复制方式会带走<b>赛项、任务、分值、计分模板、判罚事由、争议类型</b>与全部规则快照，'+
-      '但<b>不带队伍、不带成绩、不带工单、不带留底</b> —— 新赛事的<b>裁判码需重新发放</b>（已在平板上激活过的绑定也会清空；裁判名册是否沿用见上面的勾选）。</div>'+
+    '<div class="hint" style="margin-top:8px">新建后自动切换为当前赛事。勾选赛项模板会带入<b>赛项、任务、分值、计分模板、判罚事由、争议类型</b>，'+
+      '但<b>不带队伍、不带成绩、不带工单、不带留底</b> —— 新赛事的<b>裁判码需重新发放</b>（已在平板上激活过的绑定也会清空）。</div>'+
     (NC.start?(ncOverlap().length
       ? '<div class="note" style="margin-top:8px;border-left-color:#d69e2e"><b>该赛期与已有 '+ncOverlap().length+' 场赛事重叠（并行举办）</b>：'+
           ncOverlap().map(function(x){return esc(x.name);}).join(' · ')+
@@ -1064,7 +1063,7 @@ function viewContests(){
     '<div class="note">'+
       '<b>① 赛事 vs 赛项，先分清</b>：<b>赛事</b>＝一次具体举办（如「2026 WRC 中国区总决赛 · 杭州」）；<b>赛项</b>＝赛事内的比赛项目（脑机星球 / 火星救援 / 未来之城）。'+
         '本页管<b>赛事</b>，「赛项与规则」页管<b>赛项</b>。过去只有赛项这一层，等于只服务当次赛事；现在补齐了赛事这一层。'+
-      '<b>② 隔离方式是「一份赛事一份数据空间」</b>：每场赛事的队伍、成绩、规则快照、改分申请、争议工单、取消资格、留底证据、操作审计、裁判码与赛台绑定，'+
+      '<b>② 隔离方式是「一份赛事一份数据空间」</b>：每场赛事的队伍、成绩、规则、改分申请、争议工单、取消资格、留底证据、操作审计、裁判码与赛台绑定，'+
         '<b>全部按赛事分开存放</b>，互不污染；切换赛事 = 切换整套数据，不会串场。'+
       '<b>③ 规则只配一次</b>：建赛时在「勾选赛项模板」里勾选本次要办的赛项（脑机星球 / 火星救援 / 未来之城），其规则自动带入；赛制一年内不变时无需每场重配。赛项规则全年不变，建赛时勾选即可，无需逐场重配。'+
       '<b>④ 归档语义</b>：赛事收官后把状态改为<b>已归档</b>（只读历史快照，进入时会提示，仅用于追溯与导出）。归档不删数据，随时可改回「已结束」。'+
@@ -1494,7 +1493,7 @@ function viewDash(){
     '<div class="note">'+
       '<b>① 规则自由配</b>：赛项、任务、得分全部写在配置里 —— 换赛项只需换配置，打分引擎不用改。<br>'+
       '<b>② 评分方式就三类</b>：数值评分、计数得分、等级评分 —— 任何赛项的评分项都能用这三类描述。<br>'+
-      '<b>③ 配置可留档回滚</b>：改配置前先存快照，出问题一键回滚。<br>'+
+      '<b>③ 改配置有留痕</b>：每次改动都记入审计（旧值 → 新值 + 原因），可追溯。<br>'+
       '<b>④ 报名统一从 WRC 来</b>：官网导出 → 变更比对 → 合并入库；已有成绩的队伍不会被冲掉，退赛只标记不删除。<br>'+
       '<b>⑤ 成绩算法可解释</b>：<b>总分 = 基础分 + 加分</b>（黄 / 红牌不扣分，只作判罚记录），同分按用时裁决，规则全在赛项配置里，随时可查。<br>'+
       '<b>⑥ 判罚事由按赛项配</b>：<b>黄牌、红牌各一套事由</b>，且各赛项不同（脑机星球 / 火星救援 / 未来之城 三套清单），在赛项配置里由工作人员增删填写（如「黄牌：小球出界」「红牌：顶撞裁判」），裁判端只读选择。'+
@@ -1524,7 +1523,7 @@ function controlOptions(cur){
 /* ---------- 视图 2：赛项与规则 ---------- */
 function viewEvents(){
   var ev=S.events.find(function(e){return e.id===CUR_EVENT;})||S.events[0];
-  if(!ev)return '<div class="card">暂无赛项，请先在赛项页新增或从快照恢复。</div>';
+  if(!ev)return '<div class="card">暂无赛项，请先在赛项页新增赛项。</div>';
   var list=S.events.map(function(e){
     return '<div class="li'+(e.id===ev.id?' on':'')+'" onclick="selEvent(\''+e.id+'\')">'+
       '<span><b>'+esc(e.name)+'</b><div class="small muted">'+esc(e.id)+'</div></span>'+
@@ -1539,16 +1538,6 @@ function viewEvents(){
       '<div class="hint" style="margin-top:10px">新增赛项 = 基于<b>当前选中赛项复制一份完整配置</b>（阶段 / 任务 / 判罚 / 奖励 / 排名规则等全部带过来，系统自动分配新 ID、名称记为「…（副本）」可在右侧改）；引擎无需改动。删除赛项前会检查是否已有<b>队伍 / 赛程 / 争议 / 工单 / 留底</b>等关联数据。</div>'+
     '</div>'+
     '<div class="card" style="margin:0">'+eventForm(ev)+'</div>'+
-  '</div>'+
-  '<div class="card" style="margin-top:16px"><h2>配置快照 <small>改配置前先存一份，随时可回滚；生成快照即让 config_version 递增一代</small></h2>'+
-    '<div class="row" style="margin-bottom:10px">'+
-      '<input id="snapNote" placeholder="快照备注（如：赛前冻结 → 生成 v4）" style="max-width:320px">'+
-      '<button class="btn primary" onclick="makeSnapshot()">生成快照</button>'+
-    '</div>'+
-    (S.snapshots.length?S.snapshots.map(function(s,i){
-      return '<div class="snap"><span><b>'+esc(s.note)+'</b> <span class="muted">· '+esc(s.ts)+' · '+s.events.length+' 个赛项</span></span>'+
-        '<button class="btn sm" onclick="restoreSnapshot('+i+')">回滚到此版本</button></div>';
-    }).join(''):'<div class="hint">暂无快照。生成快照可在改配置前留存一份可回滚的版本。</div>')+
   '</div>';
 }
 function selEvent(id){CUR_EVENT=id;render();}
@@ -3382,27 +3371,6 @@ function exportEvent(){
   var ev=find(CUR_EVENT);if(!ev)return;
   download('赛项配置_'+contestName(CUR_CONTEST)+'_'+ev.id+'.json',JSON.stringify({schemaVersion:S.schemaVersion,events:[ev]},null,2),'application/json');
 }
-function makeSnapshot(){if(!perm('cfg'))return;
-  var noteEl=document.getElementById('snapNote');
-  var note=(noteEl&&noteEl.value.trim())||('快照 '+nowStr());
-  var before=[],after=[];
-  S.events.forEach(function(e){
-    before.push(e.name+' '+configVersionOf(e.id));
-    e.configSN=Number(e.configSN||1)+1;
-    after.push(e.name+' '+configVersionOf(e.id));
-  });
-  S.snapshots.unshift({ts:nowStr(),note:note,events:clone(S.events)});
-  S.snapshots=S.snapshots.slice(0,10);
-  logAudit('改配置','生成配置快照（config_version 递增）',before.join(' · '),after.join(' · '),note);
-  save();render();
-  alert('已生成配置快照，config_version 递增为：\n'+S.events.map(function(e){return '· '+e.name+' '+configVersionOf(e.id);}).join('\n'));
-}
-function restoreSnapshot(i){if(!perm('cfg'))return;
-  var s=S.snapshots[i];if(!s)return;
-  if(!confirm('回滚到「'+s.note+'」？当前配置将被覆盖。'))return;
-  S.events=clone(s.events);save();render();
-}
-
 /* ---------- 视图 8：赛台与赛程编排 ---------- */
 var CUR_SLOT=null;
 function periodTime(p){return p==='上午'?'09:00–12:00':'14:00–17:00';}
@@ -4404,7 +4372,7 @@ function roleName(r){return {staff:'工作人员'}[r]||'工作人员';}
    取消手动锁 / 解锁后，成绩终态由状态机保证（提交即终态，改动须走 P8 裁定 / P9 改分审批并留痕）；
    保留其余权限校验 = 机制在位（将来若引入多角色可直接启用），且越权动作仍会留痕。 */
 var PERMS={
-  cfg:      {label:'改配置 / 生成快照 / 回滚',          roles:['staff']},
+  cfg:      {label:'改赛项配置 / 任务 / 分值 / 判罚事由',          roles:['staff']},
   ref:      {label:'裁判档案 / 排班 / 分台',            roles:['staff']},
   score:    {label:'成绩录入（工作人员代录 / 现场回传）', roles:['staff']},
   dq:       {label:'取消资格登记 / 递补执行',           roles:['staff']},
