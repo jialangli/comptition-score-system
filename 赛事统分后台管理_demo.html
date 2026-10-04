@@ -226,278 +226,118 @@ function buildXlsx(rows){
   return xlsxZipStore([{name:'[Content_Types].xml',data:ct},{name:'_rels/.rels',data:rr},{name:'xl/workbook.xml',data:wb},{name:'xl/_rels/workbook.xml.rels',data:wr},{name:'xl/worksheets/sheet1.xml',data:sheet}]);
 }
 
-/* ---------- 种子数据 ---------- */
-function seedData(){
-  return {
-    schemaVersion:'1.1',
-    /* 版本号以平板端编号为准：config_version = 规则模板表第 N 次快照（按赛项，见各 event.configSN）；
-       规则文档版本另记 event.ruleDoc（脑机星球 V6.2 / 火星救援 V6.2 / 未来之城 V7.3）—— 两套版本号不混用 */
-    snapshots:[],
-    importLogs:[],
-    published:{mars_rescue:{at:'2026-09-17 11:20',count:1}},
-    /* 发布流转（裁判长移交 → 工作人员发布 → 回流）：与平板端 P11 note 8 同口径 */
-    handoff:{
-      brain_planet:{by:'张老师',at:'2026-09-17 13:05',note:'完整性校验后移交发布',status:'待发布',publishedAt:'',publishedBy:''},
-      mars_rescue:{by:'张老师',at:'2026-09-17 11:18',note:'赛前冻结后移交发布',status:'已发布',publishedAt:'2026-09-17 11:20',publishedBy:'赵工作人员'}
-    },
-    pubDirty:{mars_rescue:{at:'2026-09-17 12:31',why:'改分 R-006 批准生效（火星一号 · 救援主任务 85 → 92）'}},
-    /* 统一告警收件箱：平板端四类告警的落点（推送对象 = 后台） */
-    alerts:[
-      {id:'al2',ts:'2026-09-17 13:10',type:'自批',level:'danger',target:'R-007 · 追光队（1002）',
-       detail:'改分申请人 = 审批人（张老师），同一账号自批，系统强制标注并生成独立告警',
-       reason:'—',by:'张老师',push:'后台',status:'待处理',handledBy:'',handledAt:''},
-      {id:'al3',ts:'2026-09-17 11:38',type:'取消资格',level:'danger',target:'D-004 · 晨曦队（1003）',
-       detail:'取消资格裁定已提交（不可撤销 + 成绩作废 + 不进榜单），供事后抽样复核',
-       reason:'恶意破坏比赛设备或道具（R04 · 红牌）',by:'张老师',push:'后台',status:'待处理',handledBy:'',handledAt:''},
-      {id:'al4',ts:'2026-09-17 13:05',type:'超时催办',level:'warn',target:'D-002 · 星河队（1001）',
-       detail:'争议工单入队超 30 分钟未处理（12:35 入队 → 13:05 触发），已向裁判长推送催办',
-       reason:'待裁定超时 · 时限 30 分钟',by:'系统',push:'后台',status:'待处理',handledBy:'',handledAt:''}
-    ],
-    /* 改分申请台账 R-00x：操作仍在平板端，后台只读 + 可督办 + 可接管 */
-    changeRequests:[
-      {no:'R-002',teamId:'bp1',eventId:'brain_planet',group:'小学组',round:1,field:'搭建任务',from:92,to:96,
-       source:'裁判端 P2b',by:'王老师',ts:'2026-09-17 09:58',status:'已批准',approver:'张老师',approveTs:'2026-09-17 10:05',
-       opinion:'选手申诉复核：搭建任务计分有误',takeover:''},
-      {no:'R-003',teamId:'bp3',eventId:'brain_planet',group:'初中组',round:1,field:'专注力任务',from:93,to:90,
-       source:'裁定台 P8b',by:'张老师',ts:'2026-09-17 10:42',status:'已批准',approver:'张老师',approveTs:'2026-09-17 10:50',
-       opinion:'裁定更正：按原始明细复现后下调（自批 · 已生成告警）',takeover:''},
-      {no:'R-004',teamId:'mr2',eventId:'mars_rescue',group:'小学组',round:1,field:'救援主任务',from:79,to:84,
-       source:'裁判端 P2b',by:'王老师',ts:'2026-09-17 11:05',status:'已批准',approver:'李老师',approveTs:'2026-09-17 11:12',
-       opinion:'用时争议复核后更正主任务完成度',takeover:''},
-      {no:'R-005',teamId:'mr3',eventId:'mars_rescue',group:'初中组',round:1,field:'救援主任务',from:91,to:88,
-       source:'裁判端 P2b',by:'王老师',ts:'2026-09-17 11:30',status:'已批准',approver:'李老师',approveTs:'2026-09-17 11:44',
-       opinion:'复核原始明细与签名图后确认录入偏高，更正下调',takeover:''},
-      {no:'R-006',teamId:'mr1',eventId:'mars_rescue',group:'小学组',round:1,field:'救援主任务',from:85,to:92,
-       source:'裁定台 P8b',by:'张老师',ts:'2026-09-17 12:22',status:'已批准',approver:'李老师',approveTs:'2026-09-17 12:31',
-       opinion:'授权改分：同队同轮两份记录取优（裁定结论）→ 该赛项已发布，需重发',takeover:''},
-      {no:'R-007',teamId:'bp2',eventId:'brain_planet',group:'小学组',round:1,field:'搭建任务',from:81,to:90,
-       source:'裁定台 P8b',by:'张老师',ts:'2026-09-17 13:10',status:'待审批',approver:'',approveTs:'',
-       opinion:'',takeover:''},
-      {no:'R-008',teamId:'bp1',eventId:'brain_planet',group:'小学组',round:1,field:'专注力任务',from:88,to:95,
-       source:'裁判端 P2b',by:'王老师',ts:'2026-09-17 13:15',status:'待审批',approver:'',approveTs:'',
-       opinion:'',takeover:''}
-    ],
-    /* 争议工单台账 D-00x */
-    disputes:[
-      {no:'D-001',teamId:'bp2',eventId:'brain_planet',group:'小学组',type:'用时争议（计时 / 停表异议）',
-       source:'裁判端 P5.10',by:'王老师',ts:'2026-09-17 09:40',status:'已裁定',
-       ruling:'维持原判',rulingBy:'张老师',rulingTs:'2026-09-17 10:05',configVersion:'v3',linked:'',takeover:''},
-      {no:'D-002',teamId:'bp1',eventId:'brain_planet',group:'小学组',type:'重复打分（同队同轮出现 2 份成绩）',
-       source:'裁判端 P5.10',by:'王老师',ts:'2026-09-17 12:35',status:'待裁定',
-       ruling:'',rulingBy:'',rulingTs:'',configVersion:'v3',linked:'',takeover:''},
-      {no:'D-003',teamId:'bp2',eventId:'brain_planet',group:'小学组',type:'选手申诉（对判罚有异议）',
-       source:'裁判端 P5.10',by:'王老师',ts:'2026-09-17 11:20',status:'已裁定',
-       ruling:'授权改分（生成申请单）',rulingBy:'张老师',rulingTs:'2026-09-17 11:34',configVersion:'v3',linked:'R-007',takeover:''},
-      {no:'D-004',teamId:'bp3',eventId:'brain_planet',group:'初中组',type:'判罚复议（升级为取消资格）',
-       source:'裁定台 P8c',by:'张老师',ts:'2026-09-17 11:38',status:'已裁定',
-       ruling:'取消资格（成绩作废）',rulingBy:'张老师',rulingTs:'2026-09-17 11:38',configVersion:'v3',linked:'dq1',takeover:''}
-    ],
-    /* 取消资格台账（不可撤销 + 成绩作废；与「弃赛」是两件事） */
-    dqCases:[
-      {id:'dq1',caseNo:'D-004',teamId:'bp3',eventId:'brain_planet',group:'初中组',
-       reason:'恶意破坏比赛设备或道具（R04 · 红牌）',by:'张老师',ts:'2026-09-17 11:38',
-       status:'已生效',irrevocable:true,evidence:'D-004_ruling_1138.jpg',
-       substituteDone:true,substituteAt:'2026-09-17 11:45',
-       note:'不可撤销：如需推翻只能再裁定一次并留痕（旧值→新值 + 原因）'}
-    ],
-    substituteRule:{mode:'none',note:'赛事级通用规则：弃赛 / 取消资格均不递补；如需递补，由工作人员切换为「按名次顺延」并留痕'},
-    /* 留底证据库（服务端那一端）= 平板端「断网也能留底、联网自动补传」的补传目的地 */
-    evidence:[
-      {id:'ev1',file:'bp1_R1_score.jpg',type:'成绩单',eventId:'brain_planet',group:'小学组',owner:'星河队（1001）',
-       src:'裁判端 P6 提交',ts:'2026-09-17 11:52',sync:'已同步',size:'86 KB',configVersion:'v3',keep:'≥ 2 年'},
-      {id:'ev2',file:'bp1_R1_sign_A.jpg',type:'签名图',eventId:'brain_planet',group:'小学组',owner:'星河队（1001）',
-       src:'裁判端 P6 提交',ts:'2026-09-17 11:52',sync:'已同步',size:'132 KB',configVersion:'v3',keep:'≥ 2 年'},
-      {id:'ev3',file:'bp1_R1_sign_B.jpg',type:'签名图',eventId:'brain_planet',group:'小学组',owner:'星河队（1001）',
-       src:'裁判端 P6 提交',ts:'2026-09-17 11:52',sync:'已同步',size:'128 KB',configVersion:'v3',keep:'≥ 2 年'},
-      {id:'ev4',file:'bp1_R1_submit_1152.jpg',type:'提交留底',eventId:'brain_planet',group:'小学组',owner:'星河队（1001）',
-       src:'裁判端 P6 提交',ts:'2026-09-17 11:52',sync:'已同步',size:'204 KB',configVersion:'v3',keep:'≥ 2 年'},
-      {id:'ev5',file:'bp2_R1_sign_A.jpg',type:'签名图',eventId:'brain_planet',group:'小学组',owner:'追光队（1002）',
-       src:'裁判端 P6 提交',ts:'2026-09-17 12:04',sync:'待补传',size:'126 KB',configVersion:'v3',keep:'≥ 2 年'},
-      {id:'ev6',file:'D-002_ruling_1235.jpg',type:'裁定单',eventId:'brain_planet',group:'初中组',owner:'D-002 · 晨曦队（1003）',
-       src:'裁定台 P8c 裁定层',ts:'2026-09-17 12:36',sync:'待补传',size:'318 KB',configVersion:'v3',keep:'≥ 2 年'},
-      {id:'ev7',file:'D-002_appeal_1230.jpg',type:'申诉件',eventId:'brain_planet',group:'初中组',owner:'D-002 · 晨曦队（1003）',
-       src:'现场提交 · 检录台代传',ts:'2026-09-17 12:30',sync:'已同步',size:'410 KB',configVersion:'v3',keep:'≥ 2 年'},
-      {id:'ev8',file:'D-004_ruling_1138.jpg',type:'裁定单',eventId:'brain_planet',group:'初中组',owner:'D-004 · 晨曦队（1003）',
-       src:'裁定台 P8c 裁定层',ts:'2026-09-17 11:38',sync:'已同步',size:'302 KB',configVersion:'v3',keep:'≥ 2 年'},
-      {id:'ev9',file:'公示表_火星救援_小学组_1120.jpg',type:'公示表',eventId:'mars_rescue',group:'小学组',owner:'火星救援 · 小学组',
-       src:'发布执行方（工作人员后台）',ts:'2026-09-17 11:20',sync:'已同步',size:'256 KB',configVersion:'v2',keep:'≥ 2 年'},
-      {id:'ev10',file:'内部成绩表_火星救援_小学组_1120.xlsx',type:'内部成绩表',eventId:'mars_rescue',group:'小学组',owner:'火星救援 · 小学组',
-       src:'发布执行方（工作人员后台）',ts:'2026-09-17 11:20',sync:'已同步',size:'48 KB',configVersion:'v2',keep:'≥ 2 年'}
-    ],
-    /* 角色与身份（P2-2）：每条留痕带真实身份 */
-    users:[
-      {id:'u1',name:'赵工作人员',role:'staff'}
-    ],
-    /* 本系统只有一个登录身份：工作人员，且享有全部 10 项权限（无多角色、无身份切换） */
-    currentUserId:'u1',
-    schemaV:2,
-    chiefReferee:'rf1',
-    referees:[
-      {id:'rf1',name:'张老师',phone:'138****0001',role:'chief',code:'K7M2QD',status:'activated',
-       bind:{eventId:'brain_planet',group:'小学组',seatId:'s1'},activatedAt:'2026-09-17 08:40',lastSeen:'2026-09-17 11:52',device:'平板-03'},
-      {id:'rf2',name:'王老师',phone:'138****0002',role:'judge',code:'W3RT9H',status:'activated',
-       bind:{eventId:'brain_planet',group:'小学组',seatId:'s1'},activatedAt:'2026-09-17 08:42',lastSeen:'2026-09-17 11:47',device:'平板-01'},
-      {id:'rf3',name:'李老师',phone:'138****0003',role:'judge',code:'P5XN4K',status:'issued',
-       bind:{eventId:'mars_rescue',group:'小学组',seatId:'s3'},activatedAt:'',lastSeen:'',device:''},
-      {id:'rf4',name:'陈老师',phone:'138****0004',role:'judge',code:'B8GY6T',status:'activated',
-       bind:{eventId:'mars_rescue',group:'初中组',seatId:'s4'},activatedAt:'2026-09-17 08:50',lastSeen:'2026-09-17 11:30',device:'平板-05'},
-      {id:'rf5',name:'周老师',phone:'138****0005',role:'judge',code:'M2CJ7W',status:'issued',
-       bind:{eventId:'brain_planet',group:'初中组',seatId:''},activatedAt:'',lastSeen:'',device:''}
-    ],
-
-    seats:[
-      {id:'s1',name:'赛台 1'},
-      {id:'s2',name:'赛台 2'},
-      {id:'s3',name:'赛台 3'},
-      {id:'s4',name:'赛台 4'}
-    ],
-    slots:[
-      {id:'sl1',seatId:'s1',period:'上午',round: 1,time:'09:00–12:00',eventId:'brain_planet',group:'小学组',type:'normal',teams:['bp1','bp2'],snapshot:null,chief:'',judges:[]},
-      {id:'sl2',seatId:'s2',period:'上午',round: 1,time:'09:00–12:00',eventId:'brain_planet',group:'初中组',type:'normal',teams:['bp3','bp4'],snapshot:null,chief:'',judges:[]},
-      {id:'sl3',seatId:'s3',period:'上午',round: 1,time:'09:00–12:00',eventId:'mars_rescue',group:'小学组',type:'normal',teams:['mr1','mr2'],snapshot:null,chief:'',judges:[]},
-      {id:'sl4',seatId:'s4',period:'上午',round: 1,time:'09:00–12:00',eventId:'mars_rescue',group:'初中组',type:'normal',teams:['mr3'],snapshot:null,chief:'',judges:[]},
-      {id:'sl5',seatId:'s1',period:'下午',round: 1,time:'14:00–17:00',eventId:'future_city',group:'小学组',type:'normal',teams:['fc1','fc2'],snapshot:null,chief:'',judges:[]},
-      {id:'sl6',seatId:'s2',period:'下午',round: 1,time:'14:00–17:00',eventId:'future_city',group:'初中组',type:'normal',teams:['fc3','fc4'],snapshot:null,chief:'',judges:[]},
-      {id:'sl7',seatId:'s3',period:'下午',round: 1,time:'14:00–17:00',eventId:'future_city',group:'小学组',type:'extra',teams:[],
-       snapshot:[{no:'9001',name:'新星队',school:'成都教装展学校',coach:'陈老师'}],chief:'',judges:[]}
-    ],
-    auditLogs:[
-      {ts:'2026-09-17 09:12',operator:'赵工作人员',role:'staff',action:'改配置',target:'脑机星球 · 专注力任务权重',before:'0.4',after:'0.5',reason:'赛前规则复核'},
-      {ts:'2026-09-17 09:30',operator:'赵工作人员',role:'staff',action:'调赛台',target:'赛台 3 · 上午场次',before:'队伍顺序分配',after:'按就近重排（均衡各台人数）',reason:'现场到队人数不均'},
-      {ts:'2026-09-17 10:05',operator:'赵工作人员',role:'staff',action:'弃赛',target:'极客队（1004）',before:'active',after:'withdrawn',reason:'选手临时退赛'},
-      {ts:'2026-09-17 10:20',operator:'赵工作人员',role:'staff',action:'改分',target:'追光队（1002）· 第 1 轮 搭建任务',before:'75',after:'81',reason:'申诉复核，裁判长授权后由工作人员接管修改'}
-    ],
-    screen:{interval:60,pageSize:10,pinned:null},
-    events:[
-      { id:'brain_planet', name:'脑机星球', groups:['小学组','初中组'], customFormula:null, rounds:1, configSN:3, ruleDoc:'V6.2',
-        tasks:[
-          {id:'focus',name:'专注力任务',type:'numeric',maxScore:100,weight:0.5,control:'slider'},
-          {id:'build',name:'搭建任务',type:'numeric',maxScore:100,weight:0.5,control:'slider'}
-        ],
-        scoreRule:{template:'sum',params:{}},
-        bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
-        penaltyRule:{template:'record_only',params:{},cardRules:{redThreshold:3,allowDirectRed:true,reasons:[
-          {code:'Y01',card:'yellow',label:'恶意撞击能源轨道'},
-          {code:'Y02',card:'yellow',label:'破坏矿石存储仓'},
-          {code:'Y03',card:'yellow',label:'击落矿石合成仓二层道具'},
-          {code:'Y04',card:'yellow',label:'不听从裁判指示'},
-          {code:'Y05',card:'yellow',label:'擅自摘下脑电设备'},
-          {code:'Y06',card:'yellow',label:'擅自触碰场地设备及道具'},
-          {code:'R01',card:'red',label:'严重违反安全规则'},
-          {code:'R02',card:'red',label:'严重违背比赛精神'},
-          {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
-          {code:'R04',card:'red',label:'恶意破坏比赛设备或道具'}
-        ]}},
-        disputeTypes:[
-          {code:'D01',label:'选手申诉（对判罚有异议）'},
-          {code:'D02',label:'重复打分（同队同轮出现 2 份成绩）'},
-          {code:'D03',label:'用时争议（计时 / 停表异议）'},
-          {code:'D04',label:'器材故障 / 其他'}
-        ],
-        rankRule:{tieBreak:['score','time']} },
-      { id:'mars_rescue', name:'火星救援', groups:['小学组','初中组'], customFormula:null, rounds:1, configSN:2, ruleDoc:'V6.2',
-        tasks:[
-          {id:'base',name:'救援主任务',type:'numeric',maxScore:100,weight:1.0,control:'slider'}
-        ],
-        scoreRule:{template:'sum',params:{}},
-        bonusRules:[
-          {template:'count_bonus',params:{taskId:'energy',perUnit:5,cap:null}},
-          {template:'count_bonus',params:{taskId:'bridge',perUnit:5,cap:null}},
-          {template:'time_bonus',params:{perSecond:0.5,cap:10}}
-        ],
-        penaltyRule:{template:'record_only',params:{},cardRules:{redThreshold:3,allowDirectRed:true,reasons:[
-          {code:'Y01',card:'yellow',label:'变更桥梁块线路或触碰赛台道具'},
-          {code:'Y02',card:'yellow',label:'自动巡线阶段人为控制资源车'},
-          {code:'Y03',card:'yellow',label:'机械手未脱离时用手接触桥梁'},
-          {code:'Y04',card:'yellow',label:'未经裁判允许触碰资源车'},
-          {code:'Y05',card:'yellow',label:'擅自摘下脑电设备'},
-          {code:'Y06',card:'yellow',label:'人为移动能量块挪出初始方框区域'},
-          {code:'Y07',card:'yellow',label:'用推动方式使橙色能量块入仓'},
-          {code:'R01',card:'red',label:'严重违反安全规则'},
-          {code:'R02',card:'red',label:'严重违背比赛精神'},
-          {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
-          {code:'R04',card:'red',label:'恶意破坏比赛设备或道具'}
-        ]}},
-        disputeTypes:[
-          {code:'D01',label:'选手申诉（对判罚有异议）'},
-          {code:'D02',label:'重复打分（同队同轮出现 2 份成绩）'},
-          {code:'D03',label:'用时争议（计时 / 停表异议）'},
-          {code:'D04',label:'器材故障 / 其他'}
-        ],
-        rankRule:{tieBreak:['score','time']} },
-      { id:'future_city', name:'未来之城', groups:['小学组','初中组'], customFormula:null, rounds:1, configSN:1, ruleDoc:'V7.3',
-        phases:[
-          {id:'auto', name:'自动阶段', durationSec:120, timerMode:'countdown', source:'colorcard',
-           desc:'选手刷色卡驱动小车自动完成动作', timeBonus:{perSecond:0.5,cap:10}},
-          {id:'manual', name:'手动阶段', durationSec:105, timerMode:'countdown', source:'gamepad',
-           desc:'选手用手柄操控小车完成动作', timeBonus:{perSecond:0.5,cap:10}}
-        ],
-        tasks:[
-          /* 自动阶段（刷色卡触发） */
-          {id:'fc_auto_tower', name:'能源塔激活（专注力）', type:'toggle', maxScore:500, weight:1, control:'toggle', phase:'auto', source:'colorcard'},
-          {id:'fc_auto_ball', name:'能源球运输', type:'count', maxScore:160, weight:20, control:'stepper', phase:'auto', source:'colorcard'},
-          {id:'fc_auto_mine', name:'矿石运输入仓', type:'count', maxScore:90, weight:15, control:'stepper', phase:'auto', source:'colorcard'},
-          /* 手动阶段（手柄操控） */
-          {id:'fc_man_synth', name:'矿石合成', type:'count', maxScore:100, weight:25, control:'stepper', phase:'manual', source:'gamepad'},
-          {id:'fc_man_bridge', name:'桥梁搭建', type:'count', maxScore:90, weight:30, control:'stepper', phase:'manual', source:'gamepad'},
-          /* 整体（主观分 · 按队评，不按阶段） */
-          {id:'fc_subj_innov', name:'搭建创新性', type:'numeric', maxScore:10, weight:1, control:'slider', phase:'overall', source:'judge'},
-          {id:'fc_subj_code', name:'编程规范性', type:'numeric', maxScore:10, weight:1, control:'slider', phase:'overall', source:'judge'},
-          {id:'fc_subj_team', name:'团队协作', type:'numeric', maxScore:10, weight:1, control:'slider', phase:'overall', source:'judge'}
-        ],
-        scoreRule:{template:'sum',params:{}},
-        bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
-        penaltyRule:{template:'record_only',params:{},cardRules:{redThreshold:3,allowDirectRed:true,reasons:[
-          {code:'Y01',card:'yellow',label:'违规操作致小车需重新回启动区'},
-          {code:'Y02',card:'yellow',label:'未使用 SSVEP 视觉稳态诱发操控'},
-          {code:'Y03',card:'yellow',label:'违规拾取能源'},
-          {code:'Y04',card:'yellow',label:'违规移除球或火种'},
-          {code:'Y05',card:'yellow',label:'违规跨区操作'},
-          {code:'Y06',card:'yellow',label:'小学组擅自切换脑控手'},
-          {code:'Y07',card:'yellow',label:'选手自行触碰脑电帽电极区域'},
-          {code:'Y08',card:'yellow',label:'不听从裁判指示'},
-          {code:'Y09',card:'yellow',label:'违规触碰赛事设施或场地道具'},
-          {code:'R01',card:'red',label:'严重违反安全规则'},
-          {code:'R02',card:'red',label:'严重违背比赛精神'},
-          {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
-          {code:'R04',card:'red',label:'恶意破坏比赛设备或道具'}
-        ]}},
-        disputeTypes:[
-          {code:'D01',label:'选手申诉（对判罚有异议）'},
-          {code:'D02',label:'重复打分（同队同轮出现 2 份成绩）'},
-          {code:'D03',label:'用时争议（计时 / 停表异议）'},
-          {code:'D04',label:'器材故障 / 其他'},
-          {code:'D05',label:'对抗场次争议（A / B 队同场判定）'}
-        ],
-        rankRule:{tieBreak:['score','time']} }
-    ],
-    teams:[
-      {id:'bp1',no:'1001',name:'星河队',school:'杭州实验小学',coach:'张老师',eventId:'brain_planet',group:'小学组',members:'张一 / 李二',status:'active',source:'manual',seatId:'s1',order:1},
-      {id:'bp2',no:'1002',name:'追光队',school:'杭州第二实验小学',coach:'孙老师',eventId:'brain_planet',group:'小学组',members:'王三 / 赵四',status:'active',source:'manual',seatId:'s1',order:2},
-      {id:'bp3',no:'1003',name:'晨曦队',school:'',coach:'李老师',eventId:'brain_planet',group:'初中组',members:'孙五 / 周六',status:'active',source:'manual',seatId:'s2',order:1},
-      {id:'bp4',no:'1004',name:'极客队',school:'杭州实验小学',coach:'周老师',eventId:'brain_planet',group:'初中组',members:'吴七 / 郑八',status:'active',source:'manual',seatId:'s2',order:2},
-      {id:'mr1',no:'2001',name:'火星一号',school:'青岛实验学校',coach:'陈老师',eventId:'mars_rescue',group:'小学组',members:'冯九 / 陈十',status:'active',source:'manual',seatId:'s3',order:1},
-      {id:'mr2',no:'2002',name:'风暴队',school:'青岛实验学校',coach:'吴老师',eventId:'mars_rescue',group:'小学组',members:'褚一 / 卫二',status:'active',source:'manual',seatId:'s3',order:2},
-      {id:'mr3',no:'2003',name:'探索者队',school:'青岛实验学校',coach:'郑老师',eventId:'mars_rescue',group:'初中组',members:'蒋三 / 沈四',status:'active',source:'manual',seatId:'s4',order:1},
-      {id:'fc1',no:'4001',name:'创想队',school:'成都教装展学校',coach:'陈老师',eventId:'future_city',group:'小学组',members:'韩五 / 杨六 / 朱七',status:'active',source:'manual',seatId:'s1',order:1},
-      {id:'fc2',no:'4002',name:'领航队',school:'成都教装展学校',coach:'刘老师',eventId:'future_city',group:'小学组',members:'秦八 / 尤九 / 许十',status:'active',source:'manual',seatId:'s1',order:2},
-      {id:'fc3',no:'4003',name:'智造队',school:'成都教装展学校',coach:'张老师',eventId:'future_city',group:'初中组',members:'何一 / 吕二 / 施三',status:'active',source:'manual',seatId:'s2',order:1},
-      {id:'fc4',no:'4004',name:'破晓队',school:'成都教装展学校',coach:'王老师',eventId:'future_city',group:'初中组',members:'孔四 / 曹五 / 严六',status:'active',source:'manual',seatId:'s2',order:2}
-    ],
-    scores:{
-      bp1:{tasks:{focus:88,build:96},time:96,yellow:0,red:0,signed:true},
-      bp2:{tasks:{focus:76,build:81},time:104,yellow:1,red:0,signed:true},
-      bp3:{tasks:{focus:90,build:89},time:88,yellow:0,red:0,signed:true},
-      bp4:{tasks:{focus:70,build:75},time:112,yellow:2,red:0,signed:false},
-      mr1:{tasks:{base:92,energy:6,bridge:2},time:98,yellow:0,red:0,signed:true},
-      mr2:{tasks:{base:84,energy:4,bridge:3},time:106,yellow:1,red:0,signed:true},
-      mr3:{tasks:{base:88,energy:8,bridge:1},time:92,yellow:0,red:0,signed:false},
-      fc1:{tasks:{task_a:82,task_b:78},time:120,yellow:0,red:0,signed:false},
-      fc2:{tasks:{task_a:88,task_b:84},time:101,yellow:0,red:0,signed:false}
-    }
-  };
-}
-
+/* ==========================================================================
+ * 赛项模板常量（唯一的赛项定义来源）
+ *
+ * 原先这些定义埋在 seedData() 里，与 24 支演示队伍、上百条成绩混在一起。
+ * 现抽成独立常量：赛项规则是「产品资产」，演示数据是「示例」，两者生命周期
+ * 不同 —— 规则要长期复用，演示数据只应在需要时载入。
+ *
+ * 建赛时的「勾选赛项模板」从这份常量取；勾选哪个就带入哪个赛项的完整规则，
+ * 队伍与成绩一律从零开始。
+ * ========================================================================== */
+var EVENT_TEMPLATES=[  { id:'brain_planet', name:'脑机星球', groups:['小学组','初中组'], customFormula:null, rounds:1, configSN:3, ruleDoc:'V6.2',
+  tasks:[
+  {id:'focus',name:'专注力任务',type:'numeric',maxScore:100,weight:0.5,control:'slider'},
+  {id:'build',name:'搭建任务',type:'numeric',maxScore:100,weight:0.5,control:'slider'}
+  ],
+  scoreRule:{template:'sum',params:{}},
+  bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
+  penaltyRule:{template:'record_only',params:{},cardRules:{redThreshold:3,allowDirectRed:true,reasons:[
+  {code:'Y01',card:'yellow',label:'恶意撞击能源轨道'},
+  {code:'Y02',card:'yellow',label:'破坏矿石存储仓'},
+  {code:'Y03',card:'yellow',label:'击落矿石合成仓二层道具'},
+  {code:'Y04',card:'yellow',label:'不听从裁判指示'},
+  {code:'Y05',card:'yellow',label:'擅自摘下脑电设备'},
+  {code:'Y06',card:'yellow',label:'擅自触碰场地设备及道具'},
+  {code:'R01',card:'red',label:'严重违反安全规则'},
+  {code:'R02',card:'red',label:'严重违背比赛精神'},
+  {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
+  {code:'R04',card:'red',label:'恶意破坏比赛设备或道具'}
+  ]}},
+  disputeTypes:[
+  {code:'D01',label:'选手申诉（对判罚有异议）'},
+  {code:'D02',label:'重复打分（同队同轮出现 2 份成绩）'},
+  {code:'D03',label:'用时争议（计时 / 停表异议）'},
+  {code:'D04',label:'器材故障 / 其他'}
+  ],
+  rankRule:{tieBreak:['score','time']} },
+  { id:'mars_rescue', name:'火星救援', groups:['小学组','初中组'], customFormula:null, rounds:1, configSN:2, ruleDoc:'V6.2',
+  tasks:[
+  {id:'base',name:'救援主任务',type:'numeric',maxScore:100,weight:1.0,control:'slider'}
+  ],
+  scoreRule:{template:'sum',params:{}},
+  bonusRules:[
+  {template:'count_bonus',params:{taskId:'energy',perUnit:5,cap:null}},
+  {template:'count_bonus',params:{taskId:'bridge',perUnit:5,cap:null}},
+  {template:'time_bonus',params:{perSecond:0.5,cap:10}}
+  ],
+  penaltyRule:{template:'record_only',params:{},cardRules:{redThreshold:3,allowDirectRed:true,reasons:[
+  {code:'Y01',card:'yellow',label:'变更桥梁块线路或触碰赛台道具'},
+  {code:'Y02',card:'yellow',label:'自动巡线阶段人为控制资源车'},
+  {code:'Y03',card:'yellow',label:'机械手未脱离时用手接触桥梁'},
+  {code:'Y04',card:'yellow',label:'未经裁判允许触碰资源车'},
+  {code:'Y05',card:'yellow',label:'擅自摘下脑电设备'},
+  {code:'Y06',card:'yellow',label:'人为移动能量块挪出初始方框区域'},
+  {code:'Y07',card:'yellow',label:'用推动方式使橙色能量块入仓'},
+  {code:'R01',card:'red',label:'严重违反安全规则'},
+  {code:'R02',card:'red',label:'严重违背比赛精神'},
+  {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
+  {code:'R04',card:'red',label:'恶意破坏比赛设备或道具'}
+  ]}},
+  disputeTypes:[
+  {code:'D01',label:'选手申诉（对判罚有异议）'},
+  {code:'D02',label:'重复打分（同队同轮出现 2 份成绩）'},
+  {code:'D03',label:'用时争议（计时 / 停表异议）'},
+  {code:'D04',label:'器材故障 / 其他'}
+  ],
+  rankRule:{tieBreak:['score','time']} },
+  { id:'future_city', name:'未来之城', groups:['小学组','初中组'], customFormula:null, rounds:1, configSN:1, ruleDoc:'V7.3',
+  phases:[
+  {id:'auto', name:'自动阶段', durationSec:120, timerMode:'countdown', source:'colorcard',
+  desc:'选手刷色卡驱动小车自动完成动作', timeBonus:{perSecond:0.5,cap:10}},
+  {id:'manual', name:'手动阶段', durationSec:105, timerMode:'countdown', source:'gamepad',
+  desc:'选手用手柄操控小车完成动作', timeBonus:{perSecond:0.5,cap:10}}
+  ],
+  tasks:[
+  /* 自动阶段（刷色卡触发） */
+  {id:'fc_auto_tower', name:'能源塔激活（专注力）', type:'toggle', maxScore:500, weight:1, control:'toggle', phase:'auto', source:'colorcard'},
+  {id:'fc_auto_ball', name:'能源球运输', type:'count', maxScore:160, weight:20, control:'stepper', phase:'auto', source:'colorcard'},
+  {id:'fc_auto_mine', name:'矿石运输入仓', type:'count', maxScore:90, weight:15, control:'stepper', phase:'auto', source:'colorcard'},
+  /* 手动阶段（手柄操控） */
+  {id:'fc_man_synth', name:'矿石合成', type:'count', maxScore:100, weight:25, control:'stepper', phase:'manual', source:'gamepad'},
+  {id:'fc_man_bridge', name:'桥梁搭建', type:'count', maxScore:90, weight:30, control:'stepper', phase:'manual', source:'gamepad'},
+  /* 整体（主观分 · 按队评，不按阶段） */
+  {id:'fc_subj_innov', name:'搭建创新性', type:'numeric', maxScore:10, weight:1, control:'slider', phase:'overall', source:'judge'},
+  {id:'fc_subj_code', name:'编程规范性', type:'numeric', maxScore:10, weight:1, control:'slider', phase:'overall', source:'judge'},
+  {id:'fc_subj_team', name:'团队协作', type:'numeric', maxScore:10, weight:1, control:'slider', phase:'overall', source:'judge'}
+  ],
+  scoreRule:{template:'sum',params:{}},
+  bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
+  penaltyRule:{template:'record_only',params:{},cardRules:{redThreshold:3,allowDirectRed:true,reasons:[
+  {code:'Y01',card:'yellow',label:'违规操作致小车需重新回启动区'},
+  {code:'Y02',card:'yellow',label:'未使用 SSVEP 视觉稳态诱发操控'},
+  {code:'Y03',card:'yellow',label:'违规拾取能源'},
+  {code:'Y04',card:'yellow',label:'违规移除球或火种'},
+  {code:'Y05',card:'yellow',label:'违规跨区操作'},
+  {code:'Y06',card:'yellow',label:'小学组擅自切换脑控手'},
+  {code:'Y07',card:'yellow',label:'选手自行触碰脑电帽电极区域'},
+  {code:'Y08',card:'yellow',label:'不听从裁判指示'},
+  {code:'Y09',card:'yellow',label:'违规触碰赛事设施或场地道具'},
+  {code:'R01',card:'red',label:'严重违反安全规则'},
+  {code:'R02',card:'red',label:'严重违背比赛精神'},
+  {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
+  {code:'R04',card:'red',label:'恶意破坏比赛设备或道具'}
+  ]}},
+  disputeTypes:[
+  {code:'D01',label:'选手申诉（对判罚有异议）'},
+  {code:'D02',label:'重复打分（同队同轮出现 2 份成绩）'},
+  {code:'D03',label:'用时争议（计时 / 停表异议）'},
+  {code:'D04',label:'器材故障 / 其他'},
+  {code:'D05',label:'对抗场次争议（A / B 队同场判定）'}
+  ],
+  rankRule:{tieBreak:['score','time']} }
+];
 /* ---------- 赛事索引读写 ---------- */
 function ckey(cid){return KEY+'::'+cid;}
 function contestById(id){for(var i=0;i<CONTESTS.length;i++){if(CONTESTS[i].id===id)return CONTESTS[i];}return null;}
@@ -584,8 +424,11 @@ function loadContests(){
   if(!contestById(CUR_CONTEST))CUR_CONTEST='ct_final';
   writeTabCur(CUR_CONTEST);
   saveContests();
-  try{localStorage.setItem(ckey('ct_final'),JSON.stringify(legacy||seedData()));}catch(e){}
-  try{localStorage.setItem(ckey('ct_quzhou'),JSON.stringify(seedQuzhou()));}catch(e){}
+  /* 首启只建「空赛事骨架」：赛项规则来自 EVENT_TEMPLATES，队伍与成绩从零开始。
+     原先这里会灌入 24 支演示队伍 + 两场完整成绩，导致「打开就是满数据」，
+     评审时反而看不出哪些是本次真正配出来的。 */
+  try{localStorage.setItem(ckey('ct_final'),JSON.stringify(legacy||blankContestData()));}catch(e){}
+  try{localStorage.setItem(ckey('ct_quzhou'),JSON.stringify(blankContestData()));}catch(e){}
   if(legacy){try{localStorage.removeItem(KEY);}catch(e){}}   /* 旧单赛事库已收编，移除避免重复读 */
 }
 
@@ -624,91 +467,24 @@ function pushAudit(d,action,target,before,after,reason){
 }
 
 /* 空白赛事：清掉一切业务数据，只保留一份可用的三赛项规则模板 */
+/* 空赛事骨架：只保留「任何赛事都该有的结构」，不含任何演示数据。
+   赛项默认全带上（建赛页可勾选子集）；队伍、成绩、裁判码、赛程、留底一律从零开始。 */
 function blankContestData(){
-  var d=seedData();
-  d.teams=[];d.scores={};
-  d.published={};d.pubDirty={};d.handoff={};
-  d.alerts=[];d.changeRequests=[];d.disputes=[];d.dqCases=[];d.evidence=[];
-  d.auditLogs=[];d.importLogs=[];d.snapshots=[];
-  d.slots=(d.slots||[]).map(function(x){return Object.assign({},x,{teams:[],chief:'',judges:[],snapshot:null});});
-  d.referees=(d.referees||[]).map(function(r){return Object.assign({},r,{code:'',status:'issued',bind:{eventId:'',group:'',seatId:''},activatedAt:'',lastSeen:'',device:''});});
-  return d;
+  return {
+    schemaVersion:'1.1', schemaV:2,
+    currentUserId:'u1',
+    events:clone(EVENT_TEMPLATES),
+    teams:[], scores:{}, published:{}, pubDirty:{}, handoff:{},
+    snapshots:[], importLogs:[], alerts:[], changeRequests:[], disputes:[],
+    dqCases:[], evidence:[], auditLogs:[],
+    substituteRule:{mode:'none',note:'赛事级通用规则：弃赛 / 取消资格均不递补；如需递补，由工作人员切换为「按名次顺延」并留痕'},
+    users:[{id:'u1',name:'工作人员',role:'staff'}],
+    chiefReferee:'',
+    referees:[], seats:[], slots:[],
+    screen:{interval:60,pageSize:10,pinned:null}
+  };
 }
 
-/* 第二场演示赛事（已结束的选拔赛）：同一套引擎、另一份数据 */
-function seedQuzhou(){
-  var d=seedData();
-  d.events=d.events.filter(function(e){return e.id!=='future_city';});
-  d.chiefReferee='rfq1';
-  var NT={
-    bp1:{no:'1101',name:'星辰队',school:'衢州市实验学校',coach:'徐老师',group:'小学组',members:'徐一 / 徐二',seatId:'s1',order:1},
-    bp2:{no:'1102',name:'追风队',school:'衢州市柯城区实验小学',coach:'方老师',group:'小学组',members:'方三 / 方四',seatId:'s1',order:2},
-    mr1:{no:'2101',name:'凤凰一号',school:'衢州市青少年宫',coach:'程老师',group:'小学组',members:'程五 / 程六',seatId:'s3',order:1},
-    mr2:{no:'2102',name:'破浪队',school:'衢州市青少年宫',coach:'傅老师',group:'小学组',members:'傅七 / 傅八',seatId:'s3',order:2}
-  };
-  d.teams=d.teams.filter(function(t){return !!NT[t.id];}).map(function(t){
-    return Object.assign({},t,NT[t.id],{status:'active',source:'excel'});
-  });
-  d.scores={
-    bp1:{tasks:{focus:86,build:94},time:104,yellow:0,red:0,signed:true},
-    bp2:{tasks:{focus:91,build:83},time:117,yellow:1,red:0,signed:true},
-    mr1:{tasks:{base:90,energy:7,bridge:2},time:96,yellow:0,red:0,signed:true},
-    mr2:{tasks:{base:81,energy:5,bridge:3},time:109,yellow:0,red:0,signed:true}
-  };
-  d.slots=(d.slots||[]).filter(function(x){return x.period==='上午';}).map(function(x){
-    if(x.id==='sl1')return Object.assign({},x,{teams:['bp1','bp2'],judges:['rfq2']});
-    if(x.id==='sl3')return Object.assign({},x,{teams:['mr1','mr2'],judges:['rfq3']});
-    return Object.assign({},x,{teams:[],judges:[]});
-  });
-  d.published={brain_planet:{at:'2026-06-13 12:40',count:1},mars_rescue:{at:'2026-06-13 12:42',count:1}};
-  d.pubDirty={};
-  d.handoff={
-    brain_planet:{by:'何老师',at:'2026-06-13 12:35',note:'完整性校验后移交发布',status:'已发布',publishedAt:'2026-06-13 12:40',publishedBy:'赵工作人员'},
-    mars_rescue:{by:'何老师',at:'2026-06-13 12:36',note:'完整性校验后移交发布',status:'已发布',publishedAt:'2026-06-13 12:42',publishedBy:'赵工作人员'}
-  };
-  d.alerts=[{id:'alq1',ts:'2026-06-13 11:02',type:'自批',level:'danger',target:'R-102 · 星辰队（1101）',
-    detail:'改分申请人 = 审批人（何老师），同一账号自批，系统强制标注并生成独立告警',
-    reason:'—',by:'何老师',push:'后台',status:'已处理',handledBy:'赵工作人员',handledAt:'2026-06-13 15:10'}];
-  d.changeRequests=[
-    {no:'R-101',teamId:'bp2',eventId:'brain_planet',group:'小学组',round:1,field:'搭建任务',from:78,to:83,
-     source:'裁判端 P2b',by:'许老师',ts:'2026-06-13 10:12',status:'已批准',approver:'何老师',approveTs:'2026-06-13 10:30',
-     opinion:'搭建任务漏记一个完成件，复核后更正',takeover:''},
-    {no:'R-102',teamId:'bp1',eventId:'brain_planet',group:'小学组',round:1,field:'专注力任务',from:88,to:86,
-     source:'裁定台 P8b',by:'何老师',ts:'2026-06-13 10:58',status:'已批准',approver:'何老师',approveTs:'2026-06-13 11:02',
-     opinion:'裁定更正：按原始明细复现后下调（自批 · 已生成告警）',takeover:''}
-  ];
-  d.disputes=[{no:'D-101',teamId:'mr2',eventId:'mars_rescue',group:'小学组',type:'用时争议（计时 / 停表异议）',
-    source:'裁判端 P5.10',by:'沈老师',ts:'2026-06-13 11:26',status:'已裁定',
-    ruling:'维持原判',rulingBy:'蒋老师',rulingTs:'2026-06-13 11:41',configVersion:'v2',linked:'',takeover:''}];
-  d.dqCases=[];
-  d.evidence=[
-    {id:'evq1',file:'公示表_脑机星球_小学组_1240.jpg',type:'公示表',eventId:'brain_planet',group:'小学组',owner:'脑机星球 · 小学组',
-     src:'发布执行方（工作人员后台）',ts:'2026-06-13 12:40',sync:'已同步',size:'241 KB',configVersion:'v2',keep:'≥ 2 年'},
-    {id:'evq2',file:'内部成绩表_脑机星球_小学组_1240.xlsx',type:'内部成绩表',eventId:'brain_planet',group:'小学组',owner:'脑机星球 · 小学组',
-     src:'发布执行方（工作人员后台）',ts:'2026-06-13 12:40',sync:'已同步',size:'44 KB',configVersion:'v2',keep:'≥ 2 年'},
-    {id:'evq3',file:'公示表_火星救援_小学组_1242.jpg',type:'公示表',eventId:'mars_rescue',group:'小学组',owner:'火星救援 · 小学组',
-     src:'发布执行方（工作人员后台）',ts:'2026-06-13 12:42',sync:'已同步',size:'238 KB',configVersion:'v2',keep:'≥ 2 年'},
-    {id:'evq4',file:'mr2_R1_sign_A.jpg',type:'签名图',eventId:'mars_rescue',group:'小学组',owner:'破浪队（2102）',
-     src:'裁判端 P5.7 提交',ts:'2026-06-13 11:48',sync:'已同步',size:'119 KB',configVersion:'v2',keep:'≥ 2 年'}
-  ];
-  d.auditLogs=[
-    {ts:'2026-06-13 09:05',operator:'赵工作人员',role:'staff',action:'改配置',target:'脑机星球 · 专注力任务权重',before:'0.6',after:'0.5',reason:'赛前规则复核'},
-    {ts:'2026-06-13 10:30',operator:'赵工作人员',role:'staff',action:'改分',target:'追风队（1102）· 第 1 轮 搭建任务',before:'78',after:'83',reason:'漏记完成件，裁判长批准后更正'},
-    {ts:'2026-06-13 11:02',operator:'赵工作人员',role:'staff',action:'改分',target:'星辰队（1101）· 第 1 轮 专注力任务',before:'88',after:'86',reason:'裁定更正（自批告警已生成）'},
-    {ts:'2026-06-13 12:30',operator:'赵工作人员',role:'staff',action:'锁成绩',target:'脑机星球 · 小学组',before:'未锁',after:'已锁',reason:'完整性校验确认'},
-    {ts:'2026-06-13 12:42',operator:'赵工作人员',role:'staff',action:'发布公示',target:'火星救援 · 小学组',before:'待发布',after:'已发布',reason:'收官公示'}
-  ];
-  d.importLogs=[{ts:'2026-06-01 15:10',source:'excel',operator:'赵工作人员',status:'success',
-    summary:{insert:4,update:0,skip:0,conflict:0},
-    detail:[{act:'insert',no:'1101'},{act:'insert',no:'1102'},{act:'insert',no:'2101'},{act:'insert',no:'2102'}]}];
-  d.snapshots=[];
-  d.referees=[
-    {id:'rfq1',name:'何老师',phone:'139****0101',role:'chief',code:'H4KQ2N',status:'activated',bind:{eventId:'brain_planet',group:'小学组',seatId:'s1'},activatedAt:'2026-06-13 08:20',lastSeen:'2026-06-13 12:30',device:'平板-01'},
-    {id:'rfq2',name:'许老师',phone:'139****0102',role:'judge',code:'X7TW5B',status:'activated',bind:{eventId:'brain_planet',group:'小学组',seatId:'s1'},activatedAt:'2026-06-13 08:22',lastSeen:'2026-06-13 12:28',device:'平板-02'},
-    {id:'rfq3',name:'蒋老师',phone:'139****0103',role:'judge',code:'J2MF8R',status:'activated',bind:{eventId:'mars_rescue',group:'小学组',seatId:'s3'},activatedAt:'2026-06-13 08:25',lastSeen:'2026-06-13 12:32',device:'平板-03'}
-  ];
-  return d;
-}
 
 /* ---------- 赛事信息建后可改 ---------- */
 var EC=null;   /* 编辑中的赛事草稿；null = 未在编辑 */
@@ -845,7 +621,7 @@ function loadContest(cid){
   try{var raw=localStorage.getItem(ckey(cid));if(raw){var d=JSON.parse(raw);if(d&&d.events&&d.teams)return migrate(d);}}catch(e){}
   /* 该赛事还没有数据：筹备中 / 进行中给三赛项种子，其余给空白模板 */
   var c=contestById(cid);
-  return (c && c.status!=='archived' && c.status!=='done') ? seedData() : blankContestData();
+  return blankContestData();
 }
 /* 老数据兼容：补齐 V1.1 新增字段（裁判档案 / 轮次 / 分台顺位），避免旧缓存缺字段导致新视图报错 */
 function migrate(d){
@@ -1171,13 +947,12 @@ function viewHtml(){
 function nav(v){if(v==='screen'&&VIEW!=='screen')SCREEN.needPin=true;VIEW=v;render();}
 
 /* ---------- 视图 0：赛事管理（多次赛事 · 一次建库多场复用） ---------- */
-var NC={name:'',season:'',start:'',end:'',venue:'',host:'',staff:'',mode:'template',src:'',copyRefs:true,events:['brain_planet','mars_rescue','future_city'],error:''};
+var NC={name:'',season:'',start:'',end:'',venue:'',host:'',staff:'',events:['brain_planet','mars_rescue','future_city'],error:''};
 function ncSet(k,v){NC[k]=v;NC.error='';render();}
 function ncToggleEvent(id,on){var i=NC.events.indexOf(id);if(on&&i<0)NC.events.push(id);if(!on&&i>=0)NC.events.splice(i,1);NC.error='';render();}
 function eventPickerHtml(){
-  if(NC.mode!=='template')return '';
   var Q=String.fromCharCode(39);   /* 单引号字符 —— 避免在单引号字符串里再嵌单引号 */
-  var cards=clone(seedData().events).map(function(t){
+  var cards=clone(EVENT_TEMPLATES).map(function(t){
     var on=NC.events.indexOf(t.id)>=0;
     return '<label style="display:flex;gap:10px;align-items:flex-start;border:1px solid '+(on?'#2b6cb0':'#e2e8f0')+';border-radius:8px;padding:10px 12px;cursor:pointer;background:'+(on?'#eef5ff':'#fff')+'">'
       +'<input type="checkbox" style="width:auto;margin-top:3px" '+(on?'checked':'')+' onchange="ncToggleEvent('+Q+t.id+Q+',this.checked)">'
@@ -1193,40 +968,25 @@ function createContest(){
   if(!n){NC.error='请填写赛事名称';render();return;}
   var dup=CONTESTS.some(function(c){return c.name===n;});
   if(dup){NC.error='已有同名赛事，请换一个名称（便于导出与追溯）';render();return;}
-  if(NC.mode==='template' && NC.events.length===0){NC.error='请至少勾选一个赛项（赛事至少要有一个比赛项目）';render();return;}
+  if(NC.events.length===0){NC.error='请至少勾选一个赛项（赛事至少要有一个比赛项目）';render();return;}
   var id=uid('ct_');
   var stf=parseStaff(NC.staff);
   if(!stf.length)stf=[currentUser().name];   /* 不填就默认当前登录人 */
   var c={id:id,name:n,season:(NC.season||'').trim(),start:NC.start||'',end:NC.end||'',
     venue:(NC.venue||'').trim(),host:(NC.host||'').trim(),staff:stf,status:'prep',
     createdAt:nowStr(),updatedAt:nowStr(),archivedAt:'',note:''};
-  var data;
-  if(NC.mode==='copy' && contestById(NC.src)){
-    data=clone(loadContest(NC.src));
-    /* 复制赛项与规则配置，不复制队伍与成绩（新赛事的人是另一批、成绩从零开始） */
-    data.teams=[];data.scores={};
-    data.published={};data.pubDirty={};data.handoff={};
-    data.alerts=[];data.changeRequests=[];data.disputes=[];data.dqCases=[];data.evidence=[];
-    data.auditLogs=[];data.importLogs=[];data.snapshots=[];
-    data.slots=(data.slots||[]).map(function(x){return Object.assign({},x,{teams:[],chief:'',judges:[],snapshot:null});});
-    /* 裁判名册：可勾选是否沿用。沿用也只带「人」（姓名/电话/角色），裁判码与赛台绑定是赛事级凭证，一律清空。 */
-    data.referees=NC.copyRefs
-      ? (data.referees||[]).map(function(r){return Object.assign({},r,{code:'',status:'issued',bind:{eventId:'',group:'',seatId:''},activatedAt:'',lastSeen:'',device:''});})
-      : [];
-    c.note='由「'+contestName(NC.src)+'」复制赛项与规则配置新建（不含队伍与成绩'+(NC.copyRefs?'，裁判名册沿用、裁判码需重发':'，裁判名册不带入')+'）';
-  }else{
-    data=blankContestData();
-    /* 只保留勾选的赛项模板，并同步过滤赛程排期（slots 按 eventId 绑定） */
-    var pick={};NC.events.forEach(function(id){pick[id]=true;});
-    data.events=clone(seedData().events).filter(function(e){return pick[e.id];});
-    data.slots=(data.slots||[]).filter(function(x){return pick[x.eventId];})
-      .map(function(x){return Object.assign({},x,{teams:[],chief:'',judges:[],snapshot:null});});
-    c.note='按勾选赛项模板新建（已带入 '+data.events.length+' 个赛项规则：'+data.events.map(function(e){return e.name;}).join('、')+'）';
-  }
+  /* 建赛：只支持「勾选赛项模板」一种方式 —— 勾选哪个赛项就带入该赛项的完整规则，队伍与成绩一律从零开始。 */
+data=blankContestData();
+/* 只保留勾选的赛项模板，并同步过滤赛程排期（slots 按 eventId 绑定） */
+var pick={};NC.events.forEach(function(id){pick[id]=true;});
+data.events=clone(EVENT_TEMPLATES).filter(function(e){return pick[e.id];});
+data.slots=(data.slots||[]).filter(function(x){return pick[x.eventId];})
+.map(function(x){return Object.assign({},x,{teams:[],chief:'',judges:[],snapshot:null});});
+c.note='按勾选赛项模板新建（已带入 '+data.events.length+' 个赛项规则：'+data.events.map(function(e){return e.name;}).join('、')+'）';
   try{localStorage.setItem(ckey(id),JSON.stringify(data));}
   catch(e){NC.error='本地存储写入失败（浏览器存储可能已满）';render();return;}
   CONTESTS.push(c);saveContests();
-  NC={name:'',season:'',start:'',end:'',venue:'',host:'',staff:'',mode:'template',src:'',copyRefs:true,events:['brain_planet','mars_rescue','future_city'],error:''};
+  NC={name:'',season:'',start:'',end:'',venue:'',host:'',staff:'',events:['brain_planet','mars_rescue','future_city'],error:''};
   switchContest(id);
 }
 
@@ -1264,7 +1024,6 @@ function viewContests(){
     '</tr>';
   }).join('');
 
-  var srcOpts=CONTESTS.map(function(c){return '<option value="'+c.id+'" '+(NC.src===c.id?'selected':'')+'>'+esc(c.name)+'</option>';}).join('');
 
   return '<div class="grid g4">'+
       kpi('赛事总数',CONTESTS.length,'本后台服务的举办场次')+
@@ -1290,13 +1049,6 @@ function viewContests(){
       '<div class="fld"><label>值守人 <span class="muted">（多人用 / 分隔，不填默认当前登录人）</span></label><input value="'+esc(NC.staff)+'" oninput="NC.staff=this.value" placeholder="如：赵工作人员 / 钱工作人员"></div>'+
     '</div>'+    eventPickerHtml()+
     '<div class="row">'+
-      '<div class="fld" style="margin:0;min-width:260px"><label>初始化方式</label>'+
-        '<select onchange="ncSet(\'mode\',this.value)">'+
-          '<option value="template" '+(NC.mode==='template'?'selected':'')+'>勾选赛项模板（按勾选带入赛项规则，队伍成绩从零开始）</option>'+
-          '<option value="copy" '+(NC.mode==='copy'?'selected':'')+'>复制已有赛事的规则配置（不含队伍与成绩）</option>'+
-        '</select></div>'+
-      (NC.mode==='copy'?('<div class="fld" style="margin:0;min-width:240px"><label>复制来源</label><select onchange="ncSet(\'src\',this.value)">'+srcOpts+'</select></div>'):'')+
-      (NC.mode==='copy'?('<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;margin-top:18px"><input type="checkbox" style="width:auto" '+(NC.copyRefs?'checked':'')+' onchange="ncSet(\'copyRefs\',this.checked)">同时带入裁判名册</label>'):'')+
       '<button class="btn primary" onclick="createContest()" style="margin-top:18px">创建赛事</button>'+
       (NC.error?'<span class="tag err" style="margin-top:18px">'+esc(NC.error)+'</span>':'')+
     '</div>'+
@@ -1314,7 +1066,7 @@ function viewContests(){
         '本页管<b>赛事</b>，「赛项与规则」页管<b>赛项</b>。过去只有赛项这一层，等于只服务当次赛事；现在补齐了赛事这一层。'+
       '<b>② 隔离方式是「一份赛事一份数据空间」</b>：每场赛事的队伍、成绩、规则快照、改分申请、争议工单、取消资格、留底证据、操作审计、裁判码与赛台绑定，'+
         '<b>全部按赛事分开存放</b>，互不污染；切换赛事 = 切换整套数据，不会串场。'+
-      '<b>③ 规则只配一次</b>：建赛时在「勾选赛项模板」里勾选本次要办的赛项（脑机星球 / 火星救援 / 未来之城），其规则自动带入；赛制一年内不变时无需每场重配。若想完全沿用上一场的全部配置，可选「复制已有赛事的规则配置」（带走赛项与规则、不带人与成绩）作为快捷方式。'+
+      '<b>③ 规则只配一次</b>：建赛时在「勾选赛项模板」里勾选本次要办的赛项（脑机星球 / 火星救援 / 未来之城），其规则自动带入；赛制一年内不变时无需每场重配。赛项规则全年不变，建赛时勾选即可，无需逐场重配。'+
       '<b>④ 归档语义</b>：赛事收官后把状态改为<b>已归档</b>（只读历史快照，进入时会提示，仅用于追溯与导出）。归档不删数据，随时可改回「已结束」。'+
       '<b>⑤ 哪些是跨赛事共享的</b>：只有<b>登录身份</b>与<b>后端连接设置</b>。裁判「人」的档案可跨赛事复用，但<b>裁判码与赛台绑定是赛事级凭证</b> —— 换赛事必须重新建档发码，旧码在新赛事无效。'+
       '<b>⑥ 队伍编号可以重复</b>：编号只在赛事内唯一。同一支队伍在不同赛事里用同一编号不会冲突，成绩也各算各的。'+
@@ -1483,7 +1235,7 @@ function readinessCardHtml(cid){
   if(isReadOnly()){
     return '<div class="card" style="border-left:4px solid #6b7280;margin-bottom:16px">'+
       '<h2>开赛就绪度 <small>本场已归档（只读）</small></h2>'+
-      '<div class="hint">本场赛事已归档，是只读快照，不需要再检查就绪度。要复用它的规则，请到「赛事管理 → 新建赛事 → 复制已有赛事的规则配置」。</div></div>';
+      '<div class="hint">本场赛事已归档，是只读快照，不需要再检查就绪度。要复用它的规则，请到「赛事管理 → 新建赛事 → 勾选赛项模板」。</div></div>';
   }
   var rows=o.items.map(function(it){
     return '<div class="row" style="gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px dashed var(--line)">'+
