@@ -23,18 +23,31 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 
 | 交付物 | 预览 |
 |---|---|
-| 赛事统分后台管理 demo（多赛事版 · 主交付物） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_demo.html) |
+| 赛事统分后台管理 demo（多赛事版 · 主交付物 · 可交互） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_demo.html) |
+| 赛事统分后台管理 wireframe（16 页 · **可打印/导 PDF**） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_wireframe.html) |
 | 裁判打分系统 wireframe（平板端 · 30 页） | [打开](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html) |
 | 早期单页版原型（保留作对比） | [打开](https://jialangli.github.io/comptition-score-system/) |
 
 也可以直接把对应 `.html` 下载到本地双击打开 —— 单文件、零依赖、离线可运行。
 
+### 两种形态怎么选
+
+| | Demo | Wireframe |
+|---|---|---|
+| 用途 | 交互验证、自己点着试 | 需求评审、打印/导 PDF、给非产品人看 |
+| 保真度 | 完整视觉 + 真实逻辑 | 灰阶线框，只讲信息架构与流程 |
+| 能否改 | 能，全功能可操作 | 不能，纯静态无脚本 |
+
+**后台 wireframe 打印方法**：浏览器 `Ctrl/Cmd + P` → 目标「另存为 PDF」→ 纸张 **A4 横向** → 勾选「背景图形」。
+已内置 `@page` 与 `@media print`，每页自动分页。
+
 ## 仓库结构
 
 ```
-赛事统分后台管理_demo.html   后台管理端交互原型（多赛事版 · 单文件 · 零依赖）
-裁判打分系统_wireframe.html  平板端裁判打分 wireframe（30 页单屏 UI）
-index.html                   早期单页版原型（保留作对比）
+赛事统分后台管理_demo.html      后台管理端交互原型（多赛事版 · 单文件 · 零依赖）
+赛事统分后台管理_wireframe.html  后台管理端线框（16 页 · 可打印/导 PDF）
+裁判打分系统_wireframe.html     平板端裁判打分 wireframe（30 页单屏 UI）
+index.html                      早期单页版原型（保留作对比）
 
 cmd/                         进程装配（main）
 internal/
