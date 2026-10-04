@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 提问 / 讨论（非缺陷）
+    url: https://github.com/jialangli/comptition-score-system/discussions
+    about: 用法疑问、方案讨论、经验分享请到这里
+  - name: 报告安全漏洞
+    url: https://github.com/jialangli/comptition-score-server/security/advisories/new
+    about: 请勿用公开 Issue 报安全漏洞，详见 SECURITY.md

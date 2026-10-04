@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Go 后端（build / vet / test）
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: neuroscore_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      GO_VERSION: '1.25.0'
+      TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/neuroscore_test?sslmode=disable
+      TEST_DATABASE_URL_API: postgres://postgres:postgres@127.0.0.1:5432/neuroscore_test_api?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: 建测试库并执行迁移
+        env:
+          PG_DIR: /usr/lib/postgresql/17/bin
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          createdb -h 127.0.0.1 -U postgres neuroscore_test_api
+          for db in neuroscore_test neuroscore_test_api; do
+            echo "==> 迁移 $db"
+            for f in migrations/*.up.sql; do
+              echo "    - $f"
+              psql -h 127.0.0.1 -U postgres -d "$db" -v ON_ERROR_STOP=1 -q -f "$f"
+            done
+          done
+
+      - name: go build
+        run: go build -buildvcs=false ./...
+
+      - name: go vet
+        run: go vet ./...
+
+      # -p 1：service 包内多个测试共用一个库，并行会撞 events_pkey（详见 CONTRIBUTING.md）
+      - name: go test（串行）
+        run: go test -buildvcs=false -p 1 ./...
+
+  prototype:
+    name: 原型 JS 语法
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 抽取并检查内联脚本语法
+        run: |
+          set -euo pipefail
+          for f in *.html web/index.html; do
+            [ -f "$f" ] || continue
+            echo "==> $f"
+            node -e "
+              const fs=require('fs');
+              const m=fs.readFileSync('$f','utf-8').match(/<script>([\s\S]*)<\/script>/);
+              if(!m){ console.log('  (无内联 script，跳过)'); process.exit(0); }
+              fs.writeFileSync('_check.js', m[1]);
+            "
+            node --check _check.js
+          done
+          rm -f _check.js
+
+      - name: 原型结构配平（div 开闭数量一致）
+        run: |
+          set -euo pipefail
+          for f in *.html; do
+            [ -f "$f" ] || continue
+            o=$(grep -o '<div[ >]' "$f" | wc -l)
+            c=$(grep -o '</div>' "$f" | wc -l)
+            echo "$f: <div> $o / </div> $c"
+            [ "$o" -eq "$c" ] || { echo "  ✗ div 不配平"; exit 1; }
+          done
+
+      - name: 原型零依赖校验（不应引入外部 script/link）
+        run: |
+          set -euo pipefail
+          for f in *.html; do
+            [ -f "$f" ] || continue
+            if grep -nE '<script[^>]+src=|<link[^>]+href=.*\.css' "$f"; then
+              echo "✗ $f 引入了外部资源，违反单文件零依赖约定"
+              exit 1
+            fi
+            echo "✓ $f 零外部依赖"
+          done

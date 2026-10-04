@@ -1,0 +1,45 @@
+name: 规范检查
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  convention:
+    name: 单文件原型规范
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 约定来源：CONTRIBUTING.md「原型改动约定」
+      # 违反其中任何一条都会让「单文件、零依赖、CRLF、双击即用」这个产品决策失效。
+      - name: 行尾须为 CRLF
+        run: |
+          set -euo pipefail
+          for f in *.html; do
+            [ -f "$f" ] || continue
+            total=$(wc -l < "$f")
+            crlf=$(grep -c $'\r$' "$f" || true)
+            echo "$f: 总行 $total / CRLF $crlf"
+            if [ "$total" -gt 0 ] && [ "$crlf" -ne "$total" ]; then
+              echo "  ✗ 存在非 CRLF 行（会破坏 Windows 下的单文件交付）"
+              exit 1
+            fi
+          done
+
+      - name: 不得提交真实赛事数据文件
+        run: |
+          set -euo pipefail
+          # 演示数据是内联的，不应有独立数据文件被提交
+          bad=$(git ls-files | grep -iE '\.(xlsx|csv|sqlite|db)$' || true)
+          if [ -n "$bad" ]; then
+            echo "✗ 仓库含数据文件，请确认是否为真实数据："
+            echo "$bad"
+            exit 1
+          fi
+          echo "✓ 无数据文件"
