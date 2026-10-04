@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/jialangli/comptition-score-server/internal/model"
+	"github.com/jialangli/comptition-score-server/internal/store"
 )
 
 // ScreenStore 大屏配置仓储。
@@ -47,14 +48,14 @@ func (s *ScreenStore) Upsert(ctx context.Context, c *model.ScreenConfig) error {
 		pinned = c.Pinned
 	}
 	_, err := s.q.Exec(ctx, `
-		INSERT INTO screen_config (event_id, page_size, interval_sec, pinned)
-		VALUES ($1,$2,$3,$4)
-		ON CONFLICT (event_id) DO UPDATE SET
+		INSERT INTO screen_config (event_id, page_size, interval_sec, pinned, contest_id)
+		VALUES ($1,$2,$3,$4,$5)
+		ON CONFLICT (contest_id, event_id) DO UPDATE SET
 			page_size=EXCLUDED.page_size,
 			interval_sec=EXCLUDED.interval_sec,
 			pinned=EXCLUDED.pinned,
 			updated_at=now()`,
-		c.EventID, c.PageSize, c.IntervalSec, pinned)
+		c.EventID, c.PageSize, c.IntervalSec, pinned, store.CurrentContest(ctx))
 	return mapError(err)
 }
 

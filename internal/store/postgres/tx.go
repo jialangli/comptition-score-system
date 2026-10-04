@@ -37,6 +37,7 @@ type querier interface {
 // newRepos 用同一个 querier 装配全部仓储。
 func newRepos(q querier) store.Repos {
 	return store.Repos{
+		Contests:  &ContestStore{q: q},
 		Events:    &EventStore{q: q},
 		Teams:     &TeamStore{q: q},
 		Scores:    &ScoreStore{q: q},

@@ -29,3 +29,38 @@ type DB interface {
 	// Close 释放连接池。
 	Close()
 }
+
+// ============================================================================
+// 当前赛事（0004 多赛事维度）
+//
+// 定义在本包而不是 service 包，是因为 **store/postgres 要读它**：
+// 那里每条 SQL 都得带上当前赛事做分区，而 store/postgres 不能 import service
+// （service → store/postgres，反向就成环了）。
+//
+// 与 store 的语义化错误同一个摆放理由：谁都可能用、且必须口径一致的东西，
+// 放在依赖图的最底层。
+// ============================================================================
+
+type contestCtxKey struct{}
+
+// DefaultContestID 未指定赛事时的兜底，对应 0004 迁移插入的 ct_default。
+//
+// 0004 把所有存量数据都归入 ct_default，所以「不指定赛事」等价于
+// 「迁移前的单赛事行为」—— 现有调用方无需改动即可继续工作。
+const DefaultContestID = "ct_default"
+
+// WithContest 把当前赛事写入 context（api 层中间件调用）。
+func WithContest(ctx context.Context, contestID string) context.Context {
+	return context.WithValue(ctx, contestCtxKey{}, contestID)
+}
+
+// CurrentContest 取当前赛事 ID。
+//
+// 刻意不返回空串：空串写进 SQL 会匹配不到任何行，表现为「查什么都是空」，
+// 而看不出是没带赛事标识导致的。宁可用一个显式默认赛事。
+func CurrentContest(ctx context.Context) string {
+	if v, ok := ctx.Value(contestCtxKey{}).(string); ok && v != "" {
+		return v
+	}
+	return DefaultContestID
+}

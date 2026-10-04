@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jialangli/comptition-score-server/internal/model"
+	"github.com/jialangli/comptition-score-server/internal/store"
 )
 
 // ScoreStore 打分记录仓储。
@@ -38,9 +39,9 @@ func scanScore(row interface{ Scan(...any) error }) (*model.ScoreRecord, error) 
 // 本方法的「覆盖」语义只服务于同一轮内的连续编辑。
 func (s *ScoreStore) Save(ctx context.Context, r *model.ScoreRecord) error {
 	return mapError(s.q.QueryRow(ctx, `
-		INSERT INTO scores (team_id, round_no, task_values, duration_sec, yellow, red, signed, operator)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-		ON CONFLICT (team_id, round_no) DO UPDATE SET
+		INSERT INTO scores (team_id, round_no, task_values, duration_sec, yellow, red, signed, operator, contest_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		ON CONFLICT (contest_id, team_id, round_no) DO UPDATE SET
 			task_values  = EXCLUDED.task_values,
 			duration_sec = EXCLUDED.duration_sec,
 			yellow       = EXCLUDED.yellow,
@@ -49,20 +50,22 @@ func (s *ScoreStore) Save(ctx context.Context, r *model.ScoreRecord) error {
 			operator     = EXCLUDED.operator
 		RETURNING id, created_at, updated_at`,
 		r.TeamID, r.RoundNo, jsonArg(r.TaskValues), r.DurationSec,
-		r.Yellow, r.Red, r.Signed, r.Operator,
+		r.Yellow, r.Red, r.Signed, r.Operator, store.CurrentContest(ctx),
 	).Scan(&r.ID, &r.CreatedAt, &r.UpdatedAt))
 }
 
 // Get 读取某队某一轮的记录。
 func (s *ScoreStore) Get(ctx context.Context, teamID int64, round int) (*model.ScoreRecord, error) {
 	return scanScore(s.q.QueryRow(ctx,
-		`SELECT `+scoreColumns+` FROM scores WHERE team_id=$1 AND round_no=$2`, teamID, round))
+		`SELECT `+scoreColumns+` FROM scores WHERE team_id=$1 AND round_no=$2 AND contest_id=$3`,
+		teamID, round, store.CurrentContest(ctx)))
 }
 
 // ListByTeam 读取某队全部轮次，按轮次升序。
 func (s *ScoreStore) ListByTeam(ctx context.Context, teamID int64) ([]model.ScoreRecord, error) {
 	rows, err := s.q.Query(ctx,
-		`SELECT `+scoreColumns+` FROM scores WHERE team_id=$1 ORDER BY round_no`, teamID)
+		`SELECT `+scoreColumns+` FROM scores WHERE team_id=$1 AND contest_id=$2 ORDER BY round_no`,
+		teamID, store.CurrentContest(ctx))
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -88,9 +91,9 @@ func (s *ScoreStore) ListByEvent(ctx context.Context, eventID string) (map[int64
 		SELECT s.id, s.team_id, s.round_no::int, s.task_values, s.duration_sec::float8,
 		       s.yellow::int, s.red::int, s.signed, s.operator, s.created_at, s.updated_at
 		FROM scores s
-		JOIN teams t ON t.id = s.team_id
-		WHERE t.event_id = $1
-		ORDER BY s.team_id, s.round_no`, eventID)
+		JOIN teams t ON t.id = s.team_id AND t.contest_id = s.contest_id
+		WHERE t.event_id = $1 AND s.contest_id = $2
+		ORDER BY s.team_id, s.round_no`, eventID, store.CurrentContest(ctx))
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -109,7 +112,8 @@ func (s *ScoreStore) ListByEvent(ctx context.Context, eventID string) (map[int64
 
 // Delete 删除一条打分记录。
 func (s *ScoreStore) Delete(ctx context.Context, id int64) error {
-	tag, err := s.q.Exec(ctx, `DELETE FROM scores WHERE id=$1`, id)
+	tag, err := s.q.Exec(ctx,
+		`DELETE FROM scores WHERE id=$1 AND contest_id=$2`, id, store.CurrentContest(ctx))
 	return affected(tag, err)
 }
 

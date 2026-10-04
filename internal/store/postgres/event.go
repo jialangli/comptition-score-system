@@ -32,17 +32,19 @@ func (s *EventStore) Create(ctx context.Context, ev *model.Event) error {
 	}
 	_, err := s.q.Exec(ctx, `
 		INSERT INTO events (id, name, groups, score_rule, bonus_rules, penalty_rule,
-		                    rank_rule, custom_formula, config_version)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		                    rank_rule, custom_formula, config_version, contest_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 		ev.ID, ev.Name, jsonArg(ev.Groups), ev.ScoreRule, jsonArg(ev.BonusRules),
-		ev.PenaltyRule, ev.RankRule, ev.CustomFormula, ev.ConfigVersion)
+		ev.PenaltyRule, ev.RankRule, ev.CustomFormula, ev.ConfigVersion,
+		store.CurrentContest(ctx))
 	return mapError(err)
 }
 
 // Get 读取赛项（含任务项）。
 func (s *EventStore) Get(ctx context.Context, id string) (*model.Event, error) {
 	ev, err := scanEvent(s.q.QueryRow(ctx,
-		`SELECT `+eventColumns+` FROM events WHERE id = $1`, id))
+		`SELECT `+eventColumns+` FROM events WHERE id = $1 AND contest_id = $2`,
+		id, store.CurrentContest(ctx)))
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +56,9 @@ func (s *EventStore) Get(ctx context.Context, id string) (*model.Event, error) {
 
 // List 返回全部赛项（含任务项），按 id 升序保证界面顺序稳定。
 func (s *EventStore) List(ctx context.Context) ([]model.Event, error) {
-	rows, err := s.q.Query(ctx, `SELECT `+eventColumns+` FROM events ORDER BY id`)
+	rows, err := s.q.Query(ctx,
+		`SELECT `+eventColumns+` FROM events WHERE contest_id = $1 ORDER BY id`,
+		store.CurrentContest(ctx))
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -106,9 +110,10 @@ func (s *EventStore) Update(ctx context.Context, ev *model.Event) error {
 	tag, err := s.q.Exec(ctx, `
 		UPDATE events SET name=$2, groups=$3, score_rule=$4, bonus_rules=$5,
 		                  penalty_rule=$6, rank_rule=$7, custom_formula=$8, config_version=$9
-		WHERE id = $1`,
+		WHERE id = $1 AND contest_id = $10`,
 		ev.ID, ev.Name, jsonArg(ev.Groups), ev.ScoreRule, jsonArg(ev.BonusRules),
-		ev.PenaltyRule, ev.RankRule, ev.CustomFormula, ev.ConfigVersion)
+		ev.PenaltyRule, ev.RankRule, ev.CustomFormula, ev.ConfigVersion,
+		store.CurrentContest(ctx))
 	if err != nil {
 		return mapError(err)
 	}
@@ -124,7 +129,9 @@ func (s *EventStore) Update(ctx context.Context, ev *model.Event) error {
 // 整体替换能让最终状态与提交内容严格一致，不会残留已删除的任务。
 // 调用方需保证在事务内执行。
 func (s *EventStore) ReplaceTasks(ctx context.Context, eventID string, tasks []model.Task) error {
-	if _, err := s.q.Exec(ctx, `DELETE FROM tasks WHERE event_id = $1`, eventID); err != nil {
+	if _, err := s.q.Exec(ctx,
+		`DELETE FROM tasks WHERE event_id = $1 AND contest_id = $2`,
+		eventID, store.CurrentContest(ctx)); err != nil {
 		return mapError(err)
 	}
 	for i := range tasks {
@@ -142,10 +149,10 @@ func (s *EventStore) ReplaceTasks(ctx context.Context, eventID string, tasks []m
 			maxScore = *t.MaxScore
 		}
 		if _, err := s.q.Exec(ctx, `
-			INSERT INTO tasks (event_id, id, name, type, max_score, weight, control, enum_map, sort_order)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+			INSERT INTO tasks (event_id, id, name, type, max_score, weight, control, enum_map, sort_order, contest_id)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 			eventID, t.ID, t.Name, string(t.Type), maxScore, t.Weight,
-			nonEmpty(string(t.Control)), enumArg, order,
+			nonEmpty(string(t.Control)), enumArg, order, store.CurrentContest(ctx),
 		); err != nil {
 			return mapError(err)
 		}
@@ -155,7 +162,8 @@ func (s *EventStore) ReplaceTasks(ctx context.Context, eventID string, tasks []m
 
 // Delete 删除赛项。若已被队伍或场次引用，数据库外键（RESTRICT）会拦下并返回 ErrInUse。
 func (s *EventStore) Delete(ctx context.Context, id string) error {
-	tag, err := s.q.Exec(ctx, `DELETE FROM events WHERE id = $1`, id)
+	tag, err := s.q.Exec(ctx,
+		`DELETE FROM events WHERE id = $1 AND contest_id = $2`, id, store.CurrentContest(ctx))
 	if err != nil {
 		return mapError(err)
 	}
@@ -169,7 +177,8 @@ func (s *EventStore) Delete(ctx context.Context, id string) error {
 func (s *EventStore) loadTasks(ctx context.Context, ev *model.Event) error {
 	rows, err := s.q.Query(ctx, `
 		SELECT id, name, type, max_score::float8, weight::float8, control, enum_map, sort_order
-		FROM tasks WHERE event_id = $1 ORDER BY sort_order, id`, ev.ID)
+		FROM tasks WHERE event_id = $1 AND contest_id = $2 ORDER BY sort_order, id`,
+		ev.ID, store.CurrentContest(ctx))
 	if err != nil {
 		return mapError(err)
 	}

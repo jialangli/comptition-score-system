@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jialangli/comptition-score-server/internal/model"
+	"github.com/jialangli/comptition-score-server/internal/store"
 )
 
 // ============================================================================
@@ -222,17 +223,20 @@ type SnapshotStore struct{ q querier }
 
 // Save 整体替换某场次的快照（先删后插，需在事务内调用）。
 func (s *SnapshotStore) Save(ctx context.Context, slotID int64, snaps []model.Snapshot) error {
-	if _, err := s.q.Exec(ctx, `DELETE FROM slot_snapshots WHERE slot_id=$1`, slotID); err != nil {
+	if _, err := s.q.Exec(ctx,
+		`DELETE FROM slot_snapshots WHERE slot_id=$1 AND contest_id=$2`,
+		slotID, store.CurrentContest(ctx)); err != nil {
 		return mapError(err)
 	}
 	for i := range snaps {
 		sn := &snaps[i]
 		if _, err := s.q.Exec(ctx, `
-			INSERT INTO slot_snapshots (slot_id, team_no, name, school, coach)
-			VALUES ($1,$2,$3,$4,$5)
-			ON CONFLICT (slot_id, team_no) DO UPDATE SET
+			INSERT INTO slot_snapshots (slot_id, team_no, name, school, coach, contest_id)
+			VALUES ($1,$2,$3,$4,$5,$6)
+			ON CONFLICT (contest_id, slot_id, team_no) DO UPDATE SET
 				name=EXCLUDED.name, school=EXCLUDED.school, coach=EXCLUDED.coach`,
-			slotID, sn.TeamNo, sn.Name, sn.School, sn.Coach); err != nil {
+			slotID, sn.TeamNo, sn.Name, sn.School, sn.Coach,
+			store.CurrentContest(ctx)); err != nil {
 			return mapError(err)
 		}
 	}
@@ -243,7 +247,8 @@ func (s *SnapshotStore) Save(ctx context.Context, slotID int64, snaps []model.Sn
 func (s *SnapshotStore) List(ctx context.Context, slotID int64) ([]model.Snapshot, error) {
 	rows, err := s.q.Query(ctx, `
 		SELECT id, slot_id, team_no, name, school, coach
-		FROM slot_snapshots WHERE slot_id=$1 ORDER BY team_no`, slotID)
+		FROM slot_snapshots WHERE slot_id=$1 AND contest_id=$2 ORDER BY team_no`,
+		slotID, store.CurrentContest(ctx))
 	if err != nil {
 		return nil, mapError(err)
 	}

@@ -41,6 +41,7 @@ type Store interface {
 
 // Repos 一组业务域仓储。事务内外拿到的是同一个类型，业务代码无需区分。
 type Repos struct {
+	Contests  ContestRepo // 赛事（0004 多赛事分区根）
 	Events    EventRepo
 	Teams     TeamRepo
 	Scores    ScoreRepo
@@ -51,6 +52,24 @@ type Repos struct {
 	Snapshots SnapshotRepo       // 加时赛场内快照
 	CfgSnaps  ConfigSnapshotRepo // 配置快照
 	Changes   ChangeRequestRepo  // 改分申请单
+}
+
+// ---------------------------------------------------------------------------
+// 赛事
+// ---------------------------------------------------------------------------
+
+// ContestRepo 赛事读写（0004 多赛事维度）。
+//
+// 赛事是其余各表的分区根：所有业务表的外键都指向 contests(id)，
+// 且 ON DELETE RESTRICT —— 删赛事必须先清干净它的数据。
+type ContestRepo interface {
+	Create(ctx context.Context, c *model.Contest) error
+	Get(ctx context.Context, id string) (*model.Contest, error)
+	List(ctx context.Context) ([]model.Contest, error)
+	SetStatus(ctx context.Context, id string, status model.ContestStatus) error
+	Delete(ctx context.Context, id string) error
+	// EnsureDefault 确保兜底赛事存在（TRUNCATE 后需要重建，否则外键会拦住建赛项）。
+	EnsureDefault(ctx context.Context) error
 }
 
 // ---------------------------------------------------------------------------

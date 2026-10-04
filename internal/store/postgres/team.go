@@ -11,14 +11,14 @@ import (
 type TeamStore struct{ q querier }
 
 const teamColumns = `id, event_id, team_no, name, school, coach, group_code,
-	members, status, source, created_at, updated_at`
+	members, status, source, created_at, updated_at, contest_id`
 
 func scanTeam(row interface{ Scan(...any) error }) (*model.Team, error) {
 	var t model.Team
 	var status, source string
 	if err := row.Scan(
 		&t.ID, &t.EventID, &t.TeamNo, &t.Name, &t.School, &t.Coach, &t.GroupCode,
-		&t.Members, &status, &source, &t.CreatedAt, &t.UpdatedAt,
+		&t.Members, &status, &source, &t.CreatedAt, &t.UpdatedAt, &t.ContestID,
 	); err != nil {
 		return nil, notFoundIfNoRows(err)
 	}
@@ -35,24 +35,28 @@ func (s *TeamStore) Create(ctx context.Context, t *model.Team) error {
 	if t.Source == "" {
 		t.Source = model.SourceManual
 	}
+	t.ContestID = store.CurrentContest(ctx)
 	return mapError(s.q.QueryRow(ctx, `
-		INSERT INTO teams (event_id, team_no, name, school, coach, group_code, members, status, source)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		INSERT INTO teams (event_id, team_no, name, school, coach, group_code, members, status, source, contest_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 		RETURNING id, created_at, updated_at`,
 		t.EventID, t.TeamNo, t.Name, t.School, t.Coach, t.GroupCode,
-		t.Members, string(t.Status), string(t.Source),
+		t.Members, string(t.Status), string(t.Source), t.ContestID,
 	).Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt))
 }
 
 // Get 按 ID 读取队伍。
 func (s *TeamStore) Get(ctx context.Context, id int64) (*model.Team, error) {
-	return scanTeam(s.q.QueryRow(ctx, `SELECT `+teamColumns+` FROM teams WHERE id = $1`, id))
+	return scanTeam(s.q.QueryRow(ctx,
+		`SELECT `+teamColumns+` FROM teams WHERE id = $1 AND contest_id = $2`,
+		id, store.CurrentContest(ctx)))
 }
 
 // GetByNo 按「赛项 + 编号」读取队伍 —— 导入比对的主键查找。
 func (s *TeamStore) GetByNo(ctx context.Context, eventID, teamNo string) (*model.Team, error) {
 	return scanTeam(s.q.QueryRow(ctx,
-		`SELECT `+teamColumns+` FROM teams WHERE event_id = $1 AND team_no = $2`, eventID, teamNo))
+		`SELECT `+teamColumns+` FROM teams WHERE event_id = $1 AND team_no = $2 AND contest_id = $3`,
+		eventID, teamNo, store.CurrentContest(ctx)))
 }
 
 // ListByEvent 按录入顺序返回赛项下的队伍。
@@ -62,8 +66,8 @@ func (s *TeamStore) GetByNo(ctx context.Context, eventID, teamNo string) (*model
 func (s *TeamStore) ListByEvent(ctx context.Context, eventID string, includeWithdrawn bool) ([]model.Team, error) {
 	rows, err := s.q.Query(ctx, `
 		SELECT `+teamColumns+` FROM teams
-		WHERE event_id = $1 AND ($2 OR status = 'active')
-		ORDER BY id`, eventID, includeWithdrawn)
+		WHERE event_id = $1 AND ($2 OR status = 'active') AND contest_id = $3
+		ORDER BY id`, eventID, includeWithdrawn, store.CurrentContest(ctx))
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -95,11 +99,14 @@ func (s *TeamStore) Upsert(ctx context.Context, t *model.Team) (bool, error) {
 	if t.Source == "" {
 		t.Source = model.SourceExcel
 	}
+	t.ContestID = store.CurrentContest(ctx)
 	var created bool
+	// ON CONFLICT 目标列必须是 0004 后的复合唯一约束 (contest_id, event_id, team_no)：
+	// 队伍编号只在赛事内唯一，跨赛事可重复。
 	err := s.q.QueryRow(ctx, `
-		INSERT INTO teams (event_id, team_no, name, school, coach, group_code, members, status, source)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-		ON CONFLICT (event_id, team_no) DO UPDATE SET
+		INSERT INTO teams (event_id, team_no, name, school, coach, group_code, members, status, source, contest_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		ON CONFLICT (contest_id, event_id, team_no) DO UPDATE SET
 			name       = EXCLUDED.name,
 			school     = EXCLUDED.school,
 			coach      = EXCLUDED.coach,
@@ -109,7 +116,7 @@ func (s *TeamStore) Upsert(ctx context.Context, t *model.Team) (bool, error) {
 			source     = EXCLUDED.source
 		RETURNING id, created_at, updated_at, (xmax = 0) AS inserted`,
 		t.EventID, t.TeamNo, t.Name, t.School, t.Coach, t.GroupCode,
-		t.Members, string(t.Status), string(t.Source),
+		t.Members, string(t.Status), string(t.Source), t.ContestID,
 	).Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt, &created)
 	return created, mapError(err)
 }
@@ -118,34 +125,41 @@ func (s *TeamStore) Upsert(ctx context.Context, t *model.Team) (bool, error) {
 func (s *TeamStore) Update(ctx context.Context, t *model.Team) error {
 	tag, err := s.q.Exec(ctx, `
 		UPDATE teams SET name=$2, school=$3, coach=$4, group_code=$5, members=$6
-		WHERE id=$1`,
-		t.ID, t.Name, t.School, t.Coach, t.GroupCode, t.Members)
+		WHERE id=$1 AND contest_id=$7`,
+		t.ID, t.Name, t.School, t.Coach, t.GroupCode, t.Members, store.CurrentContest(ctx))
 	return affected(tag, err)
 }
 
 // SetStatus 设置队伍状态（弃赛 / 恢复）。
 func (s *TeamStore) SetStatus(ctx context.Context, id int64, status model.TeamStatus) error {
-	tag, err := s.q.Exec(ctx, `UPDATE teams SET status=$2 WHERE id=$1`, id, string(status))
+	tag, err := s.q.Exec(ctx,
+		`UPDATE teams SET status=$2 WHERE id=$1 AND contest_id=$3`,
+		id, string(status), store.CurrentContest(ctx))
 	return affected(tag, err)
 }
 
 // SetGroup 调整队伍组别。
 func (s *TeamStore) SetGroup(ctx context.Context, id int64, group string) error {
-	tag, err := s.q.Exec(ctx, `UPDATE teams SET group_code=$2 WHERE id=$1`, id, group)
+	tag, err := s.q.Exec(ctx,
+		`UPDATE teams SET group_code=$2 WHERE id=$1 AND contest_id=$3`,
+		id, group, store.CurrentContest(ctx))
 	return affected(tag, err)
 }
 
 // Delete 物理删除队伍。带成绩的队伍会被外键 RESTRICT 拦下（返回 ErrInUse）——
 // 这正是「弃赛用软删除、删队要拦一道」的落点。
 func (s *TeamStore) Delete(ctx context.Context, id int64) error {
-	tag, err := s.q.Exec(ctx, `DELETE FROM teams WHERE id=$1`, id)
+	tag, err := s.q.Exec(ctx,
+		`DELETE FROM teams WHERE id=$1 AND contest_id=$2`, id, store.CurrentContest(ctx))
 	return affected(tag, err)
 }
 
 // CountByEvent 统计赛项下队伍总数（含弃赛）。
 func (s *TeamStore) CountByEvent(ctx context.Context, eventID string) (int, error) {
 	var n int
-	err := s.q.QueryRow(ctx, `SELECT count(*)::int FROM teams WHERE event_id=$1`, eventID).Scan(&n)
+	err := s.q.QueryRow(ctx,
+		`SELECT count(*)::int FROM teams WHERE event_id=$1 AND contest_id=$2`,
+		eventID, store.CurrentContest(ctx)).Scan(&n)
 	return n, mapError(err)
 }
 

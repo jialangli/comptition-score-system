@@ -75,6 +75,28 @@ func CurrentUser(ctx context.Context) string {
 }
 
 // ============================================================================
+// 当前赛事（0004 多赛事维度）
+//
+// 与「当前用户」同一套手法：请求上下文注入，方法签名不变。
+// 前端模型是「一场赛事一份独立数据空间」，后端落地为各表的 contest_id 分区；
+// store 层每条 SQL 都要带当前赛事，从这里取，避免 60+ 个方法都加一个参数。
+// ============================================================================
+
+// CurrentContest 取当前赛事 ID。
+//
+// 实现放在 store 包（最低层）：store/postgres 的每条 SQL 都要读它，
+// 而 store/postgres 不能 import service（会循环依赖）。
+// service 与 api 用这个委托函数，保证三层取的是同一个 key。
+func CurrentContest(ctx context.Context) string {
+	return store.CurrentContest(ctx)
+}
+
+// WithContest 把当前赛事写入 context（api 层中间件调用）。
+func WithContest(ctx context.Context, contestID string) context.Context {
+	return store.WithContest(ctx, contestID)
+}
+
+// ============================================================================
 // 语义化错误
 //
 // api 层据此映射 HTTP 状态码，业务层不关心「400 还是 409」。

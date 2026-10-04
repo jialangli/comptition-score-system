@@ -28,12 +28,15 @@ const (
 
 // Team 队伍。
 //
-// TeamNo 在本赛项内唯一（数据库有唯一索引 ux_teams_event_no），落实「一号一队」：
-// 出现「一队多号」或「一号多队」时导入会被拦截，交运营裁决。
+// TeamNo 在「赛事 + 赛项」内唯一（0004 后的复合唯一索引
+// uq_teams_contest_event_no），落实「一号一队」。
+// ⚠️ 是**赛事内**唯一，不是全局唯一：同一编号在不同赛事里可以重复，
+//   跨赛事汇总时靠「队名 + 学校」近似归并（严格身份另需 team_uid）。
 type Team struct {
 	ID        int64      `json:"id"`
+	ContestID string     `json:"contestId"` // 所属赛事（0004 多赛事维度）
 	EventID   string     `json:"eventId"`
-	TeamNo    string     `json:"no"` // 队伍编号（赛项内唯一）
+	TeamNo    string     `json:"no"` // 队伍编号（赛事 + 赛项内唯一）
 	Name      string     `json:"name"`
 	School    string     `json:"school"`
 	Coach     string     `json:"coach"`

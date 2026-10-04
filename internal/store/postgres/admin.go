@@ -15,12 +15,17 @@ import (
 // 最难排查的那类问题。新增表时请一并更新本清单。
 func (d *DB) TruncateAll(ctx context.Context) error {
 	// 顺序无实际影响（CASCADE），但按「先叶子后根」排列便于人工核对
+	// 0004 新增的两张表也要清空：
+	//   score_change_requests —— 改分申请单，漏了会让用例间互相污染
+	//   contests             —— 赛事表。放在最后（其余表外键引用它，
+	//                            CASCADE 会连带清掉子表，顺序上仍是「先叶子后根」）
 	tables := []string{
 		"slot_snapshots",
 		"slot_teams",
 		"slots",
 		"seats",
 		"scores",
+		"score_change_requests",
 		"teams",
 		"tasks",
 		"screen_config",
@@ -28,8 +33,17 @@ func (d *DB) TruncateAll(ctx context.Context) error {
 		"import_logs",
 		"audit_logs",
 		"events",
+		"contests",
 	}
-	_, err := d.pool.Exec(ctx,
-		"TRUNCATE TABLE "+strings.Join(tables, ", ")+" RESTART IDENTITY CASCADE")
-	return mapError(err)
+	if _, err := d.pool.Exec(ctx,
+		"TRUNCATE TABLE "+strings.Join(tables, ", ")+" RESTART IDENTITY CASCADE"); err != nil {
+		return mapError(err)
+	}
+
+	// ⚠️ 清空后必须把默认赛事补回来。
+	// 各表外键都指向 contests(id)，而 ct_default 是「未指定赛事」的兜底；
+	// 它被 TRUNCATE 掉之后，任何不带赛事标识的写入都会撞 fk_*_contest。
+	// 症状是「单独跑能过、全量跑就挂」—— 因为前一个用例把 contests 清了，
+	// 后一个用例还以为默认赛事在。
+	return (&ContestStore{q: d.pool}).EnsureDefault(ctx)
 }
