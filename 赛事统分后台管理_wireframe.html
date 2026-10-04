@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>赛事统分后台管理 · 页面 Wireframe</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f0f2f5; color: #333; padding: 24px; }
+  h1 { text-align: center; font-size: 26px; margin-bottom: 8px; }
+  .sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 32px; }
+  .page { max-width: 1180px; margin: 0 auto 56px; }
+  .page-title { font-size: 18px; font-weight: bold; border-left: 5px solid #2b6cb0; padding-left: 12px; margin-bottom: 4px; }
+  .page-desc { font-size: 13px; color: #777; margin-bottom: 14px; padding-left: 17px; }
+  .note { background: #fffbe6; border: 1px dashed #d4a017; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #6b5900; margin-top: 14px; line-height: 1.8; }
+  .note b { color: #4a3f00; }
+
+  /* 设备外框：后台是桌面端，用 .desktop 比例 */
+  .desktop { width: 1000px; margin: 0 auto; border: 3px solid #555; border-radius: 8px; background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.12); overflow: hidden; }
+  .screen { display: flex; min-height: 0; overflow: hidden; }
+
+  /* 顶栏 */
+  .appbar { background: #2b6cb0; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; font-size: 13px; }
+  .appbar .left { display: flex; align-items: center; gap: 10px; }
+  .appbar .sel { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.5); color: #fff; }
+  .appbar .sel::after { color: #fff; }
+  .appbar .btn { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.5); border-radius: 4px; padding: 3px 12px; font-size: 12px; }
+  .appbar .who { opacity: .9; font-size: 12px; }
+
+  /* 侧栏：与裁判端一致的分组 + 置顶 */
+  .sidebar { width: 186px; background: #e8edf3; border-right: 1px solid #ccd5e0; padding: 12px 8px; font-size: 12.5px; flex-shrink: 0; }
+  .sidebar .logo { font-weight: bold; color: #2b6cb0; margin-bottom: 12px; padding: 0 6px; font-size: 13px; }
+  .sidebar .item { padding: 7px 9px; border-radius: 5px; margin-bottom: 3px; color: #4a5568; }
+  .sidebar .item.active { background: #2b6cb0; color: #fff; }
+  .sidebar .group { font-size: 10.5px; color: #a0aec0; margin: 12px 6px 5px; }
+
+  .main { flex: 1; padding: 14px; background: #f7fafc; }
+
+  /* 控件（与裁判端同名同形，保持风格一致） */
+  .sel { display: inline-block; border: 1px solid #b8c4d0; background: #f7fafc; border-radius: 4px; padding: 4px 24px 4px 9px; font-size: 12.5px; color: #2d3748; position: relative; }
+  .sel::after { content: "▾"; position: absolute; right: 7px; color: #718096; }
+  .card { border: 1px solid #d2dae3; border-radius: 7px; padding: 11px 13px; margin-bottom: 10px; background: #fff; }
+  .card.tight { padding: 9px 11px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+  .fld { border: 1px solid #e2e8f0; border-radius: 5px; padding: 7px 9px; background: #fbfcfe; font-size: 12px; }
+  .fld .lb { color: #a0aec0; font-size: 11px; margin-bottom: 3px; }
+  .fld .vl { color: #2d3748; font-weight: bold; }
+  .ph { border: 1px dashed #b8c4d0; border-radius: 5px; padding: 12px; text-align: center; color: #a0aec0; font-size: 12px; background: #fcfdfe; }
+
+  .btn-primary { display: inline-block; background: #2b6cb0; color: #fff; border-radius: 5px; padding: 7px 20px; font-size: 13px; font-weight: bold; }
+  .btn-gray { display: inline-block; background: #e2e8f0; color: #4a5568; border-radius: 5px; padding: 6px 15px; font-size: 12.5px; }
+  .btn-outline { display: inline-block; border: 1px solid #2b6cb0; color: #2b6cb0; border-radius: 5px; padding: 6px 15px; font-size: 12.5px; }
+  .btn-danger { display: inline-block; background: #c53030; color: #fff; border-radius: 5px; padding: 6px 15px; font-size: 12.5px; }
+  .btn-sm { padding: 4px 11px; font-size: 12px; }
+  .btn[disabled] { opacity: .45; }
+
+  table.wf { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
+  table.wf th { background: #e8edf3; padding: 7px 5px; border: 1px solid #d2dae3; font-weight: bold; white-space: nowrap; }
+  table.wf td { padding: 6px 5px; border: 1px solid #e2e8f0; text-align: center; color: #4a5568; }
+  table.wf td.l { text-align: left; }
+  table.wf tr.hl-row td { background: #fffbea; font-weight: bold; }
+  table.wf tr.win td { background: #f0fff4; font-weight: bold; color: #22543d; }
+  table.wf tr.dim td { color: #a0aec0; }
+
+  .tabbar { display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 11px; }
+  .tabbar span { padding: 7px 16px; font-size: 13px; color: #718096; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  .tabbar span.on { color: #2b6cb0; font-weight: bold; border-bottom-color: #2b6cb0; }
+
+  .pill { display: inline-block; border-radius: 11px; font-size: 10.5px; padding: 2px 9px; }
+  .pill.ok { background: #c6f6d5; color: #22543d; }
+  .pill.warn { background: #feebc8; color: #7b341e; }
+  .pill.err { background: #fed7d7; color: #9b2c2c; }
+  .pill.mut { background: #e2e8f0; color: #718096; }
+  .pill.info { background: #bee3f8; color: #2a4365; }
+
+  .bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+  .bar .t { font-size: 14px; font-weight: bold; }
+  .bar .ops { display: flex; gap: 5px; align-items: center; }
+  .muted { color: #a0aec0; font-size: 11.5px; }
+  .sect-t { font-size: 12px; color: #718096; margin: 10px 0 6px; }
+  .board { background: #1a202c; color: #fff; border-radius: 7px; padding: 20px 24px; }
+  .board h2 { color: #63b3ed; margin-bottom: 12px; letter-spacing: 2px; font-size: 18px; }
+  .kpi { display: flex; gap: 8px; }
+  .kpi .k { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: 8px 13px; }
+  .kpi .k .n { font-size: 19px; font-weight: bold; color: #fff; }
+  .kpi .k .l { font-size: 10.5px; color: #a0aec0; }
+  .num { display: inline-block; background: #e53e3e; color: #fff; font-size: 10.5px; width: 17px; height: 17px; border-radius: 50%; text-align: center; line-height: 17px; margin-right: 4px; font-weight: bold; }
+  .ro { border: 1px dashed #d69e2e; background: #fffff0; border-radius: 6px; padding: 9px 12px; font-size: 12px; color: #7b341e; }
+  .flow { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 12px; }
+  .flow .st { border: 1px solid #b8c4d0; background: #f7fafc; border-radius: 4px; padding: 4px 11px; color: #4a5568; }
+  .flow .st.on { background: #2b6cb0; border-color: #2b6cb0; color: #fff; font-weight: bold; }
+  .flow .st.ok { background: #c6f6d5; border-color: #68d391; color: #22543d; font-weight: bold; }
+  .flow .ar { color: #cbd5e0; }
+
+  /* 目录页 */
+  .toc { max-width: 1180px; margin: 0 auto 48px; }
+  .toc table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .toc th { background: #2b6cb0; color: #fff; padding: 9px 10px; border: 1px solid #2b6cb0; text-align: left; }
+  .toc td { padding: 8px 10px; border: 1px solid #d2dae3; color: #4a5568; }
+  .toc td.n { width: 52px; text-align: center; font-weight: bold; color: #2b6cb0; }
+  .toc td.g { width: 96px; color: #a0aec0; font-size: 12px; }
+  .legend { display: flex; gap: 18px; justify-content: center; margin: 30px auto; font-size: 13px; color: #555; flex-wrap: wrap; }
+  .legend b { color: #2b6cb0; }
+
+  /* ===== 打印 / 导 PDF ===== */
+  /* 每页一个 .page，打印时强制分页；隐藏设备外框阴影与交互提示 */
+  @page { size: A4 landscape; margin: 12mm; }
+  @media print {
+    body { background: #fff; padding: 0; font-size: 11px; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    .sub { margin-bottom: 18px; font-size: 11px; }
+    .page { max-width: none; margin: 0 0 0; page-break-after: always; break-after: page; }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+    .desktop { width: 100%; border: 1.5px solid #555; border-radius: 0; box-shadow: none; }
+    .screen { min-height: 0; }
+    .page-title { font-size: 14px; }
+    .page-desc { font-size: 11px; margin-bottom: 8px; }
+    .note { font-size: 10.5px; padding: 7px 10px; }
+    .no-print { display: none !important; }
+    .toc { page-break-after: always; break-after: page; }
+    table.wf th, table.wf td { padding: 4px 4px; font-size: 10px; }
+    .card { padding: 8px 10px; margin-bottom: 7px; }
+    /* 打印时保色，便于评审时区分状态 */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<h1>赛事统分后台管理 · 页面 Wireframe</h1>
+<div class="sub">
+  BrainCo NeuroMaster 赛事评分系统 · 后台管理端全页面线框　｜　共 14 页，覆盖侧栏全部功能模块　｜　2026-10-04
+</div>
+
+<div class="toc">
+  <table>
+    <tr><th style="width:52px">#</th><th style="width:96px">分组</th><th>页面</th><th>这一页解决什么</th></tr>
+    <tr><td class="n">01</td><td class="g">总览</td><td>开赛就绪度总览</td><td>今天开赛前还差什么，一眼看完</td></tr>
+    <tr><td class="n">02</td><td class="g">赛事</td><td>赛事管理（多赛事 / 隔离 / 归档）</td><td>一场赛事一份数据；状态四态；归档真只读</td></tr>
+    <tr><td class="n">03</td><td class="g">赛事</td><td>跨赛事 · 并行总控</td><td>多场同时办时看全局，不切当前赛事</td></tr>
+    <tr><td class="n">04</td><td class="g">赛事</td><td>跨赛事 · 汇总榜</td><td>同一队伍在多场的表现对照（不做总分排名）</td></tr>
+    <tr><td class="n">05</td><td class="g">赛前</td><td>赛项与规则配置</td><td>任务、分值、评分方式、算分模板、判罚事由</td></tr>
+    <tr><td class="n">06</td><td class="g">赛前</td><td>赛台与赛程编排</td><td>赛台数量、时段、就近分配与改派</td></tr>
+    <tr><td class="n">07</td><td class="g">赛前</td><td>队伍与报名管理</td><td>弃赛软删除、改组、名单导入</td></tr>
+    <tr><td class="n">08</td><td class="g">赛前</td><td>裁判档案与裁判码</td><td>6 位无歧义码 + 赛台绑定（赛事级凭证）</td></tr>
+    <tr><td class="n">09</td><td class="g">赛前</td><td>执裁排班</td><td>赛台 × 时段 × 人</td></tr>
+    <tr><td class="n">10</td><td class="g">赛中</td><td>裁判打分</td><td>按评分方式渲染控件；签字；改分申请</td></tr>
+    <tr><td class="n">11</td><td class="g">赛中</td><td>实时榜单</td><td>两轮取优 → 加权 → 加分 → 扣牌 → 名次 → 奖项</td></tr>
+    <tr><td class="n">12</td><td class="g">赛中</td><td>大屏展示</td><td>分页轮播、脱敏、置顶锁屏、锁定赛事</td></tr>
+    <tr><td class="n">13</td><td class="g">赛中</td><td>处理进度看板</td><td>告警收件箱 + 台账（纯只读）</td></tr>
+    <tr><td class="n">14</td><td class="g">赛后</td><td>锁定与发布（含资格递补）</td><td>成绩锁 + 配置锁双锁；解锁必填原因</td></tr>
+    <tr><td class="n">15</td><td class="g">赛后</td><td>留底证据库</td><td>成绩 / 工单 / 裁定证据留存与补传</td></tr>
+    <tr><td class="n">16</td><td class="g">赛后</td><td>合规 · 角色权限</td><td>权限矩阵 + 越权尝试同样留痕</td></tr>
+  </table>
+  <div class="no-print" style="margin-top:14px;font-size:13px;color:#888">
+    打印方式：浏览器 <b>Ctrl/Cmd + P</b> → 目标「另存为 PDF」→ 纸张 <b>A4 横向</b> → 勾选「背景图形」。已内置 <code>@page</code> 与 <code>@media print</code>，每页自动分页。
+  </div>
+</div>
+
+<!-- ============ 01 总览 ============ -->
+<div class="page">
+  <div class="page-title">01 · 总览：开赛就绪度</div>
+  <div class="page-desc">运营打开系统的第一屏 —— 今天开赛前还差什么。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item active">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div>
+      <div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div>
+      <div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div>
+      <div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div>
+      <div class="item">实时榜单</div>
+      <div class="item">大屏展示</div>
+      <div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div>
+      <div class="item">留底证据库</div>
+      <div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left">
+          <span style="font-weight:bold">赛事统分后台管理</span>
+          <span class="sel">2026 WRC 中国区总决赛 ▾</span>
+          <span class="pill info">进行中</span>
+        </div>
+        <div class="who">值守人：李佳朗　｜　管理员</div>
+      </div>
+
+      <div class="grid4" style="margin-bottom:10px">
+        <div class="fld"><div class="lb">赛项</div><div class="vl">3 / 3 已配置</div></div>
+        <div class="fld"><div class="lb">参赛队伍</div><div class="vl">24 队</div></div>
+        <div class="fld"><div class="lb">赛台</div><div class="vl">6 个</div></div>
+        <div class="fld"><div class="lb">待公示赛项</div><div class="vl" style="color:#c05621">2 个</div></div>
+      </div>
+
+      <div class="card">
+        <div class="bar"><div class="t">开赛就绪度</div><div class="muted">未就绪 2 项</div></div>
+        <table class="wf">
+          <tr><th style="width:120px">环节</th><th>状态</th><th style="width:70%">缺什么</th><th style="width:150px">操作</th></tr>
+          <tr><td class="l">赛项规则</td><td><span class="pill ok">就绪</span></td><td class="l">3 个赛项均已配置任务与判罚事由</td><td class="muted">—</td></tr>
+          <tr><td class="l">赛台赛程</td><td><span class="pill ok">就绪</span></td><td class="l">6 赛台 × 3 时段已排满</td><td class="muted">—</td></tr>
+          <tr><td class="l">裁判排班</td><td><span class="pill warn">待补</span></td><td class="l">脑机星球 第 2 时段缺 1 名裁判</td><td><span class="btn-outline btn-sm">去排班</span></td></tr>
+          <tr class="hl-row"><td class="l">队伍报名</td><td><span class="pill err">阻塞</span></td><td class="l">未来之城 有 2 队未确认到场</td><td><span class="btn-outline btn-sm">去处理</span></td></tr>
+          <tr><td class="l">裁判码激活</td><td><span class="pill ok">就绪</span></td><td class="l">18 / 18 已首登激活</td><td class="muted">—</td></tr>
+        </table>
+      </div>
+
+      <div class="grid2">
+        <div class="card tight">
+          <div class="bar"><div class="t" style="font-size:13px">赛项状态</div></div>
+          <table class="wf">
+            <tr><th>赛项</th><th>录入</th><th>签字</th><th>状态</th></tr>
+            <tr><td class="l">脑机星球</td><td>24/24</td><td>24/24</td><td><span class="pill ok">已完成</span></td></tr>
+            <tr><td class="l">火星救援</td><td>24/24</td><td>21/24</td><td><span class="pill warn">进行中</span></td></tr>
+            <tr class="dim"><td class="l">未来之城</td><td>0/22</td><td>0/22</td><td><span class="pill mut">未开始</span></td></tr>
+          </table>
+        </div>
+        <div class="card tight">
+          <div class="bar"><div class="t" style="font-size:13px">待办公示</div><span class="pill mut">2</span></div>
+          <table class="wf">
+            <tr><th>赛事</th><th>赛项</th><th>原因</th></tr>
+            <tr><td class="l">WRC 中国区总决赛</td><td class="l">火星救援</td><td class="l"><span class="pill warn">3 队未签字</span></td></tr>
+            <tr><td class="l">WRC 中国区总决赛</td><td class="l">未来之城</td><td class="l"><span class="pill mut">待公布</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>就绪度是「阻塞项」视角，不是「完成度」视角。</b>运营关心的是「现在能不能开赛」，
+    所以每行都带一个直达按钮（<span class="btn-outline btn-sm">去排班</span>）——
+    点了直接跳到缺的那一屏，不让运营自己找。<br>
+    <b>总览只读</b>：这里不放任何写操作，避免「在总览上顺手改了点什么」导致状态漂移。
+  </div>
+</div>
+
+<!-- ============ 02 赛事管理 ============ -->
+<div class="page">
+  <div class="page-title">02 · 赛事管理：多赛事隔离与归档</div>
+  <div class="page-desc">一场赛事一份独立数据空间；状态四态；归档是真只读而非提示。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item active">赛事管理</div>
+      <div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="bar">
+        <div class="t">赛事清单</div>
+        <div class="ops"><span class="sel">全部状态 ▾</span><span class="btn-primary btn-sm">+ 新建赛事</span></div>
+      </div>
+      <table class="wf">
+        <tr><th style="width:36px">#</th><th>赛事名称</th><th style="width:88px">状态</th><th style="width:76px">赛期</th><th style="width:66px">赛项</th><th style="width:56px">队伍</th><th style="width:86px">值守人</th><th style="width:150px">操作</th></tr>
+        <tr class="hl-row"><td>1</td><td class="l">2026 WRC 中国区总决赛</td><td><span class="pill ok">进行中</span></td><td>10/02–10/03</td><td>3</td><td>24</td><td>李佳朗</td><td><span class="btn-outline btn-sm">编辑</span> <span class="btn-gray btn-sm">归档</span></td></tr>
+        <tr><td>2</td><td class="l">2026 WRC 衢州选拔赛</td><td><span class="pill info">筹备中</span></td><td>11/15–11/16</td><td>3</td><td>18</td><td>李佳朗 / 王晨</td><td><span class="btn-outline btn-sm">编辑</span> <span class="btn-gray btn-sm">归档</span></td></tr>
+        <tr><td>3</td><td class="l">2025 WRC 中国区总决赛</td><td><span class="pill mut">已结束</span></td><td>2025/10/01</td><td>3</td><td>22</td><td>李佳朗</td><td><span class="btn-gray btn-sm" disabled>编辑</span> <span class="btn-gray btn-sm">归档</span></td></tr>
+        <tr class="dim"><td>4</td><td class="l">2025 WRC 上海站</td><td><span class="pill mut">已归档</span></td><td>2025/07/12</td><td>3</td><td>20</td><td>王晨</td><td><span class="btn-gray btn-sm" disabled>编辑</span> <span class="btn-gray btn-sm" disabled>归档</span></td></tr>
+      </table>
+
+      <div class="card">
+        <div class="bar"><div class="t" style="font-size:13px">新建赛事 · 勾选本次要办的赛项</div></div>
+        <div class="grid3" style="margin-bottom:9px">
+          <div class="fld"><div class="lb">赛事名称 *</div><div class="vl">2026 WRC 华东区选拔赛</div></div>
+          <div class="fld"><div class="lb">赛期</div><div class="vl">12/12 – 12/13</div></div>
+          <div class="fld"><div class="lb">场馆</div><div class="vl">上海国际会议中心</div></div>
+        </div>
+        <div class="sect-t">选择赛项（勾选即带入该赛项完整规则）</div>
+        <div class="grid3">
+          <div class="card tight" style="border-color:#2b6cb0;background:#ebf4ff;margin:0">
+            <div style="font-weight:bold;font-size:13px">☑ 脑机星球 <span class="pill info">V6.2</span></div>
+            <div class="muted">组别：小学 / 初中　·　任务 2 项</div>
+          </div>
+          <div class="card tight" style="border-color:#2b6cb0;background:#ebf4ff;margin:0">
+            <div style="font-weight:bold;font-size:13px">☑ 火星救援 <span class="pill info">V6.2</span></div>
+            <div class="muted">组别：小学 / 初中　·　任务 3 项</div>
+          </div>
+          <div class="card tight" style="margin:0;opacity:.55">
+            <div style="font-weight:bold;font-size:13px">☐ 未来之城 <span class="pill mut">V7.3</span></div>
+            <div class="muted">组别：初中　·　双队对抗　·　2 阶段</div>
+          </div>
+        </div>
+        <div class="bar" style="margin-top:10px;margin-bottom:0">
+          <span class="muted">已勾选 2 个赛项 · 赛程表将只包含这 2 个</span>
+          <div class="ops"><span class="btn-gray">取消</span><span class="btn-primary">创建</span></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>隔离：一场赛事一份数据空间</b>，不是给每张表加 <code>contestId</code> 列，而是整体换存储 key。
+    好处是所有既有视图（打分 / 榜单 / 大屏 / 工单 / 留底 / 审计）<b>零改动即天然隔离</b>。<br>
+    <b>归档是真只读</b>：归档行的按钮是 disabled 态而非「点了提示一下」，
+    写入接口层另有 403 硬拦 —— 只禁用按钮等于没锁。<br>
+    <b>新建赛事默认勾选全部赛项</b>，勾选后带入完整规则（任务 / 分值 / 判罚事由 / 争议类型），
+    赛程表只保留被勾选赛项的分台，避免出现指向不存在赛项的场次。
+  </div>
+</div>
+
+<!-- ============ 03 并行总控 ============ -->
+<div class="page">
+  <div class="page-title">03 · 跨赛事 · 并行总控</div>
+  <div class="page-desc">多场同时办时的只读汇总 —— <b>不切换当前赛事</b>。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div>
+      <div class="item active">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span>
+          <span class="sel">2026 WRC 中国区总决赛 ▾</span>
+          <span class="pill mut">当前赛事未变</span>
+        </div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="tabbar"><span class="on">并行总控</span><span>跨赛事汇总榜</span></div>
+      <div class="bar"><div class="t">全部赛事（3 场）</div><div class="ops"><span class="sel">近 7 天 ▾</span></div></div>
+      <table class="wf">
+        <tr><th>赛事</th><th style="width:76px">状态</th><th style="width:60px">赛期</th><th style="width:52px">赛项</th><th style="width:52px">队伍</th><th style="width:60px">裁判</th><th style="width:100px">值守冲突</th><th style="width:80px">公示</th></tr>
+        <tr><td class="l">2026 WRC 中国区总决赛</td><td><span class="pill ok">进行中</span></td><td>10/02–10/03</td><td>3</td><td>24</td><td>18</td><td class="muted">—</td><td><span class="pill mut">未开始</span></td></tr>
+        <tr class="hl-row"><td class="l">2026 WRC 衢州选拔赛</td><td><span class="pill info">筹备中</span></td><td>11/15–11/16</td><td>3</td><td>18</td><td>12</td><td><span class="pill warn">王晨 2 场重叠</span></td><td><span class="pill mut">未开始</span></td></tr>
+        <tr><td class="l">2025 WRC 中国区总决赛</td><td><span class="pill mut">已结束</span></td><td>2025/10/01</td><td>3</td><td>22</td><td>15</td><td class="muted">—</td><td><span class="pill ok">已发布</span></td></tr>
+      </table>
+      <div class="ro">
+        <b>⚠ 值守冲突：</b>王晨 在「衢州选拔赛」与「2026 华东选拔赛」的执裁时段重叠
+        <span class="muted">（2026-11-15 13:00–15:00）</span>
+        　<span class="btn-outline btn-sm">查看并改派</span>
+      </div>
+      <div class="card tight" style="margin-top:10px">
+        <div class="bar" style="margin:0"><div class="t" style="font-size:13px">跨实例排班冲突</div><span class="pill err">1 处</span></div>
+        <table class="wf" style="margin:7px 0 0">
+          <tr><th>冲突人</th><th>赛事 A</th><th>时段 A</th><th>赛事 B</th><th>时段 B</th></tr>
+          <tr class="hl-row"><td>王晨</td><td class="l">衢州选拔赛</td><td>11/15 13:00–15:00</td><td class="l">华东区选拔赛</td><td>11/15 13:00–15:00</td></tr>
+        </table>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>这一页不切当前赛事。</b>顶栏下拉仍显示「2026 WRC 中国区总决赛」——
+    运营在看别场时，<b>切走当前赛事会导致大屏跟着切</b>，这是真实事故。
+    所以顶栏特意标了「当前赛事未变」。<br>
+    <b>赛期重叠只提示不拦截</b>：两场同期办赛是完全正常的业务，拦住等于不让开赛。
+    但要看得见——所以冲突用 <span class="pill warn">王晨 2 场重叠</span> 直接标在行上。
+  </div>
+</div>
+
+<!-- ============ 04 跨赛事汇总榜 ============ -->
+<div class="page">
+  <div class="page-title">04 · 跨赛事 · 汇总榜</div>
+  <div class="page-desc">同一支队伍在多场的表现对照 —— <b>刻意不做跨赛事总分排名</b>。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item active">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="tabbar"><span>并行总控</span><span class="on">跨赛事汇总榜</span></div>
+      <div class="bar"><div class="t">队伍跨赛事成绩对照</div><div class="ops"><span class="sel">全部组别 ▾</span><span class="sel">2025–2026 ▾</span></div></div>
+      <table class="wf">
+        <tr><th>队伍</th><th>学校</th><th style="width:66px">参赛场次</th><th style="width:66px">最佳名次</th><th style="width:74px">平均总分</th><th>各场明细</th></tr>
+        <tr class="hl-row"><td class="l"><b>追光队</b></td><td class="l">杭州外国语</td><td>3</td><td><b>1</b></td><td>186.4</td><td class="l">2026 总决赛 <span class="pill ok">1</span>　2026 衢州 <span class="pill ok">1</span>　2025 总决赛 <span class="pill info">2</span></td></tr>
+        <tr><td class="l">晨曦队</td><td class="l">上海中学</td><td>2</td><td>2</td><td>171.2</td><td class="l">2026 总决赛 <span class="pill info">2</span>　2025 总决赛 <span class="pill info">3</span></td></tr>
+        <tr><td class="l">星河队</td><td class="l">北京四中</td><td>2</td><td>4</td><td>163.8</td><td class="l">2026 总决赛 <span class="pill mut">5</span>　2026 衢州 <span class="pill info">4</span></td></tr>
+        <tr><td class="l">拓源队</td><td class="l">深圳实验</td><td>1</td><td>7</td><td>142.1</td><td class="l">2026 衢州 <span class="pill warn">7</span></td></tr>
+      </table>
+      <div class="note" style="margin-top:10px">
+        <b>① 不做跨赛事总分排名。</b>不同赛事的赛制、难度、权重都不同，总分不可比。
+        硬排一个「总榜」是好看但错误的 —— 所以本表只按「参赛场次 → 最佳名次 → 平均分」排序，
+        只回答「谁参加过哪几场、各场表现如何」。<br>
+        <b>② 队名 + 学校 近似归并</b>，跨场严格身份需要 `team_uid`。<br>
+        <b>③ 各场名次都是「该场当时的官方名次」</b>：已剔除取消资格的队伍、按该场递补规则算，与各场公示一致。
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>这一页存在的意义是「不排名」。</b>如果哪天有人要求「给我一个跨赛事的总排名」，
+    正确答案是做不到 —— 而不是做个看起来能用的表。这条约束写在 note 里，避免后续被当成待办做掉。
+  </div>
+</div>
+
+<!-- ============ 05 赛项与规则 ============ -->
+<div class="page">
+  <div class="page-title">05 · 赛项与规则配置</div>
+  <div class="page-desc">任务、分值、评分方式、算分模板、判罚事由 —— 规则配置的唯一入口。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item active">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="tabbar"><span class="on">脑机星球 V6.2</span><span>火星救援 V6.2</span><span>未来之城 V7.3</span></div>
+      <div class="bar"><div class="t">任务与分值</div><div class="ops"><span class="muted">配置版本 SN-4</span><span class="btn-gray btn-sm">查看快照</span><span class="btn-primary btn-sm">保存到后端</span></div></div>
+      <table class="wf">
+        <tr><th style="width:40px">#</th><th>任务</th><th style="width:96px">评分方式</th><th style="width:88px">满分</th><th>计分说明</th><th style="width:80px">操作</th></tr>
+        <tr><td>1</td><td class="l">专注力任务</td><td>数值型</td><td>100</td><td class="l">裁判直接录入 0–100</td><td><span class="btn-outline btn-sm">编辑</span></td></tr>
+        <tr><td>2</td><td class="l">搭建任务</td><td>数值型</td><td>100</td><td class="l">裁判直接录入 0–100</td><td><span class="btn-outline btn-sm">编辑</span></td></tr>
+      </table>
+      <div class="grid2" style="margin-top:10px">
+        <div class="card tight">
+          <div class="bar" style="margin:0 0 7px"><div class="t" style="font-size:13px">加分规则</div><span class="btn-outline btn-sm">+ 添加</span></div>
+          <table class="wf" style="margin:0">
+            <tr><th>类型</th><th>参数</th><th>封顶</th></tr>
+            <tr><td class="l">用时奖励</td><td>每少 1 秒 +1 分</td><td>≤ 20 分</td></tr>
+            <tr><td class="l">计数奖励</td><td>每完成 1 次 +5 分</td><td>—</td></tr>
+          </table>
+        </div>
+        <div class="card tight">
+          <div class="bar" style="margin:0 0 7px"><div class="t" style="font-size:13px">算分模板</div></div>
+          <div class="flow" style="margin-bottom:7px">
+            <span class="st ok">直接求和</span><span class="ar">▸</span>
+            <span class="st">加权求和</span><span class="ar">▸</span>
+            <span class="st">平均值</span>
+          </div>
+          <div class="muted">当前：直接求和（各任务得分相加）</div>
+        </div>
+      </div>
+      <div class="card tight" style="margin-top:10px">
+        <div class="bar" style="margin:0 0 7px"><div class="t" style="font-size:13px">判罚事由（黄牌 / 红牌）</div><span class="btn-outline btn-sm">+ 添加</span></div>
+        <table class="wf" style="margin:0">
+          <tr><th style="width:64px">牌面</th><th>事由</th><th style="width:66px">扣分</th></tr>
+          <tr><td><span class="pill warn">黄牌</span></td><td class="l">恶意撞击能源轨道</td><td>−5</td></tr>
+          <tr><td><span class="pill err">红牌</span></td><td class="l">严重违反安全规则</td><td>−20</td></tr>
+          <tr><td><span class="pill warn">黄牌</span></td><td class="l">不听从裁判指示</td><td>−5</td></tr>
+        </table>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>改规则必须先留快照。</b>右上「查看快照」对应配置快照表 ——
+    出了「为什么昨天算出来是 180 分今天变 190 分」这种问题，能翻回 SN-3 现场对比。<br>
+    <b>配置与数据分离</b>：这一页只改规则，不含任何队伍与成绩。
+    改分只能通过改分申请走审批，不能在这里动。<br>
+    <b>「保存到后端」是手动触发</b>，不自动 —— 改配置是高危操作，应由运营确认后再上行。
+  </div>
+</div>
+
+<!-- ============ 06 赛台与赛程 ============ -->
+<div class="page">
+  <div class="page-title">06 · 赛台与赛程编排</div>
+  <div class="page-desc">赛台数量可配；赛台 × 时段编排；就近自动分配 + 手动改派。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item active">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="bar"><div class="t">赛台（6 个）</div><div class="ops"><span class="sel">脑机星球 ▾</span><span class="sel">全部时段 ▾</span></div></div>
+      <table class="wf">
+        <tr><th style="width:60px">赛台</th><th>第 1 时段 09:00–10:00</th><th>第 2 时段 10:15–11:15</th><th>第 3 时段 13:00–14:00</th><th style="width:96px">操作</th></tr>
+        <tr><td class="l"><b>赛台 1</b></td><td>01 追光队</td><td>04 星河队</td><td class="muted">—</td><td><span class="btn-outline btn-sm">改派</span></td></tr>
+        <tr><td class="l"><b>赛台 2</b></td><td>02 晨曦队</td><td>05 拓源队</td><td class="muted">—</td><td><span class="btn-outline btn-sm">改派</span></td></tr>
+        <tr><td class="l"><b>赛台 3</b></td><td>03 辰星队</td><td class="hl-row" style="background:#fffbea">07 云帆队</td><td class="muted">—</td><td><span class="btn-outline btn-sm">改派</span></td></tr>
+        <tr><td class="l"><b>赛台 4</b></td><td class="muted">—</td><td>08 砚山队</td><td class="muted">—</td><td><span class="btn-outline btn-sm">改派</span></td></tr>
+      </table>
+      <div class="card" style="margin-top:10px">
+        <div class="bar"><div class="t" style="font-size:13px">按编号就近均分</div></div>
+        <table class="wf">
+          <tr><th style="width:30px">☑</th><th>队伍</th><th style="width:80px">编号</th><th style="width:100px">原分台</th><th style="width:100px">新分台</th></tr>
+          <tr><td>☑</td><td class="l">追光队</td><td>01</td><td>赛台 1</td><td><b>赛台 1</b></td></tr>
+          <tr><td>☑</td><td class="l">晨曦队</td><td>02</td><td>赛台 2</td><td><b>赛台 2</b></td></tr>
+          <tr><td>☑</td><td class="l">辰星队</td><td>03</td><td>赛台 3</td><td><b>赛台 3</b></td></tr>
+          <tr><td>☑</td><td class="l">星河队</td><td>04</td><td>赛台 1</td><td><b>赛台 4</b></td></tr>
+          <tr class="dim"><td>☐</td><td class="l">拓源队</td><td>05</td><td>赛台 2</td><td class="muted">（未勾选，保持原分台）</td></tr>
+        </table>
+        <div class="bar" style="margin:9px 0 0">
+          <span class="muted">已勾选 4 队 · 按编号 round-robin 铺到各赛台</span>
+          <div class="ops"><span class="btn-gray">全部按人数均分</span><span class="btn-primary">应用勾选</span></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>「勾选均分」而不是「一键全分」</b>：现场经常是「先分 4 队试跑，其他队等裁判长定」，
+    一键全分会把已经排好的场次冲掉。未勾选的队伍<b>明确标注「保持原分台」</b>，不让运营猜。<br>
+    <b>就近分配的排序依据目前是队伍编号</b>，真实赛制应以 WRC 叫号表为序（尚未接入）——
+    运营可随时手动改派，这是兜底。
+  </div>
+</div>
+
+<!-- ============ 07 队伍与报名 ============ -->
+<div class="page">
+  <div class="page-title">07 · 队伍与报名管理</div>
+  <div class="page-desc">弃赛软删除、改组、WRC 报名导入（自研 .xlsx 解析）。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item active">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="tabbar"><span class="on">队伍管理</span><span>WRC 报名导入</span></div>
+      <div class="bar"><div class="t">队伍（24）</div><div class="ops"><span class="sel">全部组别 ▾</span><span class="sel">全部状态 ▾</span><span class="btn-gray btn-sm">+ 新增队伍</span></div></div>
+      <table class="wf">
+        <tr><th style="width:40px">#</th><th>队伍</th><th>学校</th><th style="width:74px">组别</th><th style="width:110px">成员</th><th style="width:66px">状态</th><th style="width:120px">操作</th></tr>
+        <tr><td>01</td><td class="l">追光队</td><td class="l">杭州外国语</td><td>初中组</td><td class="muted">3 人</td><td><span class="pill ok">正常</span></td><td><span class="btn-outline btn-sm">改组</span> <span class="btn-gray btn-sm">弃赛</span></td></tr>
+        <tr><td>02</td><td class="l">晨曦队</td><td class="l">上海中学</td><td>初中组</td><td class="muted">3 人</td><td><span class="pill ok">正常</span></td><td><span class="btn-outline btn-sm">改组</span> <span class="btn-gray btn-sm">弃赛</span></td></tr>
+        <tr class="hl-row"><td>03</td><td class="l">辰星队</td><td class="l">杭州学军</td><td>小学组</td><td class="muted">2 人</td><td><span class="pill warn">待确认到场</span></td><td><span class="btn-outline btn-sm">改组</span> <span class="btn-gray btn-sm">弃赛</span></td></tr>
+        <tr class="dim"><td>19</td><td class="l">青竹队</td><td class="l">南京三小</td><td>小学组</td><td class="muted">3 人</td><td><span class="pill mut">已弃赛</span></td><td><span class="btn-outline btn-sm" disabled>改组</span></td></tr>
+      </table>
+
+      <div class="card" style="margin-top:10px">
+        <div class="bar"><div class="t" style="font-size:13px">WRC 报名导入 · 变更比对</div><span class="muted">2026WRC_报名总表.xlsx</span></div>
+        <table class="wf" style="margin:0">
+          <tr><th>比对结果</th><th style="width:70px">条数</th><th>处理</th></tr>
+          <tr class="win"><td class="l">新增队伍</td><td>2</td><td class="l"><span class="btn-primary btn-sm">入库</span></td></tr>
+          <tr><td class="l">组别变更</td><td>1</td><td class="l"><span class="btn-outline btn-sm">确认改组</span></td></tr>
+          <tr><td class="l">冲突（编号已存在但校名不同）</td><td>1</td><td class="l"><span class="btn-danger btn-sm">需人工裁决</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>弃赛是软删除</b>：队伍行仍在（行尾置灰），不是物理移除。
+    因为已产生的成绩要能追溯 —— 物理删了就看不出「这个名次原本有谁」。<br>
+    <b>导入必须先比对再入库</b>，不能直接覆盖。冲突行（<span class="btn-danger btn-sm">需人工裁决</span>）
+    单独拎出来：编号已存在但校名不同，多半是「去年队伍换人报名」或「两场撞号」，机器不该替人决定。<br>
+    <b>零依赖 .xlsx 解析</b>：ZIP central directory + `DecompressionStream('deflate-raw')` + XML 扫描，
+    不引第三方库，从源头消除解析库的攻击面。
+  </div>
+</div>
+
+<!-- ============ 08 裁判档案与裁判码 ============ -->
+<div class="page">
+  <div class="page-title">08 · 裁判档案与裁判码</div>
+  <div class="page-desc">6 位无歧义字符 + 赛台绑定（赛事级凭证）。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div>
+      <div class="item active">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="tabbar"><span class="on">裁判档案</span><span>执裁排班</span></div>
+      <div class="bar"><div class="t">裁判（18）</div><div class="ops"><span class="btn-gray btn-sm">批量发码</span><span class="btn-primary btn-sm">+ 新增裁判</span></div></div>
+      <table class="wf">
+        <tr><th style="width:40px">#</th><th>姓名</th><th>裁判码</th><th style="width:120px">绑定赛台</th><th style="width:90px">状态</th><th style="width:80px">激活</th></tr>
+        <tr><td>1</td><td class="l">张裁判</td><td><b style="letter-spacing:2px">K7M2XQ</b></td><td class="l">赛台 1–2</td><td><span class="pill ok">在岗</span></td><td><span class="pill ok">已激活</span></td></tr>
+        <tr><td>2</td><td class="l">李裁判</td><td><b style="letter-spacing:2px">P4R8WD</b></td><td class="l">赛台 3</td><td><span class="pill ok">在岗</span></td><td><span class="pill ok">已激活</span></td></tr>
+        <tr class="hl-row"><td>3</td><td class="l">王裁判</td><td><b style="letter-spacing:2px">T9H3ZL</b></td><td class="l">赛台 4–6</td><td><span class="pill ok">在岗</span></td><td><span class="pill warn">未激活</span></td></tr>
+        <tr class="dim"><td>18</td><td class="l">赵裁判</td><td class="muted">（未发码）</td><td class="l">—</td><td><span class="pill mut">缺席</span></td><td><span class="pill mut">—</span></td></tr>
+      </table>
+      <div class="card" style="margin-top:10px">
+        <div class="bar" style="margin:0 0 8px"><div class="t" style="font-size:13px">裁判码字符集（刻意排除易混字符）</div></div>
+        <div style="font-size:14px;letter-spacing:4px;color:#2b6cb0;font-weight:bold">
+          0 1 2 3 4 5 6 7 8 9 A B C D E F G H J K L M N P Q R S T U V W X Y Z
+        </div>
+        <div class="muted" style="margin-top:5px">排除 I / O / 0 / 1 —— 现场手抄与口述时最常混淆的四个字符</div>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>裁判码是「赛事级凭证」</b>：换赛事必须重新建档发码，<b>旧码在新赛事无效</b>。
+    否则一个裁判能拿旧赛事的码去新赛事打分，越权且难追。<br>
+    <b>6 位 + 排除易混字符</b>：裁判在现场要手抄 / 口述，「0 与 O」「1 与 I」混淆是真实事故来源。<br>
+    <b>激活状态单独一列</b>：发码 ≠ 激活。裁判码首登联网激活后，平板端才有离线登录资格。
+  </div>
+</div>
+
+<!-- ============ 09 执裁排班 ============ -->
+<div class="page">
+  <div class="page-title">09 · 执裁排班（赛台 × 时段 × 人）</div>
+  <div class="page-desc">排班矩阵；冲突可见；缺岗直接暴露给总览。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div>
+      <div class="item active">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="tabbar"><span>裁判档案</span><span class="on">执裁排班</span></div>
+      <div class="bar"><div class="t">脑机星球 · 10/02 排班</div><div class="ops"><span class="sel">全部时段 ▾</span><span class="btn-gray btn-sm">自动补位</span><span class="btn-primary btn-sm">保存排班</span></div></div>
+      <table class="wf">
+        <tr><th style="width:92px">时段 \ 赛台</th><th>赛台 1</th><th>赛台 2</th><th>赛台 3</th><th>赛台 4</th><th>赛台 5</th><th>赛台 6</th></tr>
+        <tr><td class="l"><b>09:00–10:00</b></td><td>张裁判</td><td>李裁判</td><td>王裁判</td><td>赵裁判</td><td>陈裁判</td><td>刘裁判</td></tr>
+        <tr><td class="l"><b>10:15–11:15</b></td><td>张裁判</td><td>李裁判</td><td>王裁判</td><td>赵裁判</td><td>陈裁判</td><td class="hl-row" style="background:#fffbea;color:#c05621">缺岗</td></tr>
+        <tr><td class="l"><b>13:00–14:00</b></td><td>李裁判</td><td>王裁判</td><td>赵裁判</td><td>陈裁判</td><td>刘裁判</td><td>张裁判</td></tr>
+        <tr><td class="l"><b>14:15–15:15</b></td><td>李裁判</td><td>王裁判</td><td>赵裁判</td><td>陈裁判</td><td>刘裁判</td><td class="muted">—</td></tr>
+      </table>
+      <div class="ro" style="margin-top:9px">
+        <b>⚠ 缺岗：</b>赛台 6 · 10:15–11:15 无裁判
+        　<span class="btn-outline btn-sm">自动补位（候选 3 人）</span>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>矩阵视角</b>（行=时段、列=赛台）比列表更容易看出「同一个裁判连场」和「某时段大面积空缺」。<br>
+    <b>缺岗用红字「缺岗」而不是留空</b>：留空会被当成「这场没安排」，红字才会被当成问题。
+    这条缺岗会同步到总览的「开赛就绪度」并带直达按钮。
+  </div>
+</div>
+
+<!-- ============ 10 裁判打分 ============ -->
+<div class="page">
+  <div class="page-title">10 · 裁判打分（后台侧只读视图）</div>
+  <div class="page-desc">后台看的是<b>状态</b>；实际打分在平板端完成。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item active">裁判打分</div>
+      <div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="bar"><div class="t">打分进度 · 脑机星球</div><div class="ops"><span class="sel">第 1 轮 ▾</span><span class="muted">录入 24 / 24　签字 24 / 24</span></div></div>
+      <table class="wf">
+        <tr><th style="width:40px">#</th><th>队伍</th><th style="width:70px">专注力</th><th style="width:70px">搭建</th><th style="width:70px">用时</th><th style="width:56px">黄牌</th><th style="width:56px">红牌</th><th style="width:80px">总分</th><th style="width:76px">签字</th><th style="width:64px">操作人</th></tr>
+        <tr class="win"><td>01</td><td class="l">追光队</td><td>88</td><td>96</td><td>96s</td><td>0</td><td>0</td><td><b>1920.0</b></td><td><span class="pill ok">已签</span></td><td class="muted">张裁判</td></tr>
+        <tr><td>02</td><td class="l">晨曦队</td><td>91</td><td>90</td><td>88s</td><td>0</td><td>0</td><td><b>1910.0</b></td><td><span class="pill ok">已签</span></td><td class="muted">张裁判</td></tr>
+        <tr class="hl-row"><td>03</td><td class="l">辰星队</td><td>76</td><td>81</td><td>104s</td><td>1</td><td>0</td><td><b>1566.0</b></td><td><span class="pill warn">待签</span></td><td class="muted">李裁判</td></tr>
+        <tr class="dim"><td>19</td><td class="l">青竹队</td><td colspan="7" class="muted">已弃赛 · 无成绩</td><td><span class="pill mut">—</span></td><td class="muted">—</td></tr>
+      </table>
+      <div class="ro" style="margin-top:9px">
+        <b>已签字的成绩不允许直接改。</b>需由裁判发起「改分申请」，裁判长授权后才可修改，
+        且修改前后分数、操作人、审批人全部留痕。
+        　<span class="btn-outline btn-sm">查看待审批（1）</span>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>后台这一页刻意不给打分控件</b>：打分是平板端裁判的职责，
+    后台能改分就等于「谁都能改分」。<br>
+    <b>「已签」是硬边界</b>：已签字的成绩走改分审批通道；
+    这是「裁判提交后禁止直接改分」在代码层面的体现 —— 不只靠界面禁用，而是 service 层硬拦。
+  </div>
+</div>
+
+<!-- ============ 11 实时榜单 ============ -->
+<div class="page">
+  <div class="page-title">11 · 实时榜单</div>
+  <div class="page-desc">两轮取优 → 加权计分 → 加分 → 扣牌 → 排名 → 奖项分配。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div>
+      <div class="item active">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="bar"><div class="t">实时榜单 · 脑机星球</div><div class="ops"><span class="sel">全部组别 ▾</span><span class="sel">含未签字 ▾</span></div></div>
+      <div class="tabbar"><span class="on">小学组</span><span>初中组</span></div>
+      <table class="wf">
+        <tr><th style="width:50px">名次</th><th style="width:150px">队伍</th><th style="width:70px">基础分</th><th style="width:62px">加分</th><th style="width:80px">判罚</th><th style="width:78px">总分</th><th style="width:66px">用时</th><th style="width:66px">取优轮</th><th>奖项</th></tr>
+        <tr class="win"><td><b>1</b></td><td class="l">追光队</td><td>1920.0</td><td>+18</td><td>0</td><td><b>1938.0</b></td><td>96s</td><td class="muted">第 1 轮</td><td><span class="pill ok">一等奖</span></td></tr>
+        <tr><td><b>2</b></td><td class="l">晨曦队</td><td>1910.0</td><td>+16</td><td>0</td><td><b>1926.0</b></td><td>88s</td><td class="muted">第 1 轮</td><td><span class="pill info">二等奖</span></td></tr>
+        <tr><td><b>3</b></td><td class="l">星河队</td><td>1540.0</td><td>+12</td><td>−5</td><td><b>1547.0</b></td><td>112s</td><td class="muted">第 2 轮</td><td><span class="pill warn">三等奖</span></td></tr>
+        <tr class="dim"><td>4</td><td class="l">辰星队</td><td>1571.0</td><td>+0</td><td>−5</td><td><b>1566.0</b></td><td>104s</td><td class="muted">第 1 轮</td><td class="muted">—</td></tr>
+        <tr class="dim"><td>—</td><td class="l">破晓队</td><td>0</td><td>0</td><td>0</td><td><b>0.0</b></td><td class="muted">—</td><td class="muted">未完成</td><td class="muted">—</td></tr>
+      </table>
+      <div class="card tight" style="margin-top:10px">
+        <div class="muted">
+          <b>取优规则</b>：两轮取总分较高的一轮为有效成绩，同分取用时较少者。<br>
+          <b>奖项口径</b>：名额 = <code>floor(本组队伍数 × 占比)</code>，每档保底 1 个；
+          <b>未完成全部任务录入的队伍保留名次但不占名额</b>（第 4 名辰星队、第 5 名破晓队因此无奖）。
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>「保留名次但不占名额」是这个页面的关键口径。</b>
+    未完成录入的队伍排在第 4、第 5 名，但不出现在获奖名单里 ——
+    避免「一场没比的队伍也拿三等奖」。<br>
+    <b>「取优轮」必须显式展示</b>：两轮取优意味着同队可能用第 2 轮成绩。
+    不告诉运营取的是哪轮，遇到「我明明第 1 轮更高怎么没用」必然来问。
+  </div>
+</div>
+
+<!-- ============ 12 大屏展示 ============ -->
+<div class="page">
+  <div class="page-title">12 · 大屏展示</div>
+  <div class="page-desc">分页轮播、姓名脱敏、置顶锁屏、锁定赛事。</div>
+  <div class="desktop"><div class="screen" style="flex-direction:column">
+    <div class="appbar" style="margin:-14px -14px 12px">
+      <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+      <div class="who">值守人：李佳朗</div>
+    </div>
+    <div class="bar">
+      <div class="t">大屏预览</div>
+      <div class="ops">
+        <span class="sel">小学组 ▾</span>
+        <span class="btn-outline btn-sm">置顶本屏</span>
+        <span class="btn-gray btn-sm">解除置顶</span>
+        <span class="btn-primary btn-sm">锁定赛事</span>
+      </div>
+    </div>
+    <div class="board">
+      <h2>2026 WRC 中国区总决赛 · 脑机星球 · 小学组</h2>
+      <div class="kpi" style="margin-bottom:16px">
+        <div class="k"><div class="n">1</div><div class="l">追光队</div></div>
+        <div class="k"><div class="n">2</div><div class="l">晨曦队</div></div>
+        <div class="k"><div class="n">3</div><div class="l">星河队</div></div>
+        <div class="k"><div class="n">3</div><div class="l">辰星队</div></div>
+      </div>
+      <table class="wf" style="color:#fff;background:transparent">
+        <tr><th style="background:#2d3748;color:#fff;border-color:#4a5568">名次</th><th style="background:#2d3748;color:#fff;border-color:#4a5568">队伍</th><th style="background:#2d3748;color:#fff;border-color:#4a5568">总分</th><th style="background:#2d3748;color:#fff;border-color:#4a5568">用时</th></tr>
+        <tr><td style="border-color:#4a5568">1</td><td style="border-color:#4a5568;text-align:left">追光队</td><td style="border-color:#4a5568">1938.0</td><td style="border-color:#4a5568">96s</td></tr>
+        <tr><td style="border-color:#4a5568">2</td><td style="border-color:#4a5568;text-align:left">晨曦队</td><td style="border-color:#4a5568">1926.0</td><td style="border-color:#4a5568">88s</td></tr>
+        <tr><td style="border-color:#4a5568">3</td><td style="border-color:#4a5568;text-align:left">星河队</td><td style="border-color:#4a5568">1547.0</td><td style="border-color:#4a5568">112s</td></tr>
+      </table>
+      <div style="margin-top:14px;font-size:11px;color:#a0aec0">选手姓名已脱敏 · 第 1 / 2 页 · 5 秒轮播</div>
+    </div>
+    <div class="grid2" style="margin-top:10px">
+      <div class="card tight">
+        <div class="bar" style="margin:0 0 6px"><div class="t" style="font-size:13px">置顶 / 锁定本屏</div><span class="pill ok">已置顶</span></div>
+        <div class="muted">停止轮播，把当前这屏锁在大屏上。用于「这一刻要讲解」。</div>
+      </div>
+      <div class="card tight">
+        <div class="bar" style="margin:0 0 6px"><div class="t" style="font-size:13px">锁定赛事</div><span class="pill ok">已锁定</span></div>
+        <div class="muted">大屏钉在「2026 WRC 中国区总决赛」，后台切场带不走现场大屏。</div>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>「置顶」与「锁定赛事」是两个不同的锁定，别混。</b><br>
+    <b>置顶 / 锁定本屏</b> = 锁住当前这一屏、停止轮播（<code>SCREEN.locked</code>）。<br>
+    <b>锁定赛事</b> = 这块大屏钉在哪一场，后台切场带不走（<code>SCREEN.pinContestId</code>）。<br>
+    后者解决的是真实事故：运营在后台切去看另一场，现场大屏跟着变了。<br>
+    <b>姓名脱敏</b>：大屏对外展示，选手姓名默认脱敏。
+  </div>
+</div>
+
+<!-- ============ 13 处理进度看板 ============ -->
+<div class="page">
+  <div class="page-title">13 · 处理进度看板（只读）</div>
+  <div class="page-desc">告警收件箱 + 改分 / 争议台账 —— <b>纯只读，审批裁定仍在裁判长平板端</b>。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div>
+      <div class="item active">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="bar"><div class="t">处理进度看板</div><div class="ops"><span class="pill mut">只读</span><span class="sel">全部类型 ▾</span></div></div>
+      <div class="grid4" style="margin-bottom:9px">
+        <div class="fld"><div class="lb">待我处理</div><div class="vl">3</div></div>
+        <div class="fld"><div class="lb">待审批</div><div class="vl" style="color:#c05621">1</div></div>
+        <div class="fld"><div class="lb">已超时</div><div class="vl" style="color:#c53030">1</div></div>
+        <div class="fld"><div class="lb">今日已结</div><div class="vl">7</div></div>
+      </div>
+      <table class="wf">
+        <tr><th style="width:100px">类型</th><th>对象</th><th style="width:150px">摘要</th><th style="width:76px">状态</th><th style="width:66px">等待</th><th style="width:110px">处理位置</th></tr>
+        <tr class="hl-row"><td class="l">改分申请</td><td class="l">脑机星球 · 辰星队 第 1 轮</td><td class="l">总分 1566.0 → 1571.0</td><td><span class="pill warn">待审批</span></td><td>12 分</td><td class="muted">裁判长平板 P9</td></tr>
+        <tr><td class="l">成绩解锁</td><td class="l">火星救援 · 第 2 时段</td><td class="l">原因：录入时用时记错</td><td><span class="pill info">待处理</span></td><td>35 分</td><td class="muted">裁判长平板 P10</td></tr>
+        <tr><td class="l">取消资格</td><td class="l">未来之城 · 07 队</td><td class="l">红牌：严重违反安全规则</td><td><span class="pill info">待处理</span></td><td>1 时</td><td class="muted">裁判长平板 P8</td></tr>
+        <tr class="dim"><td class="l">争议申诉</td><td class="l">脑机星球 · 星河队</td><td class="l">用时争议：裁判与选手记录差 2s</td><td><span class="pill err">已超时</span></td><td>2 时</td><td class="muted">裁判长平板 P8</td></tr>
+        <tr><td class="l">器材故障</td><td class="l">脑机星球 · 赛台 3</td><td class="l">头环连接不稳，已更换</td><td><span class="pill ok">已结单</span></td><td class="muted">—</td><td class="muted">—</td></tr>
+      </table>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>这一页刻意不给「催办 / 改派 / 接管」按钮</b>（那是旧版做法）。
+    审批裁定权只在裁判长平板端 —— 后台能「接管」就等于后台能替裁判长批改分，责任就断了。<br>
+    <b>「处理位置」列明确指向平板页码</b>（P8 / P9 / P10），
+    让人知道这事该谁在哪个设备上做，而不是在这里找按钮。
+  </div>
+</div>
+
+<!-- ============ 14 锁定与发布 ============ -->
+<div class="page">
+  <div class="page-title">14 · 锁定与发布（含资格与递补）</div>
+  <div class="page-desc">成绩锁 + 配置锁<b>双锁</b>；解锁必填原因并生成告警；双锁就位才可发布。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item active">锁定与发布</div><div class="item">留底证据库</div><div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="tabbar"><span class="on">锁定与发布</span><span>资格与递补</span></div>
+      <div class="bar"><div class="t">脑机星球 · 锁定状态</div><div class="ops"><span class="btn-gray btn-sm">配置快照</span></div></div>
+      <div class="card">
+        <div class="bar" style="margin:0 0 10px"><div class="t" style="font-size:14px">双锁</div></div>
+        <div class="grid2">
+          <div class="fld" style="border-color:#68d391;background:#f0fff4">
+            <div class="lb">成绩锁</div>
+            <div class="vl">已锁定 <span class="muted">2026-10-03 18:42 · 李佳朗</span></div>
+          </div>
+          <div class="fld" style="border-color:#68d391;background:#f0fff4">
+            <div class="lb">配置锁</div>
+            <div class="vl">已锁定 <span class="muted">SN-4 · 李佳朗</span></div>
+          </div>
+        </div>
+        <div class="bar" style="margin:12px 0 0">
+          <span class="muted">双锁就位 · 已公示</span>
+          <div class="ops">
+            <span class="btn-gray btn-sm">解锁成绩</span>
+            <span class="btn-gray btn-sm">解锁配置</span>
+            <span class="btn-primary" disabled>发布公示表</span>
+          </div>
+        </div>
+        <div class="muted" style="margin-top:6px">「发布公示表」按钮此刻为 disabled —— 已发布过，需先作废重发。</div>
+      </div>
+
+      <div class="card">
+        <div class="bar" style="margin:0 0 9px"><div class="t" style="font-size:14px">解锁记录（必填原因）</div></div>
+        <table class="wf" style="margin:0">
+          <tr><th style="width:130px">时间</th><th style="width:100px">操作人</th><th>原因</th><th style="width:100px">联动</th></tr>
+          <tr><td>2026-10-03 15:10</td><td class="l">李佳朗</td><td class="l">3 队签字遗漏，修正后重新锁定</td><td><span class="pill warn">已生成告警</span></td></tr>
+          <tr><td>2026-10-03 11:26</td><td class="l">李佳朗</td><td class="l">赛项配置分值录入有误，需回改</td><td><span class="pill warn">已生成告警</span></td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="bar" style="margin:0 0 9px"><div class="t" style="font-size:14px">资格与递补</div><span class="pill info">1 处</span></div>
+        <table class="wf" style="margin:0">
+          <tr><th style="width:56px">编号</th><th>队伍</th><th style="width:110px">状态</th><th>递补后名次</th></tr>
+          <tr class="dim"><td>19</td><td class="l">青竹队</td><td><span class="pill mut">已取消资格</span></td><td class="muted">原第 4 名，注销</td></tr>
+          <tr><td>20</td><td class="l">云帆队</td><td><span class="pill ok">递补为第 4 名</span></td><td class="l">1560.0 分（替补青竹队席位）</td></tr>
+        </table>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>为什么要双锁</b>：只锁成绩的话，改了赛项配置但没重算；
+    只锁配置的话，成绩还能被改。两个都锁才真正冻结公示结果。<br>
+    <b>解锁必须填原因，且自动生成告警</b> —— 解锁是「公示前最后一刻改结果」的高危动作，
+    不能悄悄做。<b>原因留档 + 告警 + 留底</b>，事后能追。<br>
+    <b>取消资格走递补</b>：注销后由下一名自动补位，公示表的名次与递补来源一起留痕。
+  </div>
+</div>
+
+<!-- ============ 15 留底证据库 ============ -->
+<div class="page">
+  <div class="page-title">15 · 留底证据库</div>
+  <div class="page-desc">成绩 / 工单 / 裁定的证据留存与补传 —— 服务端那一端。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div>
+      <div class="item active">留底证据库</div>
+      <div class="item">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">值守人：李佳朗</div>
+      </div>
+      <div class="bar"><div class="t">证据（48）</div><div class="ops"><span class="sel">全部类型 ▾</span><span class="sel">全部赛项 ▾</span></div></div>
+      <div class="grid4" style="margin-bottom:9px">
+        <div class="fld"><div class="lb">成绩留底</div><div class="vl">24 份</div></div>
+        <div class="fld"><div class="lb">工单留底</div><div class="vl">7 份</div></div>
+        <div class="fld"><div class="lb">裁定留底</div><div class="vl">4 份</div></div>
+        <div class="fld"><div class="lb">待补传</div><div class="vl" style="color:#c05621">3 份</div></div>
+      </div>
+      <table class="wf">
+        <tr><th style="width:110px">编号</th><th>关联对象</th><th style="width:74px">类型</th><th style="width:130px">生成时间</th><th style="width:86px">同步</th><th style="width:70px">操作人</th></tr>
+        <tr><td class="l">D-001_031</td><td class="l">脑机星球 · 追光队</td><td>成绩留底</td><td>2026-10-03 18:42</td><td><span class="pill ok">已同步</span></td><td class="muted">李佳朗</td></tr>
+        <tr><td class="l">D-002_113</td><td class="l">火星救援 · 工单 113</td><td>工单留底</td><td>2026-10-03 17:05</td><td><span class="pill ok">已同步</span></td><td class="muted">王裁判</td></tr>
+        <tr class="hl-row"><td class="l">D-004_ruling</td><td class="l">未来之城 · 取消资格裁定</td><td>裁定留底</td><td>2026-10-03 16:20</td><td><span class="pill warn">待补传</span></td><td class="muted">李佳朗</td></tr>
+        <tr class="hl-row"><td class="l">D-005_ruling</td><td class="l">未来之城 · 递补裁定</td><td>裁定留底</td><td>2026-10-03 16:21</td><td><span class="pill warn">待补传</span></td><td class="muted">李佳朗</td></tr>
+        <tr class="dim"><td class="l">D-006_score</td><td class="l">火星救援 · 星河队</td><td>成绩留底</td><td>2026-10-03 14:33</td><td><span class="pill warn">待补传</span></td><td class="muted">李裁判</td></tr>
+      </table>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>「待补传」是常态而非异常</b>：平板端现场是「先写本地、联网后补传」，
+    现场断网时证据先落本地。这一页让运营知道哪些还没到服务端。<br>
+    <b>补传后与本地一致才算完成</b>，所以「已同步 / 待补传」必须显式区分，
+    不能只显示「有 / 无」。
+  </div>
+</div>
+
+<!-- ============ 16 合规 ============ -->
+<div class="page">
+  <div class="page-title">16 · 合规：角色权限与全操作审计</div>
+  <div class="page-desc">权限矩阵 + 全操作审计（旧值 → 新值 + 原因，<b>越权尝试同样留痕</b>）。</div>
+  <div class="desktop"><div class="screen">
+    <div class="sidebar">
+      <div class="logo">赛事统分后台</div>
+      <div class="item">总览</div>
+      <div class="group">赛事</div>
+      <div class="item">赛事管理</div><div class="item">跨赛事</div>
+      <div class="group">赛前准备</div>
+      <div class="item">赛项与规则</div><div class="item">赛台与赛程</div>
+      <div class="item">队伍与报名</div><div class="item">裁判与排班</div>
+      <div class="group">赛中</div>
+      <div class="item">裁判打分</div><div class="item">实时榜单</div>
+      <div class="item">大屏展示</div><div class="item">处理进度看板</div>
+      <div class="group">赛后与合规</div>
+      <div class="item">锁定与发布</div><div class="item">留底证据库</div>
+      <div class="item active">合规</div>
+    </div>
+    <div class="main">
+      <div class="appbar" style="margin:-14px -14px 12px">
+        <div class="left"><span style="font-weight:bold">赛事统分后台管理</span><span class="sel">2026 WRC 中国区总决赛 ▾</span></div>
+        <div class="who">李佳朗（工作人员 · 全部权限）</div>
+      </div>
+      <div class="tabbar"><span class="on">角色与权限</span><span>全操作审计</span></div>
+      <div class="bar"><div class="t">权限矩阵</div><div class="muted">本期收敛为单身份「工作人员」，享有全部权限</div></div>
+      <table class="wf">
+        <tr><th>操作</th><th style="width:150px">工作人员</th><th>说明</th></tr>
+        <tr><td class="l">查看榜单 / 大屏</td><td><span class="pill ok">允许</span></td><td class="l muted">只读</td></tr>
+        <tr><td class="l">录入与修改成绩（未签字）</td><td><span class="pill ok">允许</span></td><td class="l muted">已签字须走改分审批</td></tr>
+        <tr><td class="l">发起改分申请</td><td><span class="pill ok">允许</span></td><td class="l muted">不直接改分</td></tr>
+        <tr class="hl-row"><td class="l">审批改分</td><td><span class="pill warn">裁判长</span></td><td class="l muted">后台只能看，不能批</td></tr>
+        <tr><td class="l">锁定 / 解锁成绩</td><td><span class="pill ok">允许</span></td><td class="l muted">解锁必填原因</td></tr>
+        <tr><td class="l">发布公示表</td><td><span class="pill ok">允许</span></td><td class="l muted">需双锁就位</td></tr>
+        <tr><td class="l">删除赛事</td><td><span class="pill ok">允许</span></td><td class="l muted">已归档赛事不可删</td></tr>
+      </table>
+      <div class="card tight" style="margin-top:10px">
+        <div class="bar" style="margin:0 0 7px"><div class="t" style="font-size:13px">近期审计（最近 5 条）</div><span class="muted">共 1,284 条</span></div>
+        <table class="wf" style="margin:0">
+          <tr><th style="width:126px">时间</th><th style="width:66px">操作人</th><th style="width:86px">动作</th><th>对象</th><th>旧值 → 新值</th><th style="width:120px">原因</th></tr>
+          <tr><td>10-03 18:42</td><td class="l">李佳朗</td><td class="l">锁定</td><td class="l">脑机星球 成绩</td><td class="muted">未锁 → 已锁</td><td class="muted">—</td></tr>
+          <tr class="hl-row"><td>10-03 15:10</td><td class="l">李佳朗</td><td class="l">解锁</td><td class="l">脑机星球 成绩</td><td>已锁 → 未锁</td><td>3 队签字遗漏</td></tr>
+          <tr class="dim"><td>10-03 15:08</td><td class="l">王裁判</td><td class="l">越权</td><td class="l">直接改已签字成绩</td><td class="muted">—（被拒）</td><td class="muted">—</td></tr>
+          <tr><td>10-03 14:20</td><td class="l">李裁判</td><td class="l">改分申请</td><td class="l">辰星队 第 1 轮</td><td>1566.0 → 1571.0</td><td>用时记错</td></tr>
+        </table>
+      </div>
+    </div>
+  </div></div>
+  <div class="note">
+    <b>「越权尝试」也要留痕</b>（表中灰色那条）。被拒绝的操作同样是安全信号 ——
+    只记成功的操作，就看不见有人在试探权限边界。<br>
+    <b>审计记「旧值 → 新值 + 原因」三元组</b>，而不只是记「改了什么」。
+    事后问「为什么改」时，没有原因字段就只能靠猜。<br>
+    <b>审批改分明确标「裁判长」</b>：这是唯一不放给后台普通操作的权限，
+    保证「需裁判长授权」不只是文档里的一句话。
+  </div>
+</div>
+
+<div class="legend no-print">
+  <span><b>线框说明</b></span>
+  <span>灰阶为主，蓝/绿/红仅用于状态标识</span>
+  <span>可 Ctrl/Cmd + P 导出 PDF（A4 横向，每页自动分页）</span>
+  <span>可交互版本见 赛事统分后台管理_demo.html</span>
+</div>
+
+</body>
+</html>
