@@ -50,6 +50,7 @@ type Repos struct {
 	Screen    ScreenRepo
 	Snapshots SnapshotRepo       // 加时赛场内快照
 	CfgSnaps  ConfigSnapshotRepo // 配置快照
+	Changes   ChangeRequestRepo  // 改分申请单
 }
 
 // ---------------------------------------------------------------------------
@@ -112,6 +113,31 @@ type ScoreRepo interface {
 	Delete(ctx context.Context, id int64) error
 	// CountByEvent 统计已录入的记录数，用于总览 KPI。
 	CountByEvent(ctx context.Context, eventID string) (int, error)
+}
+
+// ---------------------------------------------------------------------------
+// 改分申请单
+// ---------------------------------------------------------------------------
+
+// ChangeRequestRepo 改分申请单读写。
+//
+// 「同一队同一轮只允许一条待审批申请」由部分唯一索引 ux_scr_one_pending 兜底，
+// 违反时 Create 返回 ErrDuplicate —— 去重放在数据库而不是应用层先查再插，
+// 因为后者存在竞态窗口（两个请求同时查到「没有」就会都插进去）。
+type ChangeRequestRepo interface {
+	// Create 落库一条申请，回填 ID / CreatedAt。重复待审批返回 ErrDuplicate。
+	Create(ctx context.Context, r *model.ScoreChangeRequest) error
+	// Get 按申请单号读取；不存在返回 ErrNotFound。
+	Get(ctx context.Context, id int64) (*model.ScoreChangeRequest, error)
+	// PendingOf 取某队某轮**尚未处理**的申请；没有则返回 ErrNotFound。
+	PendingOf(ctx context.Context, teamID int64, round int) (*model.ScoreChangeRequest, error)
+	// ListPending 待审批队列，按申请时间正序（先到先审）。
+	ListPending(ctx context.Context) ([]model.ScoreChangeRequest, error)
+	// Decide 标记申请已处理（授权或驳回），写入审批人与处理时间。
+	// 不存在返回 ErrNotFound，重复处理返回 ErrConflict。
+	Decide(ctx context.Context, id int64, approver string, approved bool) error
+	// ListByTeam 某队全部历史申请（含已处理），按时间倒序。
+	ListByTeam(ctx context.Context, teamID int64) ([]model.ScoreChangeRequest, error)
 }
 
 // ---------------------------------------------------------------------------

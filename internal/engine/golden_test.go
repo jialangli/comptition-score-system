@@ -121,7 +121,9 @@ func TestParityWithFrontendStandings(t *testing.T) {
 	for _, ge := range g.Events {
 		t.Run(ge.ID, func(t *testing.T) {
 			in := goldenRankInput(ge.Event, ge.Teams)
-			got := Rank(in, RankOptions{RefTime: g.RefTime})
+			// AwardOnlyComplete 与生产默认口径一致（2026-10-04 起默认开启）：
+			// 未完成录入的队伍保留名次但不占获奖名额。
+			got := Rank(in, RankOptions{RefTime: g.RefTime, AwardOnlyComplete: true})
 
 			if len(got) != len(ge.Ranking) {
 				t.Fatalf("榜单长度不一致：Go %d 行 / 前端 %d 行", len(got), len(ge.Ranking))

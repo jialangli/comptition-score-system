@@ -115,6 +115,15 @@ var ErrConflictRows = errors.New("导入数据存在冲突，请先裁决后再�
 // 「什么都没选就点了提交」是用户的正常误操作，不是服务端故障。
 var ErrNothingSelected = errors.New("未勾选任何行，没有可入库的数据")
 
+// ErrChangePending 该队该轮已有一条待审批的改分申请，不能重复提交。
+//
+// 由 score_change_requests 的部分唯一索引 ux_scr_one_pending 兜底：
+// 数据库挡下并发下的重复插入，这里把它翻译成一句运营看得懂的话。
+var ErrChangePending = errors.New("已有待审批的改分申请")
+
+// ErrAlreadyDecided 申请单已被处理过（授权或驳回），不允许再次处理。
+var ErrAlreadyDecided = errors.New("该申请单已处理，不能重复审批")
+
 func firstMessage(issues []engine.Issue) string {
 	if len(issues) == 0 {
 		return ""

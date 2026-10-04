@@ -32,3 +32,11 @@ vendor/
 
 # Local env overrides (keep env.sample tracked)
 .env
+
+# 损坏的 .git 现场备份（2026-09-30 与 2026-10-04 各一次，均由 git stash 触发）
+# 仅为本地排查留档，绝不能进仓库
+.git.corrupt-*/
+.git.broken-*/
+
+# 基准文件的手工备份（正式基准在 testdata/frontend_golden.json）
+testdata/*.bak-*

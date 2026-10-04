@@ -358,22 +358,86 @@ JS 语法：node -c 提取后的脚本 → 通过
 
 ---
 
+## P6 已完成：改分申请单落库 + 奖项口径定调（2026-10-04）
+
+### 交付文件
+
+```
+migrations/0003_score_change_requests.{up,down}.sql   申请单表 + 部分唯一索引
+internal/store/postgres/change_request.go             仓储实现（6 个方法）
+internal/store/repo.go                               ChangeRequestRepo 接口 + Repos.Changes
+internal/model/score.go                              ScoreChangeRequest 补 ID/RoundNo/DecidedAt
+internal/service/score_service.go                     落库 + 待审批队列 + 授权闭环
+internal/service/service.go                          ErrChangePending / ErrAlreadyDecided
+internal/engine/ranking.go                           奖项名额 ceil → floor（+ 每档保底 1）
+internal/api/rank_handler.go                         awardComplete 默认开启
+testdata/frontend_golden.json                        按新口径重算奖项
+scripts/pg_start.sh / pg_stop.sh                     PG 幂等启停
+_goenv.sh                                            构建入口（隔离 GOROOT 与沙箱代理）
+```
+
+### 关键设计
+
+- **防重复放数据库，不放应用层**：对 `(team_id, round_no)` 建「仅未审批」的部分唯一索引
+  `ux_scr_one_pending`。若改成「应用层先查再插」，并发下两个请求都会查到「没有」然后都插进去。
+  冲突经 `mapError(23505)` → `store.ErrDuplicate` → 翻译成 `ErrChangePending`。
+  索引带 `WHERE NOT approved`：批完之后若确需再改，仍可再次发起。
+- **`ApplyScoreChange` 签名未变**，只在事务内多一步：若该队该轮有挂着的申请单，一并标记为已授权。
+  查不到申请单不算错（裁判长可对紧急情况直接改分，仍留痕）—— 申请单只是「裁判发起」那条路径的产物。
+- **奖项改 floor，并显式处理「名额为 0」**：floor 管住了「不超编」，但 3 队 × 0.1 = 0.3 → 0 个名额，
+  会出现「一等奖 3 人、二等奖 0 人、三等奖 0 人」。因此对每个 `ratio > 0` 的档位**保底 1 个**，管住「不空档」。
+
+### 验证记录（真实执行）
+
+```
+PostgreSQL 启动：pg_ctl status → server is running (PID 3080)，isready → accepting connections
+迁移执行：test_db.sh → score_change_requests 建表 + 3 个索引（含 ux_scr_one_pending），两个测试库均已建好
+go build -buildvcs=false ./...  → 通过
+go vet                              → 通过（0 告警）
+go test -p 1 ./...（串行）          → 全部 ok（api / engine / service 三包）
+go test ./...（默认并行）           → service 包 8 个 FAIL：events_pkey 编号重复
+```
+
+**关于并行失败**：service 包内多个测试共用同一个库，各自创建 `brain_planet` 赛项，
+`go test` 默认并行执行 → 后一个撞主键。`-p 1 -parallel 1` 串行后全绿。
+**这是测试隔离问题，不是代码缺陷**（与 P3 记录的「两包共用一库会互相踩踏」同类）。
+后续修法：给 service 包内每个测试分配独立 schema，或在 `newSvc(t)` 里用唯一赛项 id。
+
+### 已知限制
+
+- `go build` 需带 `-buildvcs=false`：本机 `.git/refs` 缺失（见下方「环境注意事项」），VCS 标记失败。
+- 沙箱 Bash 注入 `HTTP_PROXY=127.0.0.1:18211`，`go mod download` 会被拒；用 `_goenv.sh` unset 掉。
+
+---
+
 ## 已知问题 / 待办
 
-### 🔴 需业务确认（引擎已能表达，等一个决策）
+### ✅ 已定调（2026-10-04）
 
-- [ ] **未打分的队伍也会拿奖**。奖项只按名次序号发放，因此「一场没比的队伍」照样能分到三等奖 —— 实测种子数据里未来之城的破晓队、智造队（总分 0、未完成录入）都拿到了奖项。
-      引擎已提供 `RankOptions.AwardOnlyComplete`，置 true 后未完成录入的队伍**保留名次但不占获奖名额**。**正式公示前应开启**。
+- [x] **未打分的队伍也会拿奖** → API 层 `awardComplete` 默认改为 **true**。
+      未完成录入的队伍**保留名次但不占获奖名额**；需要看旧口径时显式传 `?awardComplete=0`。
+      基准已按新口径重算（未来之城破晓队、智造队不再获奖）。
+- [x] **奖项 `ceil` 的放大效应** → 改为 `floor` + 每档保底 1 个名额，并补
+      `TestRankAwardsUseFloorNotCeil` 锁定语义（3 队 × 0.34 只发 1 个，ceil 会发 2 个）。
+- [x] **改分申请单没有落库** → 0003 迁移已补，含待审批队列接口与防重复约束。
+
+### 🔴 需业务确认
+
 - [ ] **火星救援的加分规则影响力不低于主任务**。基准自检实测：加分项队间极差 **13.0** ≥ 基础分队间极差 **12.0**（`count_bonus` 的 `perUnit=5` 且 `cap=null`）。引擎算得没错，是**种子参数**的问题，需业务确认每块能量块/桥梁块的实际折算分与封顶。
-- [ ] **奖项 `ceil` 的放大效应**：名额 = `ceil(队伍数 × 占比)`，队伍数少时会出现「全员获奖」（如 2 队的小组：一等奖 1 + 二等奖 1）。赛制若要求严格比例，需下调占比或改用 `floor`。
 
 ### 🟡 技术待办
 
-- [ ] **改分申请单没有落库**。P3 的 `ScoreChangeRequest` 只写审计、不落申请记录，因此无法防止同一申请被重复提交，界面上也做不出「待审批队列」。需要一张 `score_change_requests` 表（0003 迁移）；届时**不需要改方法签名**，只需在 `RequestScoreChange` 里多写一次 INSERT
-- [ ] **就近分配的排序依据是队伍编号**，不是叫号表。真实赛制应以 WRC 导出的叫号表为序，叫号表尚未接入（P6）。当前算法（按编号轮流铺到各赛台）是唯一确定且可解释的替代，运营可随时手动改派
+- [ ] **service 包内测试共用一个库**：`go test` 并行执行时多个测试抢建同名赛项 → `events_pkey` 冲突。
+      串行（`-p 1`）可过。修法：每测试独立 schema，或 `newSvc(t)` 生成唯一赛项 id。
+- [ ] **就近分配的排序依据是队伍编号**，不是叫号表。真实赛制应以 WRC 导出的叫号表为序，叫号表尚未接入（P6）。
+      当前算法（按编号轮流铺到各赛台）是唯一确定且可解释的替代，运营可随时手动改派
 - [ ] **`service` 覆盖率 82%**：剩余未覆盖的多为事务闭包内的 `return err` 分支，需故障注入才能触达。计分等核心计算在 engine 侧已是 100%
 - [ ] **`-race` 竞态检测跑不了**：需要 cgo，而本机无 gcc。当前用「互斥锁 + 并发对称性测试」替代。若后续要上 CI，建议在带 gcc 的环境或 `CGO_ENABLED=1` 的容器里补跑一次
-- [ ] `scripts/` 下缺 `pg_start.sh` / `pg_stop.sh`（当前靠手敲命令，P4 补上）
+- [x] `scripts/pg_start.sh` / `pg_stop.sh` 已补（幂等 + postmaster.pid 残留自愈 + 失败打印日志尾部）
+- [ ] **鉴权仅预留插槽**（`api.CurrentUser`），本期不实现
+- [ ] **PG 需杀软白名单**：`D:\Desktop\workbuddy\pgsql\bin` 与 `D:\Desktop\workbuddy\pgdata`，
+      否则 `pg_control: Permission denied`（2026-10-04 已加白名单后恢复正常）
+
 - [x] 前端静态资源已改用 `embed` 内嵌（`web/embed.go`），生产模式单 exe 交付
 - [ ] 鉴权仅预留插槽（`api.CurrentUser`），本期不实现
 - [ ] `x/text` 已从间接依赖提升为直接依赖（仅用于中文排序），二进制体积增加约 1MB。若在意可改注入 `CodepointNameLess` 换回码点序

@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jialangli/comptition-score-server/internal/engine"
 	"github.com/jialangli/comptition-score-server/internal/model"
@@ -25,10 +27,12 @@ import (
 // 为什么坚持分开：如果只给一个「改分」方法，裁判就能自己改自己的分，
 // 「需裁判长授权」这句话就只存在于文档里了。
 //
-// ⚠ 已知边界：本期的「申请」不落库（没有申请单表），因此无法防止同一申请被
-// 重复提交、也无法在界面上展示待审批队列。审批队列需要一张
-// score_change_requests 表（下一次迁移补），届时不改本文件的方法签名，
-// 只需在 RequestScoreChange 里多写一次 INSERT。
+// ⚠ 已知边界（0003 迁移后已解除）：早期版本的「申请」不落库（没有申请单表），
+// 因此无法防止同一申请被重复提交、也无法在界面上展示待审批队列。
+// 现在申请写入 score_change_requests 表：
+//   - 防重复由部分唯一索引 ux_scr_one_pending 兜底（同一队同一轮仅一条待审批），
+//     冲突时返回 store.ErrDuplicate，**不靠应用层先查再插**（那样有竞态窗口）；
+//   - 待审批队列见 ListPendingChanges，授权闭环见 ApproveChange / RejectChange。
 // ============================================================================
 
 // SaveScore 录入或修改**未签字**的成绩。
@@ -124,19 +128,91 @@ func (s *Service) ScoreChangeRequest(ctx context.Context, teamID int64, round in
 	before := engine.Score(ev, *old, engine.RefTimeFor(ev, 0)).Total
 
 	req := &model.ScoreChangeRequest{
-		ScoreID: old.ID, TeamID: teamID, Before: before, After: after,
+		ScoreID: old.ID, TeamID: teamID, RoundNo: round,
+		Before: before, After: after,
 		Reason: reason, Operator: CurrentUser(ctx), Approved: false,
 	}
+
+	// 申请单与审计写在同一事务里：要么「申请 + 留痕」一起成功，要么一起回滚，
+	// 不会出现「有一条申请但审计里查不到」的孤儿记录。
 	if err := s.tx(ctx, func(r store.Repos) error {
+		if err := r.Changes.Create(ctx, req); err != nil {
+			return err
+		}
 		return log(ctx, r, model.ActScore,
 			fmt.Sprintf("%s 第 %d 轮", teamLabel(team), round),
 			fmt.Sprintf("总分 %.1f", before),
-			fmt.Sprintf("总分 %.1f（申请修改，待裁判长授权）", after),
+			fmt.Sprintf("总分 %.1f（申请单 #%d，待裁判长授权）", after, req.ID),
 			reason)
 	}); err != nil {
+		// 唯一索引挡下的重复提交：给一句运营看得懂的话，而不是抛裸错误
+		if errors.Is(err, store.ErrDuplicate) {
+			return nil, fmt.Errorf("%s 第 %d 轮%w（请先处理已有申请单）",
+				teamLabel(team), round, ErrChangePending)
+		}
 		return nil, err
 	}
 	return req, nil
+}
+
+// ListPendingChanges 待审批队列，按申请时间正序（先到先审）。
+func (s *Service) ListPendingChanges(ctx context.Context) ([]model.ScoreChangeRequest, error) {
+	return s.ro().Changes.ListPending(ctx)
+}
+
+// PendingChangeOf 查某队某轮是否已有待审批申请；没有返回 store.ErrNotFound。
+func (s *Service) PendingChangeOf(ctx context.Context, teamID int64, round int) (*model.ScoreChangeRequest, error) {
+	return s.ro().Changes.PendingOf(ctx, teamID, round)
+}
+
+// decideChange 处理申请单的公共部分：取出待审批单 → 标记 → 写审计。
+//
+// approved=true 走 ApplyScoreChange 落成绩；本方法只负责申请单本身的状态流转，
+// 两条路径刻意分开，避免「驳回」时误写成绩。
+func (s *Service) decideChange(ctx context.Context, id int64, approver string,
+	approved bool) (*model.ScoreChangeRequest, error) {
+
+	if approver == "" {
+		return nil, &model.FieldError{Field: "approver", Msg: "必须记录处理人（裁判长）"}
+	}
+	req, err := s.ro().Changes.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if req.Approved {
+		return nil, fmt.Errorf("申请单 #%d%w", id, ErrAlreadyDecided)
+	}
+
+	verb := "驳回"
+	if approved {
+		verb = "授权"
+	}
+	if err := s.tx(ctx, func(r store.Repos) error {
+		if err := r.Changes.Decide(ctx, id, approver, approved); err != nil {
+			return err
+		}
+		team, err := r.Teams.Get(ctx, req.TeamID)
+		if err != nil {
+			return err
+		}
+		return logApproved(ctx, r, model.ActScore, approver,
+			fmt.Sprintf("申请单 #%d · %s 第 %d 轮", id, teamLabel(team), req.RoundNo),
+			fmt.Sprintf("总分 %.1f", req.Before),
+			fmt.Sprintf("总分 %.1f（裁判长已%s）", req.After, verb),
+			req.Reason)
+	}); err != nil {
+		return nil, err
+	}
+	req.Approved = approved
+	req.Approver = approver
+	now := time.Now()
+	req.DecidedAt = &now
+	return req, nil
+}
+
+// RejectChange 裁判长驳回改分申请（成绩不变，申请单与审计留痕）。
+func (s *Service) RejectChange(ctx context.Context, id int64, approver string) (*model.ScoreChangeRequest, error) {
+	return s.decideChange(ctx, id, approver, false)
 }
 
 // ApplyScoreChange 裁判长授权后落库。
@@ -179,6 +255,14 @@ func (s *Service) ApplyScoreChange(ctx context.Context, rec *model.ScoreRecord,
 	if err := s.tx(ctx, func(r store.Repos) error {
 		if err := r.Scores.Save(ctx, rec); err != nil {
 			return err
+		}
+		// 闭环：若该队该轮有挂着的申请单，授权落库时一并把它标记为已处理。
+		// 查不到申请单不算错 —— 裁判长遇到紧急情况可以直接改分（仍需留痕），
+		// 申请单只是「裁判发起」那条路径的产物。
+		if pending, perr := r.Changes.PendingOf(ctx, rec.TeamID, rec.RoundNo); perr == nil {
+			if err := r.Changes.Decide(ctx, pending.ID, approver, true); err != nil {
+				return err
+			}
 		}
 		// 审批人写进独立列而不是拼进 reason —— 否则「这个月裁判长批了几次改分」
 		// 这类问题只能靠文本模糊匹配来回答。

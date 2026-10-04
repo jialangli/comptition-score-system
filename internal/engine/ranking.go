@@ -244,10 +244,18 @@ func orderedTiers(tiers map[string]float64) []tierRatio {
 
 // assignAwards 从第 1 名起依次分配奖项。
 //
-// 每档名额为 ceil(榜单总数 × 占比)，从高到低依次填满。
-// 注意 ceil 的放大效应：队伍数很少时（如某组只有 2 队）每档至少 1 个，
-// 会出现「全员获奖」。这是赛制决定的比例问题（可通过缩小占比调节），
-// 引擎只负责忠实执行。
+// 每档名额 = floor(榜单总数 × 占比)，从高到低依次填满。
+//
+// 为什么用 floor 而不是 ceil（2026-10-04 定调）：
+//
+//	ceil 的放大效应在小组赛很明显 —— 2 队时「一等奖 30%」经 ceil 变成 1+1，
+//	结果两队全部获奖，「未进入名次」这件事在观感上就消失了。
+//	floor 严格不超过比例，2 队 × 30% = 0.6 → 0 个名额，符合「比例就是上限」的直觉。
+//
+// floor 的副作用必须显式处理：人数少时低占比档位会算出 0 个名额。
+// 这里对每个档位**至少保底 1 个**（比例 > 0 就该有人拿），
+// 否则会出现「一等奖 3 人、二等奖 0 人、三等奖 0 人」这种更荒唐的分布。
+// 换句话说 floor 管住了「不超编」，保底管住了「不空档」。
 //
 // onlyComplete 为 true 时，未完成录入的队伍会**占用名次但不占名额**：
 // 名额总数仍按榜单总数算，跳过不合格者继续往下发。
@@ -261,7 +269,10 @@ func assignAwards(rows []model.StandingRow, tiers map[string]float64, onlyComple
 		if t.Ratio <= 0 {
 			continue
 		}
-		cnt := int(math.Ceil(float64(n) * t.Ratio))
+		cnt := int(math.Floor(float64(n) * t.Ratio))
+		if cnt < 1 {
+			cnt = 1 // 保底：比例大于 0 的档位至少产出 1 个名额
+		}
 		given := 0
 		for idx < n && given < cnt {
 			if onlyComplete && !rows[idx].Result.Complete {

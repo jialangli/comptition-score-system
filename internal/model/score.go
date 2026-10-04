@@ -64,14 +64,20 @@ type GroupStandings struct {
 //
 // 依据需求确认单：裁判提交后禁止直接改分，须走审批并留痕；
 // 裁判长本人改分同样需要走这条链路。
+//
+// 字段与 score_change_requests 表一一对应（见 0003 迁移）。
+// (TeamID, RoundNo) 是去重键：同一队同一轮同时只允许存在一条待审批申请。
 type ScoreChangeRequest struct {
-	ScoreID   int64     `json:"scoreId"`
-	TeamID    int64     `json:"teamId"`
-	Before    float64   `json:"before"`   // 修改前总分
-	After     float64   `json:"after"`    // 拟修改后总分
-	Reason    string    `json:"reason"`   // 必填：申诉 / 复核原因
-	Operator  string    `json:"operator"` // 申请人
-	Approved  bool      `json:"approved"` // 是否已获裁判长授权
-	Approver  string    `json:"approver,omitempty"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        int64      `json:"id"`                  // 申请单号，落库后回填
+	ScoreID   int64      `json:"scoreId"`
+	TeamID    int64      `json:"teamId"`
+	RoundNo   int        `json:"roundNo"`             // 第几轮（1 / 2）
+	Before    float64    `json:"before"`              // 修改前总分
+	After     float64    `json:"after"`               // 拟修改后总分
+	Reason    string     `json:"reason"`              // 必填：申诉 / 复核原因
+	Operator  string     `json:"operator"`            // 申请人
+	Approved  bool       `json:"approved"`            // 是否已获裁判长授权
+	Approver  string     `json:"approver,omitempty"`
+	CreatedAt time.Time  `json:"createdAt"`
+	DecidedAt *time.Time `json:"decidedAt,omitempty"` // 处理时间；待审批为 nil
 }

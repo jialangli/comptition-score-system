@@ -388,3 +388,69 @@ func TestOrderedTiers(t *testing.T) {
 		t.Error("空奖项映射应返回 nil")
 	}
 }
+
+// TestRankAwardsUseFloorNotCeil 锁定「名额用 floor、不是 ceil」。
+//
+// 这条断言是为了防止将来有人把 floor 改回 ceil：
+// 小组赛人数少时，ceil 的放大效应会让「全员获奖」——
+// 例如 2 队各占 0.5，ceil(1)=1+1=2，于是两队都拿奖；
+// 改成 floor 后 ceil(1)=1，一等奖 1 个、二等奖 1 个，仍是全员获奖；
+// 真正需要 floor 的是 3 队各 0.34 这种：ceil(1.02)=2 会多发一个。
+func TestRankAwardsUseFloorNotCeil(t *testing.T) {
+	ev := newEvent(numTask("t", 100, 1.0))
+	ev.ID = "evfloor"
+	ev.RankRule = model.RankRule{
+		TieBreak: []string{"score"},
+		// 单档 100%：floor 与 ceil 完全一致，隔离掉保底逻辑的干扰
+		AwardTiers: map[string]float64{"一等奖": 0.5, "二等奖": 0.25},
+	}
+
+	teams := []model.Team{
+		{ID: 1, EventID: "evfloor", TeamNo: "1", Name: "A", GroupCode: "小学组", Status: model.TeamActive},
+		{ID: 2, EventID: "evfloor", TeamNo: "2", Name: "B", GroupCode: "小学组", Status: model.TeamActive},
+		{ID: 3, EventID: "evfloor", TeamNo: "3", Name: "C", GroupCode: "小学组", Status: model.TeamActive},
+		{ID: 4, EventID: "evfloor", TeamNo: "4", Name: "D", GroupCode: "小学组", Status: model.TeamActive},
+	}
+	in := RankInput{Event: ev, Teams: teams, Scores: map[int64][]model.ScoreRecord{
+		1: {rec(map[string]any{"t": 90.0}, 10, 0, 0)},
+		2: {rec(map[string]any{"t": 80.0}, 20, 0, 0)},
+		3: {rec(map[string]any{"t": 70.0}, 30, 0, 0)},
+		4: {rec(map[string]any{"t": 60.0}, 40, 0, 0)},
+	}}
+
+	got := awards(Rank(in, RankOptions{}))
+	// 4 队 × 0.5 = 2.00 → floor 2（ceil 也是 2，此档不区分）
+	// 4 队 × 0.25 = 1.00 → floor 1（ceil 也是 1，此档不区分）
+	// 这组数据无法区分 floor/ceil，改用下面的 0.34 场景。
+	_ = got
+
+	// 关键场景：3 队 × 0.34 = 1.02
+	//   floor → 1 个名额；ceil → 2 个名额。
+	// 断言只发 1 个，以此锁定 floor 语义。
+	ev2 := newEvent(numTask("t", 100, 1.0))
+	ev2.ID = "evfloor2"
+	ev2.RankRule = model.RankRule{
+		TieBreak:   []string{"score"},
+		AwardTiers: map[string]float64{"一等奖": 0.34},
+	}
+	teams2 := []model.Team{
+		{ID: 1, EventID: "evfloor2", TeamNo: "1", Name: "A", GroupCode: "小学组", Status: model.TeamActive},
+		{ID: 2, EventID: "evfloor2", TeamNo: "2", Name: "B", GroupCode: "小学组", Status: model.TeamActive},
+		{ID: 3, EventID: "evfloor2", TeamNo: "3", Name: "C", GroupCode: "小学组", Status: model.TeamActive},
+	}
+	in2 := RankInput{Event: ev2, Teams: teams2, Scores: map[int64][]model.ScoreRecord{
+		1: {rec(map[string]any{"t": 90.0}, 10, 0, 0)},
+		2: {rec(map[string]any{"t": 80.0}, 20, 0, 0)},
+		3: {rec(map[string]any{"t": 70.0}, 30, 0, 0)},
+	}}
+	got2 := awards(Rank(in2, RankOptions{}))
+	n1 := 0
+	for _, a := range got2 {
+		if a == "一等奖" {
+			n1++
+		}
+	}
+	if n1 != 1 {
+		t.Errorf("3 队 × 0.34 应按 floor 发 1 个一等奖，实际发了 %d 个（若为 2 说明被改回了 ceil）：%v", n1, got2)
+	}
+}

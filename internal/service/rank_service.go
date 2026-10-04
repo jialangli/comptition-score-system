@@ -29,7 +29,9 @@ type StandingsOptions struct {
 	// OnlySigned 是否只统计已签字轮次。正式公示前应置 true。
 	OnlySigned bool
 	// AwardOnlyComplete 是否只给完成全部任务录入的队伍发奖。
-	// 正式公示前应置 true —— 否则「一场没比的队伍也拿奖」。
+	//
+	// 2026-10-04 起 API 层默认开启：未完成录入的队伍「保留名次但不占名额」，
+	// 避免「一场没比的队伍也拿奖」。api 层可用 ?awardComplete=0 显式关闭。
 	AwardOnlyComplete bool
 }
 

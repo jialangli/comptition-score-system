@@ -46,6 +46,7 @@ func newRepos(q querier) store.Repos {
 		Screen:    &ScreenStore{q: q},
 		Snapshots: &SnapshotStore{q: q},
 		CfgSnaps:  &ConfigSnapshotStore{q: q},
+		Changes:   &ChangeStore{q: q},
 	}
 }
 

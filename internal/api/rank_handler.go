@@ -24,14 +24,19 @@ import (
 //
 //	group=小学组        只看某个组别（默认返回全部组别）
 //	signed=1           只统计已签字轮次（**正式公示前应开启**）
-//	awardComplete=1    只给完成全部任务录入的队伍发奖（**正式公示前应开启**）
+//	awardComplete=0    关闭「只给完成全部任务录入的队伍发奖」（默认已开启）
 //	withdrawn=1        把弃赛队伍也计入（默认不计）
+//
+// 关于 awardComplete（2026-10-04 定调：默认开启）：
+// 此前默认 false，导致「一场没比的队伍照样拿三等奖」。既然引擎已能表达
+// 「保留名次但不占名额」，就没理由让默认停留在错误口径上。
+// 需要看「未完成录入也照发」的中间态（如对内演练）时显式传 awardComplete=0。
 func (s *Server) handleStandings(w http.ResponseWriter, r *http.Request) {
 	res, err := s.svc.Standings(r.Context(), pathStr(r, "id"), service.StandingsOptions{
 		Group:             r.URL.Query().Get("group"),
 		IncludeWithdrawn:  queryBool(r, "withdrawn", false),
 		OnlySigned:        queryBool(r, "signed", false),
-		AwardOnlyComplete: queryBool(r, "awardComplete", false),
+		AwardOnlyComplete: queryBool(r, "awardComplete", true),
 	})
 	if err != nil {
 		Fail(w, r, err)
