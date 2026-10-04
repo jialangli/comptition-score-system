@@ -1919,9 +1919,9 @@ var DIFF_META={
 var WRC_SAMPLE=[
   '队伍编号,参赛队伍名称,学校名称,指导教师,参赛组别,赛项',
   '1001,星河队,杭州实验小学,张老师,小学组,脑机星球',
-  '1002,追光队,杭州实验小学,李老师,小学组,脑机星球',
+  '1002,追光队,杭州实验小学,李老师,初中组,脑机星球',
   '1003,晨曦队,东莞东城实验小学,王老师,初中组,脑机星球',
-  '1004,极客队,杭州实验小学,周老师,高中组,脑机星球',
+  '1004,极客队,杭州实验小学,周老师,初中组,脑机星球',
   '2001,火星一号,青岛实验学校,赵老师,小学组,火星救援',
   '3001,新星队,成都教装展学校,陈老师,小学组,未来之城',
   '1003,晨曦队,东莞东城实验小学,王老师,初中组,脑机星球'
@@ -2216,7 +2216,7 @@ function viewImport(){
      (IMP.error?'<div class="small" style="color:#a32d2d;margin-top:8px">'+esc(IMP.error)+'</div>':'')+
      '<hr class="sep">'+
      '<div class="row">'+
-       '<button class="btn" onclick="impLoadSample()">载入内置样例（'+(WRC_SAMPLE.split('\n').length-1)+' 行 · 覆盖四种变化状态）</button>'+
+       '<button class="btn" onclick="impLoadSample()">载入内置样例（7 行 · 新增 / 重复导入可见更新·跳过·冲突）</button>'+
        '<button class="btn" onclick="impTogglePaste()">'+(IMP.showPaste?'收起':'展开')+'粘贴 CSV 兜底通道</button>'+
      '</div>'+
      '<div id="impPaste" style="display:'+(IMP.showPaste?'block':'none')+';margin-top:10px">'+
