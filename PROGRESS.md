@@ -432,8 +432,10 @@ internal/service/dispute_service.go      上报 / 系统建单 / 撤回 / 裁定
 internal/service/service.go              ErrDisputePending / ErrDisputeNotPending
 internal/api/dispute_handler.go          6 个端点 + 参数校验
 internal/api/router.go / response.go     路由注册 + 语义错误映射
+internal/api/sync_handler.go             /sync 补传冲突自动建单（E 项联动）
 internal/service/dispute_test.go         6 个集成用例（真实 PG）
 internal/api/dispute_test.go             1 个 HTTP 集成用例
+internal/api/sync_conflict_test.go       1 个补传冲突建单用例
 ```
 
 ### 关键设计
@@ -484,11 +486,35 @@ go test -p 1 -count=1 ./... → api ok (5.6s) / engine ok (1.3s) / service ok (9
 
 ### 后续（P0 剩余，按依赖顺序）
 
-- [ ] **E 项联动**：`/sync` 补传发现同队同轮已存在服务端记录时，调用 `ReportSyncConflict`
-      自动建单（`sync_handler.go:108` 目前只返回错误字符串）。service 侧已就绪。
+- [x] **E 项联动**：`/sync` 补传冲突自动建单 —— **已接线**，见下节。
 - [ ] **P0-1 发布 / 移交 / 回流状态机**：前端 P11 + P13 已上线四态看板，后端仍**完全空白**（0 处匹配）。
 - [ ] **P1 裁判码**（6 位 · 首登激活 · 断网可登）与**赛台-队伍可写锁**：后端均无。
 - [ ] **P1 留底证据库**：无专门表（`audit_logs` 部分覆盖）。
+
+### E 项联动：/sync 补传冲突自动建单
+
+此前 `sync_handler.go` 在「服务端已存在同队同轮记录」时**静默取最新覆盖** ——
+正是前端 P12 note 7 点名要消灭的「两份成绩静静躺着、取数默认取最新而错榜」。
+
+**处置改为「不覆盖 + 自动建单」**，两个分支都接上：
+
+| 场景 | 处置 |
+|---|---|
+| 服务端已有记录、来自**另一来源** | 不写入；自动生成同步冲突工单；结果标记 `conflict` 并带回工单号 |
+| 服务端记录**已签字**、来自另一来源 | 同样建单（只回「去走改分申请」会让后上传的那份无声消失） |
+| **同源**（同一 clientId 续传 / 断线重传） | 照旧放行覆盖 —— 否则每次网络重试都会凭空建一张工单 |
+
+判据用 `operator` 而不是成绩内容：要防的是「两份成绩并存」这个事实，
+不是「两边打得不一样」。同源判定要求两端 operator 都非空且相等 ——
+服务端那条若没有 operator（例如后台人工录的），宁可判成冲突也不覆盖。
+
+响应新增 `conflicted` 计数与单条的 `conflict / disputeId / disputeCode`。
+`conflicted` 单列而不并入 `failed`：冲突不是「没传上去」，而是「已转人工裁定」，
+两者处置完全不同（前者要重传，后者要等裁定）。前端目前只消费 `succeeded` 与
+`serverTime`，新增字段不影响既有逻辑。
+
+验证：`TestSyncConflictAutoDispute` 覆盖首次入库 / 同源续传不误判 /
+异源冲突不覆盖 / 工单进 P8 队列且来源类型可分辨 / 第三次撞车幂等。
 
 ---
 
