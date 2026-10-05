@@ -162,13 +162,6 @@
             <div class="qrow"><span>组别</span><span style="font-weight:bold; color:#2b6cb0;">小学组 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
             <div class="qrow" style="border-bottom:none;"><span>赛台</span><span style="font-weight:bold; color:#2b6cb0;">A 赛台 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
           </div>
-          <div style="max-width:430px; margin:0 auto 18px; text-align:left;">
-            <div style="font-size:12px; color:#718096; margin-bottom:6px; letter-spacing:1px;">设备显示偏好（本机设置 · 可调）</div>
-            <div class="card" style="background:#fff; display:flex; align-items:center; justify-content:space-between; border-color:#bee3f8;">
-              <span style="font-size:13px; color:#4a5568;">显示字号</span>
-              <span class="seg" style="gap:4px;"><span class="on" style="padding:2px 10px; font-size:12px;">中</span><span style="padding:2px 10px; font-size:12px;">小</span><span style="padding:2px 10px; font-size:12px;">大</span></span>
-            </div>
-          </div>
           <div style="display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;">
             <span class="btn-gray">← 返回修改</span>
             <span class="btn-primary btn-lg">进入当前比赛 →</span>
@@ -185,7 +178,6 @@
     <span class="num">4</span> <b>按绑定过滤</b>：进入 R2 后仅展示该裁判绑定的 赛项×组别×赛台 下队伍（数据域精确到赛台，裁判只见本赛台队列），不存在“走错赛台”需拦截的场景。<br>
     <span class="num">5</span> <b>校验失败按类型分两页</b>：裁判码/姓名与备案不符时不进入本页，而是按失败类型跳转到独立页——<b>裁判码无效 → P1.5b</b>、<b>姓名与裁判码不匹配 → P1.5c</b>（见下页）；成功与失败是互斥的完整页面，不在本页内上下堆叠。<br>
     <span class="num">6</span> <b>按身份分流（拆为 P1.5 / P1.6 两页）</b>：普通裁判与裁判长是两个互斥的完整登录成功页——<b>P1.5 普通裁判</b>（身份＝「裁判」、主按钮「进入当前比赛 →」直达 P2）、<b>P1.6 裁判长</b>（身份＝「裁判长」、主按钮「进入当前比赛 →」直达 P2，比赛内可切「管理权限」页签）。二者卡片结构相同，仅身份取值与主按钮不同；由后台人员档案的身份字段决定落哪一页，不像 P1.5b（校验失败）那样作为分支，而是各自独立成页。
-    <span class="num">7</span> <b>显示字号（设备级一次性设置）</b>：置于本页卡片下方的「设备显示偏好」独立区，与上方「赛项 / 组别 / 赛台」等<b>后台预绑只读信息明确分开</b>——本机可调、非预绑数据；控制全册裁判端字体缩放，默认「中」，裁判按本人平板清晰度与阅读习惯设置一次，进入执裁后全局生效（打分页 / 队列 / 裁定台均随此缩放）。仅影响显示、不改任何成绩数据。<br>
   </div>
 </div>
 
@@ -208,13 +200,6 @@
             <div class="qrow"><span>组别</span><span style="font-weight:bold; color:#2b6cb0;">小学组 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
             <div class="qrow" style="border-bottom:none;"><span>赛台</span><span style="font-weight:bold; color:#2b6cb0;">A 赛台 <span style="font-weight:normal; font-size:12px; color:#a0aec0;">（工作人员预绑）</span></span></div>
           </div>
-          <div style="max-width:430px; margin:0 auto 18px; text-align:left;">
-            <div style="font-size:12px; color:#718096; margin-bottom:6px; letter-spacing:1px;">设备显示偏好（本机设置 · 可调）</div>
-            <div class="card" style="background:#fff; display:flex; align-items:center; justify-content:space-between; border-color:#bee3f8;">
-              <span style="font-size:13px; color:#4a5568;">显示字号</span>
-              <span class="seg" style="gap:4px;"><span class="on" style="padding:2px 10px; font-size:12px;">中</span><span style="padding:2px 10px; font-size:12px;">小</span><span style="padding:2px 10px; font-size:12px;">大</span></span>
-            </div>
-          </div>
           <div style="display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;">
             <span class="btn-gray">← 返回修改</span>
             <span class="btn-primary btn-lg">进入当前比赛 →</span>
@@ -229,7 +214,6 @@
     <span class="num">2</span> <b>工作台入口</b>：本页主按钮「进入当前比赛 →」直达 P2，裁判长可在比赛内切「管理权限」页签进 P7；普通裁判入口同为 P1.5「进入当前比赛 →」直达 P2。两者按后台人员档案的身份字段分流，P1.5（普通裁判）/ P1.6（裁判长）为两个互斥的完整登录成功页。<br>
     <span class="num">3</span> <b>「裁判长终核与监管权限」</b>：即 P7b 视图下的 4 项能力——① 争议裁定（→ P8 裁定台）、② 改分授权（→ P9 改分审批）、④ 发布前确认（→ P11，发布由工作人员在后台执行）。发布键不在裁判长手里。<b>范围界定</b>：上方卡片预绑的是<b>执裁范围</b>（赛项 × 组别 × 赛台，只管本站）；而本权限的<b>管理范围＝整个赛事（全赛项）</b>——P9 顶栏即写「全赛项」，争议与改分可跨赛项处理。两者是「执裁归属」与「管理职责」两个维度，并不冲突。<br>
     <span class="num">4</span> <b>与普通裁判的差异仅一处入口</b>：裁判长比普通裁判多出顶部「执裁 / 管理权限」页签切换；执裁界面（轮次、队列、计时、搜索）与 P2 逐字一致，不另造界面。
-    <span class="num">5</span> <b>显示字号（同 P1.5 note 7）</b>：本页同样提供「显示字号 小 / 中 / 大」设备级设置，与 P1.5 同源、默认「中」，进入执裁后全册生效。<br>
   </div>
 </div>
 
