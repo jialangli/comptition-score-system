@@ -432,8 +432,8 @@
               <span style="font-size:13px; color:#2b6cb0; font-weight:bold;">改后成绩（待授权）</span>
               <span style="font-size:22px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">620 <span style="color:#38a169; font-size:14px;">（+150）</span></span>
             </div>
-            <div class="qrow"><span style="color:#718096;">改分原因（<b style="color:#c53030;">必填</b>）</span><span style="font-size:12px; color:#a0aec0;">如：任务③ 矿石运输漏记 1 颗，复核后补记 +150</span></div>
             <div class="qrow" style="font-size:12px; color:#718096;"><span>用时（<b>可改 · 改分模式专属</b>）</span><span>02:41 → 可修正 · 须填原因并随本单审批（原值由计时器带出）</span></div>
+            <div class="qrow"><span style="color:#718096;">改分/改时原因（<b style="color:#c53030;">必填</b>）</span><span style="font-size:12px; color:#a0aec0;">如：任务③ 矿石运输漏记 1 颗，复核后补记 +150</span></div>
             <div class="qrow" style="border-bottom:none; font-size:12px;"><span style="color:#718096;">判罚记录（<b style="color:#2b6cb0;">可改</b> · 随本单审批）</span><span>🚩 黄牌 ×1 · 红牌 ×0 &nbsp;<span style="color:#c05621; font-weight:bold; cursor:pointer;">记红牌 →</span></span></div>
           </div>
         </div>
@@ -452,7 +452,7 @@
     <span class="num">2</span> <b>不是重赛、也不是直接改分</b>：本页是<b>在已生效成绩上做修正</b>；页面带出原值，裁判只改需要修正的任务项（本示例只动 ③ 矿石运输：1 颗 → 2 颗，+150）。<br>
     <span class="num">3</span> <b>二段式生效（关键）</b>：点「提交改分申请 →」<b>只生成申请单 R-00X</b>，成绩不变；须裁判长在 <b>P9 改分审批</b>「批准并留痕」后才写入正式成绩——避免裁判单方改分。<br>
     <span class="num">4</span> <b>旧值 → 新值 diff 全程可见</b>：页面常驻显示「原 470 → 改后 620（+150）」，与 P9 审批端的 diff 同源，审批人核对的是同一组数。<br>
-    <span class="num">5</span> <b>原因必填 + 防重复提交</b>：改分原因不填不能提交；<b>同队同轮存在未结单（待审批）时不允许再提</b>，防止重复申请把分数改乱——被拦时的完整呈现单独成页，见 <b>P2d 拦截态</b>。<br>
+    <span class="num">5</span> <b>原因必填 + 防重复提交</b>：改分/改时原因不填不能提交；<b>同队同轮存在未结单（待审批）时不允许再提</b>，防止重复申请把分数改乱——被拦时的完整呈现单独成页，见 <b>P2d 拦截态</b>。<br>
     <span class="num">6</span> <b>不计分项分两类处理</b>：<b>用时可改（仅改分模式允许）</b>——裁判可修正、须填原因并随本单审批，原值由计时器带出；<b>黄 / 红牌可改</b> —— 底部新增「🚩 记红牌」入口，改牌只动留痕与排名、<b>不动分数</b>。<br>
     <span class="num">7</span> <b>下游联动</b>：授权后按该队绑定版本<b>自动重算排名</b>；若该赛项已发布，会触发 P11 的<b>常驻重发提示</b>（对外公示页须由工作人员重新发布）。<br>
     <span class="num">8</span> <b>任务项 = 赛项规则配置下发</b>：本页任务集与分值<b>不是本页自造</b>，而是与 <b>P3 脑机星球 V6.2</b> 打分页<b>同一套配置</b>（规则模板表驱动）——回到该队改分时，任务名、分值、录入控件与原打分页<b>逐字一致</b>，裁判改的是同一批题目，避免“改分页换了另一套题目”造成口径混乱。
