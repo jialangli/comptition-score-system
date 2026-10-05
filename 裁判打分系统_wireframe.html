@@ -1881,6 +1881,7 @@
     <div class="note">
     <span class="num">1</span> <b>本页＝队列页，只做「排队 + 载入」</b>：裁定路径分两层——<b>本页</b>把待裁定工单排出来、并在待裁定行给「<b>去裁定</b>」入口；<b>P8a / P8b / P8c</b>承载单张工单的详情与裁定动作（三档位）。<b>为什么拆开</b>：队列要的是「一眼看出还有几件没干」，详情要的是「逐项对照两份记录 + 填原因 + 签名」——两件事阅读密度差很多，挤在一屏会把队列挤到看不见。已裁定工单仍留在本队列（状态为「已裁定（…）」），并在其单元格给「<b>查看</b>」入口 → 打开 <b>P8e 已裁定只读态</b>（复核结论 / 原因 / 签名 / 证据；确需推翻时才走「再裁定一次」并留痕）。<br>
     <span class="num">2</span> <b>裁定时限与催办</b>：工单入队即计时，超 <b>30 分钟</b>未处理向裁判长推送一次催办（与 <b>P9 自批</b>同款「<b>留痕威慑</b>」告警通道）。待裁定工单是 <b>P11 发布 gate 的硬阻断项</b>，所以这条时限直接决定「这个组别能不能按时发榜」——催办不是礼貌提醒，是发布的前置条件。
+    <span class="num">3</span> <b>自动「同步冲突」也进本队列</b>：除裁判人工上报的「重复打分（D-00x）」外，<b>P12 离线补传</b>时发现同队同轮已存在服务端记录，会由系统自动生成「<b>同步冲突</b>」告警单（来源标注「系统 · 补传」）进本待裁定队列——它和人工重复打分<b>共用本队列与 P8a / P8b / P8c 裁定流程</b>，仅在「提出人 / 来源」列区分；裁定时限与催办（note 2）同样适用，避免「两份成绩静静躺着、取数默认取最新而错榜」。
       </div>
 </div>
 
@@ -2394,11 +2395,6 @@
         <div class="card" style="background:#fffaf0; border-color:#f6ad55;">
           <div style="font-size:13px; color:#c05621;"><b>⚠ 赛事级重发待办（另一赛项）</b>：<b>火星救援 · 小学组</b> 已于 11:20 发布，其后 R-006 改分已批准 → 请通知工作人员<b>重新发布</b>（本册不做“撤销发布”，公示页旧榜与新榜的差异须由重发消除）。<br><span style="font-size:12px;">本次发布单元「脑机星球 · 小学组」<b>尚未发布</b>，故不涉及重发。</span></div>
         </div>
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; padding:8px 12px; background:#fffaf0; border:1px solid #f6ad55; border-radius:6px;">
-          <span style="font-size:12px; font-weight:bold; color:#718096;">发布状态（实时回流）</span>
-          <span style="display:inline-flex; align-items:center; gap:5px; padding:2px 10px; border-radius:999px; font-size:12px; background:#fefcbf; color:#975a16;">⏳ 待发布</span>
-          <span style="font-size:12px; color:#a0aec0;">已移交 → 工作人员处理中 → 已发布（发布后自动变「✓ 运营已发布 · 发布人 时间」）</span>
-        </div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:12px; color:#a0aec0;">裁判长只做“确认”；<b>发布键由工作人员在后台按下</b>（职责分离、双人可追溯）</span>
           <span style="display:flex; gap:10px; align-items:center;">
@@ -2417,7 +2413,7 @@
     <span class="num">5</span> <b>不做撤销发布</b>：已发布后成绩再变更，用常驻重发提示驱动“重新发布”，而不是引入“下架榜单”这类额外状态。重发提示<b>按赛项挂载</b>：本页发布单元（脑机星球 · 小学组）尚未发布、不涉及重发；已发布的火星救援 · 小学组因 R-006 改分批准而待重发，作为赛事级待办在本页可见。<br>
     <span class="num">6</span> <b>公示榜排名规则（全赛项通用）</b>：按总分降序；<b>总分相同先比整场用时升序（用时少者靠前）</b>，再用时相同比<b>黄牌数少者靠前</b>，仍相同则<b>并列</b>。时间不计入分数、仅作排名维度（全赛项均不设时间奖励）。<br>
     <span class="num">7</span> <b>本地留底同源同策略</b>：本页发布产物、P2e 成绩单、P8 裁定台三处留底<b>共用同一套「本地优先 · 异步同步」规范</b>，但<b>产生端各不相同</b>：本页由<b>发布执行方（工作人员后台）</b>产生，P2e 与 P8 证据层由<b>裁判</b>产生，P8 裁定层由<b>裁判长</b>产生。规范统一、触发点各异；留底<b>以「发布成功」为触发条件</b>——本次发布单元（脑机星球 · 小学组）尚未发布、暂无留底，示例取已发布的火星救援 · 小学组。<br>
-    <span class="num">8</span> <b>移交之后必须有回流</b>：点「确认并移交」不等于发布完成——页面顶部「<b>发布状态（实时回流）</b>」芯片随后台发布事件实时变化：未发布显示「<b>⏳ 待发布</b>」、工作人员发布后变「<b>✓ 运营已发布 · 发布人 时间</b>」，状态流「已移交 → 工作人员处理中 → 已发布」同步点亮，重发提示随之消解；否则裁判长无从确认「到底发出去没有」，这正是「现场屏 ≠ 后台真值」最容易发生的环节。
+    <span class="num">8</span> <b>移交之后必须有回流</b>：点「确认并移交」不等于发布完成——裁判长可在 <b>P13 发布状态回流看板</b>实时查看后台发布真值：未发布显示「<b>⏳ 待发布</b>」、工作人员发布后变「<b>✓ 运营已发布 · 发布人 时间</b>」，状态流「已移交 → 工作人员处理中 → 已发布」同步点亮，重发提示随之消解；否则裁判长无从确认「到底发出去没有」，这正是「现场屏 ≠ 后台真值」最容易发生的环节。（P11 本体不再内嵌回流芯片，全局回流统一收口到 P13。）
   </div>
 </div>
 
@@ -2503,7 +2499,8 @@
     <span class="num">3</span> <b>断网时允许什么（关键取舍）</b>：<b>允许</b>——打分录入、题卡操作、暂存、留底三件套、上报争议、提交成绩（全部本地暂存、服务端为准）；<b>禁用</b>——「移交发布」（P11）等需服务端权威的动作，按钮置灰并提示“离线中，恢复联网后可用”。理由：<b>比赛不能停摆，但发布不能基于本机数据</b>。<br>
     <span class="num">4</span> <b>待补传条数从哪来</b>：本机暂存队列按条计数（成绩 / 三件套留底 / 改分与争议申请单），补传成功逐条递减；本页示例＝ <b>3 条</b>。<br>
     <span class="num">5</span> <b>横幅是非阻断的</b>：挂在顶部、不遮罩、不影响操作（与 P5.9 toast 同款非阻断口径，区别是本横幅<b>常驻到恢复</b>）；「重试连接」在等不到自动重连时手动触发。<br>
-    <span class="num">6</span> <b>数据一致性提醒</b>：离线未补传期间，<b>P11 的「完整度」不包含本机数据</b>——建议 P11 增列「＋N 台未补传」并在未补传时禁止发布（本页只做本机侧提示，gate 口径待定）。
+    <span class="num">6</span> <b>数据一致性 gate 已落地</b>：离线未补传期间，<b>P11 的「完整度」不包含本机数据</b>，且<b>有设备未补传时 P11「确认并移交」按钮置灰</b>（不再依赖人工判断）——避免出现「某平板还没补传完就移交发布、成绩缺失」的半截状态（本册此前记为「gate 口径待定」，现已落地）。
+    <span class="num">7</span> <b>竞争写防护 + 补传同步冲突自动告警</b>：绑定赛台后，<b>同台同一队伍仅允许一台平板持有可写锁</b>（先提交 / 先暂存者占锁，另一台对该队只读并提示「该队正由 X 执裁」），从源头掐断「两台平板各打一份」；即便发生离线冲突、联网补传时发现<b>同队同轮已存在服务端记录</b>，系统自动生成「<b>同步冲突</b>」告警单（来源标注「系统 · 补传」）进 <b>P8 待裁定队列</b>，而非静默覆盖——与人工上报的「重复打分（D-00x）」并列但可区分来源。
   </div>
 </div>
 
@@ -2678,7 +2675,46 @@
   </div>
 </div>
 
-<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.7.20 · 共 40 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b / P8c 裁定三态（详情）· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / P5.8c 记红牌弹窗（红牌）/ P5.8d · P5.9 比赛时间结束提醒 / P5.10 争议上报 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-09-27</div>
+<!-- ============ P13 发布状态回流看板 ============ -->
+<div class="page">
+  <div class="page-title">P13 · 发布状态回流看板（裁判长 · 实时回流后台发布真值）</div>
+  <div class="page-desc">裁判长移交后，不必回到各 P11 单页逐一确认「到底发没发」——本看板按「赛项 × 组别 × 赛台」聚合本赛事全部发布单元，状态由后台发布事件<b>实时驱动回流</b>：未移交 / 已移交·处理中 / ⏳ 待发布 / ✓ 运营已发布（发布人·时间）。工作人员在后台按下发布键的瞬间，本页对应单元即点亮「✓ 运营已发布」；与 P11 单页互为补充——P11 管「本发布单元能不能交」，本看板管「交出去的都发出去没有」。</div>
+  <div class="tablet">
+    <div class="appbar"><span>⛓ BrainAI 赛事打分系统 · 裁判长</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+          <div style="display:flex; gap:10px; margin-bottom:12px;">
+            <span style="background:#e2e8f0; color:#4a5568; padding:4px 12px; border-radius:999px; font-size:12px;">未移交 2</span>
+            <span style="background:#fffaf0; color:#975a16; padding:4px 12px; border-radius:999px; font-size:12px;">待发布 3</span>
+            <span style="background:#c6f6d5; color:#22543d; padding:4px 12px; border-radius:999px; font-size:12px;">已发布 5</span>
+          </div>
+          <div class="card">
+            <div class="t-name">本赛事发布单元 · 实时回流（共 10 个）</div>
+            <table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:8px;">
+              <tr style="color:#718096; text-align:left;"><th style="padding:6px 8px;">发布单元</th><th style="padding:6px 8px;">移交状态</th><th style="padding:6px 8px;">发布状态（实时回流）</th><th style="padding:6px 8px;">发布人 / 时间</th></tr>
+              <tr style="border-top:1px solid #e2e8f0;"><td style="padding:8px;">脑机星球 · 小学组 · 赛台 A</td><td style="padding:8px; color:#718096;">已移交 · 处理中</td><td style="padding:8px;"><span style="display:inline-flex; align-items:center; gap:5px; padding:2px 10px; border-radius:999px; font-size:12px; background:#fefcbf; color:#975a16;">⏳ 待发布</span></td><td style="padding:8px; color:#a0aec0;">—</td></tr>
+              <tr style="border-top:1px solid #e2e8f0;"><td style="padding:8px;">火星救援 · 小学组 · 赛台 B</td><td style="padding:8px; color:#38a169;">已移交 · 已发布</td><td style="padding:8px;"><span style="display:inline-flex; align-items:center; gap:5px; padding:2px 10px; border-radius:999px; font-size:12px; background:#c6f6d5; color:#22543d;">✓ 运营已发布</span></td><td style="padding:8px; color:#718096;">李工作人员 · 11:20</td></tr>
+              <tr style="border-top:1px solid #e2e8f0;"><td style="padding:8px;">未来之城 · 中学组 · 赛台 C</td><td style="padding:8px; color:#718096;">未移交</td><td style="padding:8px;"><span style="display:inline-flex; align-items:center; gap:5px; padding:2px 10px; border-radius:999px; font-size:12px; background:#e2e8f0; color:#a0aec0;">— 未移交</span></td><td style="padding:8px; color:#a0aec0;">—</td></tr>
+              <tr style="border-top:1px solid #e2e8f0;"><td style="padding:8px;">脑机星球 · 小学组 · 赛台 D</td><td style="padding:8px; color:#38a169;">已移交 · 已发布</td><td style="padding:8px;"><span style="display:inline-flex; align-items:center; gap:5px; padding:2px 10px; border-radius:999px; font-size:12px; background:#c6f6d5; color:#22543d;">✓ 运营已发布</span></td><td style="padding:8px; color:#718096;">王工作人员 · 11:45</td></tr>
+              <tr style="border-top:1px solid #e2e8f0;"><td style="padding:8px;">火星救援 · 小学组 · 赛台 E</td><td style="padding:8px; color:#718096;">已移交 · 处理中</td><td style="padding:8px;"><span style="display:inline-flex; align-items:center; gap:5px; padding:2px 10px; border-radius:999px; font-size:12px; background:#fefcbf; color:#975a16;">⏳ 待发布</span></td><td style="padding:8px; color:#a0aec0;">—</td></tr>
+            </table>
+          </div>
+          <div style="font-size:12px; color:#718096; margin-top:10px; background:#f7fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px;">💡 本看板为<b>只读回流</b>：发布动作仍在后台由工作人员执行（P11 note 4 职责分离），本页只把后台真值实时拉回现场屏；裁判长据此判断「还有哪些赛台没发出来」，无需逐页回 P11 自查。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>为什么独立成页</b>：P11 移交页只管「本发布单元能不能交」，裁判长管的是「整场十几个发布单元都发出去没有」——前者单点、后者全局；把全局回流单拉一页，避免裁判长移交后逐页回查，也堵住「现场屏以为交了、后台其实没发」的黑盒（正是此前流程走查 G 项指出的缺口）。<br>
+    <span class="num">2</span> <b>状态四态</b>：未移交（灰）→ 已移交·处理中（黄）→ ⏳ 待发布（黄，工作人员已接收待点发布）→ ✓ 运营已发布（绿，含发布人·时间）；状态由后台发布事件实时驱动，非人工回填。<br>
+    <span class="num">3</span> <b>与 P11 的关系</b>：P11 是单发布单元的「确认并移交」入口与 gate 判断；本看板是移交后的全局回流总览，二者互补，P11 不再内嵌回流芯片（原 P11 note 8 的芯片方案已改为本页）。<br>
+    <span class="num">4</span> <b>运营可见同一真值</b>：后台「待我发布」视图与本看板同源（均读后台发布事件），裁判长与运营看同一份真值，职责分离但不信息孤岛。<br>
+    <span class="num">5</span> <b>重发提示联动</b>：某赛项已发布后又有改分 / 裁定生效，本看板对应单元状态回退为「⏳ 待发布（待重发）」并标红提示，与 P11 常驻重发提示同源。
+  </div>
+</div>
+
+<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.7.20 · 共 41 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b / P8c 裁定三态（详情）· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / P5.8c 记红牌弹窗（红牌）/ P5.8d · P5.9 比赛时间结束提醒 / P5.10 争议上报 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11 / P13 发布状态回流看板）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-09-27</div>
 
 </body>
 </html>
