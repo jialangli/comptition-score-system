@@ -518,6 +518,93 @@ go test -p 1 -count=1 ./... → api ok (5.6s) / engine ok (1.3s) / service ok (9
 
 ---
 
+## P8 已完成：发布状态机 + 裁判码（2026-10-05）
+
+### 背景
+
+两块都是「前端已上线、后端完全空白」的脱节点：
+
+- **发布 / 移交 / 回流**：P11「确认并移交」+ P13「发布状态回流看板」定义了完整链路，
+  后端此前 0 处匹配 —— 裁判长点了移交之后无从知道后台到底发出去没有。
+- **裁判码**：P1 家族的登录链路完全建立在它上面，后端零支持
+  （测试里的「裁判A」只是 operator 字符串）。
+
+### 交付文件
+
+```
+migrations/0006_release_units.{up,down}.sql    发布单元 + 四态状态机
+migrations/0007_referee_codes.{up,down}.sql    裁判码（赛事级凭证）
+internal/model/release.go                      四态 + 前端两列文案派生
+internal/model/referee.go                      裁判码档案 + 身份 / 状态
+internal/model/audit.go                        新增 7 个审计动作
+internal/store/repo.go                         ReleaseUnitRepo / RefereeCodeRepo
+internal/store/postgres/{release,referee}.go   仓储实现
+internal/store/postgres/admin.go               TruncateAll 补两张表
+internal/service/release_service.go            移交 / 接收 / 发布 / 标记重发
+internal/service/referee_service.go            建档发码 / 激活（crypto/rand）
+internal/api/{release,referee}_handler.go      10 个端点
+internal/api/router.go / response.go           路由 + 三种失败的状态码区分
+internal/service/{release,referee}_test.go     7 个集成用例
+internal/api/{release,referee}_test.go         2 个 HTTP 集成用例
+```
+
+### 关键设计
+
+| 决策 | 说明 |
+|---|---|
+| **发布单元 = 赛项 × 组别 × 赛台** | 来自 P13 定义。一个赛项在三个赛台上是三个单元，分别移交、分别发布 |
+| **只存一个 status，两列文案派生** | 前端「移交状态」与「发布状态」两列是同一状态的两种视图；存两份真值迟早打架 |
+| **重发用标记，不新增第五个状态** | 已发布后发生改分 / 裁定 → 回退 pending + `republish_required`。它与首次待发布在后端是同一件事（都是等运营点发布），差别只在前端标不标红 |
+| **状态机由数据库把关** | 每条 UPDATE 带允许的前置状态（如 `status IN ('handed','pending')`），命中 0 行即视为状态不符。并发下两个运营同时点发布只有一个会成功，不会重复发布也不会静默覆盖 |
+| **重发保留上次发布人** | 重发期间前端既要提示「待重发」，也要能看到上一版是谁发的 |
+| **裁判码三种失败必须可区分** | 码无效 404（P1.5b）/ 姓名不匹配 400（P1.5c）/ 已作废 409。统一成「登录失败」前端就没法分流，而这两种失败给裁判的补救动作完全不同 |
+| **激活幂等** | 换平板、重装 App 都要能重新激活；已激活的码再激活直接返回绑定、不重复留痕 |
+| **裁判码是赛事级凭证** | contest_id 分区 + `UNIQUE(contest_id, code)`。旧码在新赛事里就是查无此码 |
+| **码用 crypto/rand + 无歧义字符集** | 剔除 0/O、1/I/L —— 裁判码是口头传达 + 手输的凭证，留易混字符等于凭空制造登录失败；用 crypto/rand 而非 math/rand 是因为它是凭据，可预测就等于没有 |
+
+### 与前端的对应
+
+| 前端页 | 后端能力 |
+|---|---|
+| P11 确认并移交 | `POST /api/v1/releases/hand-over`（按赛项 / 组别 / 赛台定位） |
+| P13 发布状态回流看板 | `GET /api/v1/releases`（含四态计数与待重发数） |
+| P13 note 5 重发联动 | `POST /api/v1/releases/{id}/republish` |
+| P1 登录 / P1.5 · P1.6 绑定确认 | `POST /api/v1/referee-codes/activate`（回传预绑执裁范围） |
+| P1.5b 码无效 / P1.5c 姓名不匹配 | 由 activate 的 404 / 400 区分 |
+
+### 验证记录（真实执行）
+
+```
+bash scripts/test_db.sh   → 两库均 17 张表（新增 release_units / referee_codes）
+go build ./...            → BUILD_OK
+go vet ./...              → 0 告警
+gofmt -l（新增文件）       → 全部规范
+go test -p 1 -count=1 ./... → api ok (7.5s) / engine ok (1.6s) / service ok (13.1s)
+```
+
+**新增 9 个集成用例（全部打到真实 PG）**
+
+| 用例 | 验证内容 |
+|---|---|
+| `TestReleaseLifecycle` | 四态主链路 + 发布人 / 时间落库 + 每步留痕 |
+| `TestReleasePublishRequiresHandover` | 未移交不得发布；移交后即可发布（不必等接收） |
+| `TestReleaseRepublish` | 回退到待发布 + 重发标记 + 保留上次发布人 + 重发后标记清空 |
+| `TestReleaseEnsureIdempotent` | 同一三元组 Ensure 两次是同一单元；换组别是另一单元 |
+| `TestRefereeIssueAndActivate` | 6 位码、预绑范围、激活、重复激活幂等且不重复留痕 |
+| `TestRefereeActivateFailures` | 码无效 / 姓名不匹配 / 空码三种失败可区分 |
+| `TestRefereeCodeIsContestScoped` | 跨赛事使用旧码无效（赛事级凭证不变式） |
+| `TestReleasesOverHTTP` | 7 个端点 + 409 未移交发布 + 参数校验 + 看板计数 |
+| `TestRefereeCodesOverHTTP` | 建档 / 激活 / 三种失败状态码 / 重复激活幂等 |
+
+### 后续
+
+- [ ] **P1 赛台-队伍可写锁**（E 项已建单，但「同台同队仅一台平板持可写锁」的**预防**机制仍未做）
+- [ ] **P1 留底证据库**：无专门表（`audit_logs` 部分覆盖）
+- [ ] **本期不做**：裁判码不签发会话（鉴权仍是 `api.CurrentUser` 插槽）；
+      离线登录由平板端凭本机缓存判定，不回后端
+
+---
+
 ## 已知问题 / 待办
 
 ### ✅ 已定调（2026-10-04）

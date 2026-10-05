@@ -53,6 +53,8 @@ type Repos struct {
 	CfgSnaps  ConfigSnapshotRepo // 配置快照
 	Changes   ChangeRequestRepo  // 改分申请单
 	Disputes  DisputeRepo        // 争议工单（0005）
+	Releases  ReleaseUnitRepo    // 发布单元（0006）
+	Referees  RefereeCodeRepo    // 裁判码（0007）
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +196,56 @@ type DisputeRepo interface {
 	// Withdraw 撤回：仅在待裁定状态下允许（已裁定不可撤，只能再裁定）。
 	// 不存在或状态不允许返回 ErrNotFound。
 	Withdraw(ctx context.Context, id int64) error
+}
+
+// ---------------------------------------------------------------------------
+// 发布单元（0006）
+// ---------------------------------------------------------------------------
+
+// ReleaseUnitRepo 发布单元读写（赛项 × 组别 × 赛台）。
+//
+// 状态机由 service 层把关，本接口只做「按条件更新」：
+// 每条 UPDATE 都带上允许的前置状态（如 `AND status IN ('handed','pending')`），
+// 命中 0 行即返回 ErrNotFound —— 这样并发下两个运营同时点发布，
+// 只有一个会成功，另一个拿到「已发布 / 状态已变」而不是静默重复发布。
+//
+// 全部方法按当前赛事（ctx 中的 contest_id）分区。
+type ReleaseUnitRepo interface {
+	// Ensure 按（赛项, 组别, 赛台）取发布单元，不存在则创建（幂等）。
+	// 建档与取用是同一个动作：运营不需要先「建单元」再「移交」两步走。
+	Ensure(ctx context.Context, eventID, groupCode string, seatID *int64) (*model.ReleaseUnit, error)
+	Get(ctx context.Context, id int64) (*model.ReleaseUnit, error)
+	// ListByContest 本赛事全部发布单元（P13 看板数据源），按赛项、组别排序。
+	ListByContest(ctx context.Context) ([]model.ReleaseUnit, error)
+	// HandOver 移交：not_handed / pending（重发后可再移交）→ handed。
+	HandOver(ctx context.Context, id int64, operator string) error
+	// Receive 接收：handed → pending。
+	Receive(ctx context.Context, id int64, operator string) error
+	// Publish 发布：handed / pending → published，清空重发标记。
+	Publish(ctx context.Context, id int64, operator string) error
+	// MarkRepublish 标记重发：published → pending 且 republish_required=true。
+	MarkRepublish(ctx context.Context, id int64, reason string) error
+}
+
+// ---------------------------------------------------------------------------
+// 裁判码（0007）
+// ---------------------------------------------------------------------------
+
+// RefereeCodeRepo 裁判码读写。
+//
+// 查码一律按当前赛事 —— 裁判码是赛事级凭证，换赛事必须重新建档发码。
+// 码本身不建额外索引之外的保护：本期鉴权仍是插槽（api.CurrentUser），
+// 裁判码只做「这个人是谁、执裁范围是什么」的解析，不签发会话。
+type RefereeCodeRepo interface {
+	// Create 建档一条裁判码；同赛事内码重复返回 ErrDuplicate。
+	Create(ctx context.Context, c *model.RefereeCode) error
+	// GetByCode 按码查档（仅当前赛事）；不存在返回 ErrNotFound。
+	// 调用方据此区分「码无效」与「姓名不匹配」两种失败。
+	GetByCode(ctx context.Context, code string) (*model.RefereeCode, error)
+	// ListByContest 本赛事全部裁判码，按建档时间倒序。
+	ListByContest(ctx context.Context) ([]model.RefereeCode, error)
+	// MarkActivated 标记已激活（首登联网激活）；不存在或已作废返回 ErrNotFound。
+	MarkActivated(ctx context.Context, id int64) error
 }
 
 // ---------------------------------------------------------------------------

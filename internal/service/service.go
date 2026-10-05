@@ -157,6 +157,24 @@ var ErrDisputePending = errors.New("该队该轮已有一条同类待裁定工�
 // 撤回只对「待裁定」成立：已裁定的工单不能撤，只能再裁定一次并留痕（P8e 口径）。
 var ErrDisputeNotPending = errors.New("该工单已处理，仅待裁定工单可撤回")
 
+// ErrReleaseNotPublishable 发布单元当前状态不允许发布。
+//
+// 未移交的单元不能发布 —— 裁判长还没确认数据完整就发出去，正是要防的事。
+// 状态机由数据库把关（UPDATE 带前置状态），这里只把「命中 0 行」翻译成人话。
+var ErrReleaseNotPublishable = errors.New("该发布单元当前状态不可发布（须先移交）")
+
+// ErrRefereeCodeInvalid 裁判码在当前赛事下不存在（或已作废）。
+//
+// 与 ErrRefereeNameMismatch 分开是硬要求：前端按失败类型分流到两个独立页面
+// （P1.5b 码无效 / P1.5c 姓名不匹配），统一成「登录失败」就没法分流了。
+var ErrRefereeCodeInvalid = errors.New("裁判码无效")
+
+// ErrRefereeNameMismatch 裁判码存在，但姓名与档案不符。
+var ErrRefereeNameMismatch = errors.New("姓名与裁判码不匹配")
+
+// ErrRefereeRevoked 裁判码已作废。
+var ErrRefereeRevoked = errors.New("该裁判码已作废")
+
 func firstMessage(issues []engine.Issue) string {
 	if len(issues) == 0 {
 		return ""

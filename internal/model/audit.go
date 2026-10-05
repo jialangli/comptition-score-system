@@ -28,6 +28,16 @@ const (
 	ActDisputeReport   AuditAction = "上报争议" // 裁判人工上报 / 系统自动建单
 	ActDisputeDecide   AuditAction = "裁定争议" // 裁判长裁定（含推翻后的再裁定）
 	ActDisputeWithdraw AuditAction = "撤回争议" // 上报人在裁定前撤回
+
+	// 发布链路（0006）。同样不并入 AllAuditActions。
+	ActHandOver  AuditAction = "移交发布" // 裁判长确认并移交
+	ActReceive   AuditAction = "接收发布" // 工作人员接收，进入待发布
+	ActPublish   AuditAction = "运营发布" // 运营按下发布键
+	ActRepublish AuditAction = "标记重发" // 已发布后又发生改分 / 裁定生效
+
+	// 裁判码（0007）。激活是安全相关动作，必须留痕。
+	ActRefereeIssue    AuditAction = "建档裁判码" // 赛前生成码并预绑执裁范围
+	ActRefereeActivate AuditAction = "激活裁判码" // 首登联网激活
 )
 
 // AllAuditActions 必须留痕的六类操作。

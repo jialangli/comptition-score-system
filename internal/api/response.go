@@ -142,6 +142,24 @@ func Fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeJSON(w, http.StatusConflict, Envelope{
 			Code: CodeConflict, Message: "该工单已处理，仅待裁定工单可撤回（已裁定请走再裁定）"})
 		return
+	case errors.Is(err, service.ErrReleaseNotPublishable):
+		writeJSON(w, http.StatusConflict, Envelope{
+			Code: CodeConflict, Message: "该发布单元当前不可发布（须先由裁判长移交）"})
+		return
+	// 裁判码：三种失败必须映射到不同状态码 —— 前端靠状态码分流到
+	// P1.5b（码无效）与 P1.5c（姓名不匹配）两个独立页面。
+	case errors.Is(err, service.ErrRefereeNameMismatch):
+		writeJSON(w, http.StatusBadRequest, Envelope{
+			Code: CodeBadRequest, Message: "姓名与裁判码不匹配，请确认是否拿错了码"})
+		return
+	case errors.Is(err, service.ErrRefereeRevoked):
+		writeJSON(w, http.StatusConflict, Envelope{
+			Code: CodeConflict, Message: "该裁判码已作废，请联系工作人员重新建档"})
+		return
+	case errors.Is(err, service.ErrRefereeCodeInvalid):
+		writeJSON(w, http.StatusNotFound, Envelope{
+			Code: CodeNotFound, Message: "未找到该裁判码，请核对 6 位裁判码是否输入正确"})
+		return
 	case errors.Is(err, store.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, Envelope{Code: CodeNotFound, Message: "资源不存在"})
 		return

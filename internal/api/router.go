@@ -129,6 +129,28 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/v1/teams/{id}/disputes", s.handleListTeamDisputes)
 
 	// ---------------------------------------------------------------------
+	// 发布单元与移交 / 发布状态机（0006 · 前端 P11 / P13）
+	//
+	// ensure 与 hand-over 按（赛项, 组别, 赛台）定位（裁判长在 P11 面对的就是这个
+	// 三元组），接收 / 发布 / 标记重发按单元 ID —— 后者发生在后台队列里，
+	// 运营手里已经有单元 ID，不需要再拼三元组。
+	// ---------------------------------------------------------------------
+	mux.HandleFunc("GET /api/v1/releases", s.handleListReleases)
+	mux.HandleFunc("GET /api/v1/releases/{id}", s.handleGetRelease)
+	mux.HandleFunc("POST /api/v1/releases/ensure", s.handleEnsureRelease)
+	mux.HandleFunc("POST /api/v1/releases/hand-over", s.handleHandOverRelease)
+	mux.HandleFunc("POST /api/v1/releases/{id}/receive", s.handleReceiveRelease)
+	mux.HandleFunc("POST /api/v1/releases/{id}/publish", s.handlePublishRelease)
+	mux.HandleFunc("POST /api/v1/releases/{id}/republish", s.handleMarkRepublish)
+
+	// ---------------------------------------------------------------------
+	// 裁判码（0007 · 前端 P1 家族）
+	// ---------------------------------------------------------------------
+	mux.HandleFunc("GET /api/v1/referee-codes", s.handleListRefereeCodes)
+	mux.HandleFunc("POST /api/v1/referee-codes", s.handleIssueRefereeCode)
+	mux.HandleFunc("POST /api/v1/referee-codes/activate", s.handleActivateReferee)
+
+	// ---------------------------------------------------------------------
 	// 离线批量上行
 	// ---------------------------------------------------------------------
 	mux.HandleFunc("POST /api/v1/sync", s.handleSync)
