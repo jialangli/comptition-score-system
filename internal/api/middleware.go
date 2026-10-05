@@ -129,3 +129,38 @@ const defaultOperator = "运营（未声明）"
 func Operator(ctx context.Context) string {
 	return service.CurrentUser(ctx)
 }
+
+// ============================================================================
+// 当前赛事
+// ============================================================================
+
+// ContestHeader 客户端声明当前赛事的请求头。
+//
+// 与 X-Operator 同一套过渡机制：前端顶栏切换赛事时带上该赛事 id，
+// 后端据此把本次请求的所有读写都限定在这一场赛事的数据分区内。
+//
+// ⚠️ 这不是安全边界 —— 任何人都能填任意赛事 id。
+//    真正的隔离要靠后端鉴权（登录态 → 可访问的赛事列表）。
+//    在鉴权上线前，它的作用是让多赛事功能能跑通、能联调，
+//    而不是防止越权访问。
+const ContestHeader = "X-Contest"
+
+// CurrentContest 把赛事 id 注入 context，供 store 层做数据分区。
+//
+// 必须在业务 handler 之前执行：store 层每条 SQL 都从 ctx 取赛事，
+// 中间件没跑就等于全部落到默认赛事 ct_default。
+//
+// 未带该头时**不报错**，而是回落到默认赛事 —— 这样现有单赛事调用方
+// （以及不带头的老客户端）行为不变；多赛事客户端显式带上即可。
+func CurrentContest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.Header.Get(ContestHeader))
+		if id == "" {
+			// 不注入，让 store.CurrentContest 自己回落默认值
+			next.ServeHTTP(w, r)
+			return
+		}
+		ctx := service.WithContest(r.Context(), id)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}

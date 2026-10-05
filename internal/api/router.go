@@ -142,7 +142,10 @@ func (s *Server) Routes() http.Handler {
 	// ---------------------------------------------------------------------
 	mux.Handle("GET /", s.staticHandler())
 
-	return Chain(mux, Recover, LogRequests, CurrentUser, CORS(s.cfg.Dev))
+	// CurrentContest 要在 CurrentUser 之前或之后都行（两者互不依赖），
+	// 但必须在业务 handler 之前 —— store 层每条 SQL 都从 ctx 取赛事，
+	// 中间件没跑就等于全部落到默认赛事。
+	return Chain(mux, Recover, LogRequests, CurrentUser, CurrentContest, CORS(s.cfg.Dev))
 }
 
 // handleAPINotFound 未匹配到任何业务路由时的 JSON 404。
