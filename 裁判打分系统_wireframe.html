@@ -434,13 +434,13 @@
             </div>
             <div class="qrow"><span style="color:#718096;">改分原因（<b style="color:#c53030;">必填</b>）</span><span style="font-size:12px; color:#a0aec0;">如：任务③ 矿石运输漏记 1 颗，复核后补记 +150</span></div>
             <div class="qrow" style="font-size:12px; color:#718096;"><span>用时（<b>可改 · 改分模式专属</b>）</span><span>02:41 → 可修正 · 须填原因并随本单审批（原值由计时器带出）</span></div>
-            <div class="qrow" style="border-bottom:none; font-size:12px;"><span style="color:#718096;">判罚记录（<b style="color:#2b6cb0;">可改</b> · 随本单审批）</span><span>🚩 黄牌 ×1 · 红牌 ×0 &nbsp;<span style="color:#c05621; font-weight:bold; cursor:pointer;">记犯规 →</span></span></div>
+            <div class="qrow" style="border-bottom:none; font-size:12px;"><span style="color:#718096;">判罚记录（<b style="color:#2b6cb0;">可改</b> · 随本单审批）</span><span>🚩 黄牌 ×1 · 红牌 ×0 &nbsp;<span style="color:#c05621; font-weight:bold; cursor:pointer;">记红牌 →</span></span></div>
           </div>
         </div>
         <div class="action-bar">
           <div style="display:flex; gap:8px;">
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
-            <span class="btn-gray">🚩 记犯规（黄 1 · 红 0）</span>
+            <span class="btn-gray">🚩 记红牌（黄 1 · 红 0）</span>
           </div>
           <span class="btn-submit">提交改分申请 →</span>
         </div>
@@ -453,7 +453,7 @@
     <span class="num">3</span> <b>二段式生效（关键）</b>：点「提交改分申请 →」<b>只生成申请单 R-00X</b>，成绩不变；须裁判长在 <b>P9 改分审批</b>「批准并留痕」后才写入正式成绩——避免裁判单方改分。<br>
     <span class="num">4</span> <b>旧值 → 新值 diff 全程可见</b>：页面常驻显示「原 470 → 改后 620（+150）」，与 P9 审批端的 diff 同源，审批人核对的是同一组数。<br>
     <span class="num">5</span> <b>原因必填 + 防重复提交</b>：改分原因不填不能提交；<b>同队同轮存在未结单（待审批）时不允许再提</b>，防止重复申请把分数改乱——被拦时的完整呈现单独成页，见 <b>P2d 拦截态</b>。<br>
-    <span class="num">6</span> <b>不计分项分两类处理</b>：<b>用时可改（仅改分模式允许）</b>——裁判可修正、须填原因并随本单审批，原值由计时器带出；<b>黄 / 红牌可改</b> —— 底部新增「🚩 记犯规」入口，改牌只动留痕与排名、<b>不动分数</b>。<br>
+    <span class="num">6</span> <b>不计分项分两类处理</b>：<b>用时可改（仅改分模式允许）</b>——裁判可修正、须填原因并随本单审批，原值由计时器带出；<b>黄 / 红牌可改</b> —— 底部新增「🚩 记红牌」入口，改牌只动留痕与排名、<b>不动分数</b>。<br>
     <span class="num">7</span> <b>下游联动</b>：授权后按该队绑定版本<b>自动重算排名</b>；若该赛项已发布，会触发 P11 的<b>常驻重发提示</b>（对外公示页须由工作人员重新发布）。<br>
     <span class="num">8</span> <b>任务项 = 赛项规则配置下发</b>：本页任务集与分值<b>不是本页自造</b>，而是与 <b>P3 脑机星球 V6.2</b> 打分页<b>同一套配置</b>（规则模板表驱动）——回到该队改分时，任务名、分值、录入控件与原打分页<b>逐字一致</b>，裁判改的是同一批题目，避免“改分页换了另一套题目”造成口径混乱。
     <span class="num">9</span> <b>提交后反馈（闭环可见）</b>：点「提交改分申请 →」后顶部滑入「✓ 已提交 · 待审批 R-00X」成功条，<b>2 秒自动回跳 P2 队列</b>；该单在 <b>P2「我的申请」面板</b>可查审批进度与撤回（见 P2 note 11）—— <b>队列行不做任何标记</b>（完整呈现单独成页，见 <b>P2c 已提交态</b>）。不再有“点了没反应 / 不知道提交没”的黑洞。<br>
@@ -550,7 +550,7 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>三态互斥、各成一页</b>：<b>P2b 可编辑态</b>（无未结单，可改可提）→ 提交成功 → <b>P2c 已提交态</b>（只读回执）→ 重入且单未结 → <b>P2d 拦截态</b>（只读且按钮置灰）——同一页的三种互斥状态，沿用本册“互斥态各成一页”约定（同 P8 / P8b / P8c、P5.8 / P5.8b / P5.8c / P5.8d）。<br>
+    <span class="num">1</span> <b>三态互斥、各成一页</b>：<b>P2b 可编辑态</b>（无未结单，可改可提）→ 提交成功 → <b>P2c 已提交态</b>（只读回执）→ 重入且单未结 → <b>P2d 拦截态</b>（只读且按钮置灰）——同一页的三种互斥状态，沿用本册“互斥态各成一页”约定（同 P8 / P8b / P8c、P5.8c / P5.8d）。<br>
     <span class="num">2</span> <b>拦截条件＝同队同轮存在未结改分单</b>：由<b>服务端校验</b>（不只是前端置灰），与 P9 note 1 的「同队同轮未结单不允许再提」是同一条规则的两端——P9 是服务端闸门，本页是它在裁判端的可见呈现。<br>
     <span class="num">3</span> <b>为什么必须拦</b>：改分动的是<b>已生效成绩</b>，同轮堆多张单会让 P9 审批人同时看到多组互相矛盾的 diff，最后批准哪一张都可能把分数改错；拦在“发起”这一步，成本最低。<br>
     <span class="num">4</span> <b>不是死路：两条出口</b>——① 等裁判长在 P9 结单（批准→写入正式成绩 / 驳回→申请作废）；② 申请人在 P2「我的申请」面板<b>撤回</b>该单（留痕）。撤回或结单后，本队自动恢复 <b>P2b 可编辑态</b>。<br>
@@ -701,7 +701,7 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>与 P2e 的分工</b>：<b>P2e</b>＝正常已完成队的只读成绩单（底部可点「改分 →」发起修正）；<b>本页</b>＝已被取消资格队伍的只读成绩单（<b>无改分入口</b>）。两页是基础编号 <b>P2e 的两个互斥态</b>，沿用本册「互斥态各成一页」约定（同 P8 / P8b / P8c、P5.8 / P5.8b / P5.8c / P5.8d）。<br>
+    <span class="num">1</span> <b>与 P2e 的分工</b>：<b>P2e</b>＝正常已完成队的只读成绩单（底部可点「改分 →」发起修正）；<b>本页</b>＝已被取消资格队伍的只读成绩单（<b>无改分入口</b>）。两页是基础编号 <b>P2e 的两个互斥态</b>，沿用本册「互斥态各成一页」约定（同 P8 / P8b / P8c、P5.8c / P5.8d）。<br>
     <span class="num">2</span> <b>为什么还保留成绩构成</b>：<b>作废 ≠ 抹除</b>。成绩单仍逐项完整展示，供现场答疑、事后追溯与审计复核；只是外层明确标注「不进榜单」，并把正式成绩区置灰 + 删除线。<br>
     <span class="num">3</span> <b>为什么没有「改分」入口</b>：取消资格<b>不可撤销</b>（见 P8c note 2），成绩已作废、无可修正——留着入口只会让人以为还能救，点进去反而走不通。故本页只保留「← 返回队列」一个出口。<br>
     <span class="num">4</span> <b>作废依据与示例</b>：本页的作废依据是<b>已裁定的争议工单 D-002</b>（T-012 星海队 · 重复打分 → 裁定「取消资格」）；而 <b>P8c 裁定台</b>展示的是<b>当前待裁定的 D-003</b>（T-005 飞向蓝天队）—— 两者是同一条「<b>重复打分 → 取消资格</b>」链的两个实例，结构完全一致。P2 / P7 队列中 T-012 行的队名后也标红「（成绩作废）」，与 P2e2（本页）对应。<br>
@@ -878,7 +878,7 @@
         <div class="action-bar">
           <div style="display:flex; gap:8px;">
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
-            <span class="btn-gray">🚩 记犯规（黄 1 · 红 0）</span>
+            <span class="btn-gray">🚩 记红牌（黄 1 · 红 0）</span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
           <span class="btn-submit">提交成绩 →</span>
@@ -892,7 +892,7 @@
     <span class="num">3</span> <b>右上实时总分</b>：每个操作立即重算，裁判提交前就能口播报分。<br>
     <span class="num">4</span> <b>任务卡=配置驱动</b>：所有题目、分值、控件类型存在数据库“规则模板表”，换赛项只换模板，前端零改动——这是支持三个赛项的架构基础。<br>
     <span class="num">5</span> <b>随时可退队列</b>：底部“← 返回队列”退回当前比赛页总览 / 搜索（非顺序跳转）入口，未提交的成绩暂存草稿（本地），回队列再进仍可见；P4 / P5 单队打分表同此导航。<br>
-    <span class="num">6</span> <b>判罚不计分</b>：底部“🚩 记犯规”<b>浮出记犯规弹窗（P5.8）</b>，不跳页——黄牌 / 红牌只作记录、留痕与公示，<b>不扣分、不进总分</b>；可判罚的事由由工作人员后台按赛项配置下发，裁判端只读选择。
+    <span class="num">6</span> <b>判罚不计分</b>：底部“🚩 记红牌”<b>浮出记红牌弹窗（P5.8c）</b>，不跳页——黄牌 / 红牌只作记录、留痕与公示，<b>不扣分、不进总分</b>；可判罚的事由由工作人员后台按赛项配置下发，裁判端只读选择。
   </div>
 </div>
 
@@ -958,7 +958,7 @@
         <div class="action-bar">
           <div style="display:flex; gap:8px;">
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
-            <span class="btn-gray">🚩 记犯规（黄 0 · 红 0）</span>
+            <span class="btn-gray">🚩 记红牌（黄 0 · 红 0）</span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
           <span class="btn-submit">提交成绩 →</span>
@@ -969,7 +969,7 @@
   <div class="note">
     <span class="num">1</span> <b>本赛项不设时间奖励</b>：时间不计入分数，仅作为排名维度（<b>总分相同时</b>先用时升序、再用时相同比黄牌少）。<br>
     <span class="num">2</span> <b>同构不同题</b>：与 P3 完全同一页面组件，验证“规则模板驱动”的可行性。<br>
-    <span class="num">3</span> <b>判罚不计分</b>：底部“🚩 记犯规”<b>浮出记犯规弹窗（P5.8）</b>，黄牌 / 红牌只作记录与留痕、<b>不扣分</b>；事由清单由工作人员后台按赛项配置（火星救援的可判罚行为与脑机星球不同）。
+    <span class="num">3</span> <b>判罚不计分</b>：底部“🚩 记红牌”<b>浮出记红牌弹窗（P5.8c）</b>，黄牌 / 红牌只作记录与留痕、<b>不扣分</b>；事由清单由工作人员后台按赛项配置（火星救援的可判罚行为与脑机星球不同）。
     <span class="num">4</span> <b>任务集按官方火星救援 V6.2 重构</b>：本赛项共 7 项（① 橙块入仓 150/个 · ② 紫块上车 100/个 · ③ 桥梁 100/块 · ④ 紫块运仓 200/个 · ⑤ 全入仓加成 300 · ⑥ 返航 300 · ⑦ 检录 20），<b>满分小学组 2120 / 中学组 2420</b>；与 P3 脑机星球同构不同题，验证“规则模板驱动”可跨赛项复用。
   </div>
 </div>
@@ -1027,7 +1027,7 @@
         <div class="action-bar">
           <div style="display:flex; gap:8px;">
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
-            <span class="btn-gray">🚩 记犯规（黄 0 · 红 0）</span>
+            <span class="btn-gray">🚩 记红牌（黄 0 · 红 0）</span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
           <span class="btn-primary">保存并继续 →</span>
@@ -1038,10 +1038,10 @@
   <div class="note">
     <span class="num">1</span> <b>tab 分步录入</b>：自动阶段 / 手动阶段任务分开展示，避免裁判在错误阶段误录；点「手动阶段」tab 即切换展示该阶段任务集（<b>该状态见 P5.5</b>），底部按钮随之变为「提交成绩 →」。<br>
     <span class="num">2</span> <b>未来之城共四态，本页是第 1 个</b>：按「<b>页面绑视图、tab 绑阶段</b>」拆分——<b>单队</b>（演练 / 排位）：<b>P5</b> 自动阶段态 → <b>P5.5</b> 手动阶段态；<b>双队对抗</b>：<b>P5.6</b> 自动阶段态 → <b>P5.7</b> 手动阶段态。四个态共用同一份页面组件与同一套后台配置，差异只在「视图」与「当前选中阶段」。<br>
-    <span class="num">3</span> <b>判罚不计分</b>：底部“🚩 记犯规”<b>浮出记犯规弹窗（P5.8）</b>，黄牌 / 红牌只作记录与留痕、<b>不扣分</b>；事由清单由工作人员后台按赛项配置（未来之城的可判罚行为与其余赛项不同）。<br>
+    <span class="num">3</span> <b>判罚不计分</b>：底部“🚩 记红牌”<b>浮出记红牌弹窗（P5.8c）</b>，黄牌 / 红牌只作记录与留痕、<b>不扣分</b>；事由清单由工作人员后台按赛项配置（未来之城的可判罚行为与其余赛项不同）。<br>
     <span class="num">4</span> <b>单队同样走双阶段</b>：本页与 P5.6 对抗板<b>共用同一套阶段任务与后台配置</b>（自动阶段刷色卡 / 手动阶段手柄），仅少了“双队并排 + A、B 各自独立计时（各记各的）”；阶段切换、阶段小计逻辑完全一致，便于裁判在演练 / 排位与正式对抗间无缝切换。<br>
     <span class="num">5</span> <b>时间不计入分数、仅用于排名</b>：<b>全赛项均不设时间奖励</b>（时间不在打分页加分）；整场用时作为<b>排名维度</b>——排名规则（全赛项通用）：<b>按总分降序</b>；<b>总分相同</b>再比整场用时升序（用时少者靠前），再用时相同比<b>黄牌数少者靠前</b>，仍相同则<b>并列</b>（完整规则见 P11 公示页）。<br>
-    <span class="num">6</span> <b>任务区占满剩余空间 + 内部滚动，底部操作栏固定</b>：内容区（任务卡）自动占满 appbar 与底部操作栏之间的全部剩余高度，任务超出即在<b>内容区内滚动</b>；「← 返回队列 / 🚩 记犯规 / 保存并继续」三个按钮<b>固定在底部操作栏</b>，不随任务多少上下浮动——任务再多也不需要滑到底找提交入口（P3 / P4 / P5.5–P5.7 同一范式）。
+    <span class="num">6</span> <b>任务区占满剩余空间 + 内部滚动，底部操作栏固定</b>：内容区（任务卡）自动占满 appbar 与底部操作栏之间的全部剩余高度，任务超出即在<b>内容区内滚动</b>；「← 返回队列 / 🚩 记红牌 / 保存并继续」三个按钮<b>固定在底部操作栏</b>，不随任务多少上下浮动——任务再多也不需要滑到底找提交入口（P3 / P4 / P5.5–P5.7 同一范式）。
   </div>
 </div>
 
@@ -1108,7 +1108,7 @@
         <div class="action-bar">
           <div style="display:flex; gap:8px;">
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
-            <span class="btn-gray">🚩 记犯规（黄 0 · 红 0）</span>
+            <span class="btn-gray">🚩 记红牌（黄 0 · 红 0）</span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
           <span class="btn-submit">提交成绩 →</span>
@@ -1143,6 +1143,14 @@
                 <span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">820</span>
               </div>
             </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px; padding:4px 10px; margin-bottom:8px;">
+              <span style="display:inline-flex; align-items:center; gap:8px;">
+                <span class="snum y" style="font-size:15px;">黄</span>
+                <span style="font-size:20px; font-weight:bold; color:#d69e2e; line-height:1;">1</span>
+                <span style="font-size:11px; color:#718096;">再记 2 张自动升级 1 张红牌</span>
+              </span>
+              <span class="snum r" style="font-size:15px; color:#c53030;" title="红牌">红 0</span>
+            </div>
             <div style="display:flex; justify-content:space-between; align-items:center; background:#c6f6d5; color:#22543d; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
               <span style="font-size:12px; font-weight:bold;">⏱ 本队计时 · A 队 T-015</span>
               <span style="display:inline-flex; align-items:center; gap:8px;">
@@ -1175,7 +1183,7 @@
 </div>
               </div>
             </div>
-            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记犯规（黄 1 · 红 0）</span></div>
+            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记红牌（黄 1 · 红 0）</span></div>
           </div>
           <div class="card" style="border-color:#805ad5; border-width:2px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -1184,6 +1192,14 @@
                 <span style="font-size:11px; color:#718096;">本队总分</span>
                 <span style="font-size:26px; font-weight:bold; color:#805ad5; line-height:1;">620</span>
               </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px; padding:4px 10px; margin-bottom:8px;">
+              <span style="display:inline-flex; align-items:center; gap:8px;">
+                <span class="snum y" style="font-size:15px;">黄</span>
+                <span style="font-size:20px; font-weight:bold; color:#d69e2e; line-height:1;">1</span>
+                <span style="font-size:11px; color:#718096;">再记 2 张自动升级 1 张红牌</span>
+              </span>
+              <span class="snum r" style="font-size:15px; color:#c53030;" title="红牌">红 0</span>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; background:#e9d8fd; color:#44337a; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
               <span style="font-size:12px; font-weight:bold;">⏱ 本队计时 · B 队 T-016</span>
@@ -1217,7 +1233,7 @@
 </div>
               </div>
             </div>
-            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记犯规（黄 0 · 红 0）</span></div>
+            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记红牌（黄 0 · 红 0）</span></div>
           </div>
         </div>
         <div class="card">
@@ -1257,7 +1273,7 @@
     <span class="num">2</span> <b>本页设签名位（A / B 选手代表 + 裁判）</b>：V7.3 要求 A、B 两队各一名选手代表签字；本页打分卡底部即设签名区——<b>A 队选手代表 + B 队选手代表 + 本场裁判</b>各签一处，签名即对各队<b>成绩与判罚</b>无异议，与 P3/P4/P5 单队打分页（选手代表 + 裁判各一处）同一范式。<br>
     <span class="num">3</span> <b>本页 vs P5 的边界</b>：P5 是未来之城「单队」标准打分表（单队演练 / 排位用）；P5.6 是正式对抗场次的双队同场控制板——进入对抗场次时由 <b>P2 第 5 条</b>轮转规则直接载入本页。<br>
     <span class="num">4</span> <b>整场提交闭环</b>：A / B 双方均完成打分后方可“提交成绩”，任一侧未完成时按钮置灰并提示“请先完成 B 队打分”；提交后即归档并切下一场（P2 队列指针 +1）。<br>
-    <span class="num">6</span> <b>判罚双侧独立且不计分</b>：每队“🚩 记犯规”各自<b>浮出记犯规弹窗（P5.8）</b>，牌面显示在各自卡内的「🚩 记犯规」按钮上（黄 1 · 红 0 / 黄 0 · 红 0），<b>卡头仅保留本队总分</b>、不重复展示牌面；黄牌 / 红牌<b>不扣分</b>，两队牌面互不影响比分，也不进小计。<br>
+    <span class="num">6</span> <b>判罚双侧独立且不计分</b>：每队“🚩 记红牌”各自<b>浮出记红牌弹窗（P5.8c）</b>，牌面显示在各自卡内的「🚩 记红牌」按钮上（黄 1 · 红 0 / 黄 0 · 红 0），<b>卡头仅保留本队总分</b>、不重复展示牌面；黄牌 / 红牌<b>不扣分</b>，两队牌面互不影响比分，也不进小计。<br>
     <span class="num">7</span> <b>本页是「自动阶段态」，手动阶段态见 <b>P5.7</b></b>：页面绑定<b>视图</b>（单队 / 双队），tab 绑定<b>阶段</b>（自动 / 手动）——因此 P5.6 与 P5.7 共用同一页面组件与同一套后台配置，仅当前选中阶段不同；<b>阶段不写死到页面上</b>，顺序始终由工作人员后台可配置（见后台「阶段配置」）。
   </div>
 </div>
@@ -1279,6 +1295,14 @@
                 <span style="font-size:11px; color:#718096;">本队总分</span>
                 <span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">1920</span>
               </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px; padding:4px 10px; margin-bottom:8px;">
+              <span style="display:inline-flex; align-items:center; gap:8px;">
+                <span class="snum y" style="font-size:15px;">黄</span>
+                <span style="font-size:20px; font-weight:bold; color:#d69e2e; line-height:1;">1</span>
+                <span style="font-size:11px; color:#718096;">再记 2 张自动升级 1 张红牌</span>
+              </span>
+              <span class="snum r" style="font-size:15px; color:#c53030;" title="红牌">红 0</span>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; background:#c6f6d5; color:#22543d; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
               <span style="font-size:12px; font-weight:bold;">⏱ 本队计时 · A 队 T-015</span>
@@ -1322,7 +1346,7 @@
 </div>
               </div>
             </div>
-            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记犯规（黄 1 · 红 0）</span></div>
+            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记红牌（黄 1 · 红 0）</span></div>
           </div>
           <div class="card" style="border-color:#805ad5; border-width:2px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -1331,6 +1355,14 @@
                 <span style="font-size:11px; color:#718096;">本队总分</span>
                 <span style="font-size:26px; font-weight:bold; color:#805ad5; line-height:1;">970</span>
               </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px; padding:4px 10px; margin-bottom:8px;">
+              <span style="display:inline-flex; align-items:center; gap:8px;">
+                <span class="snum y" style="font-size:15px;">黄</span>
+                <span style="font-size:20px; font-weight:bold; color:#d69e2e; line-height:1;">1</span>
+                <span style="font-size:11px; color:#718096;">再记 2 张自动升级 1 张红牌</span>
+              </span>
+              <span class="snum r" style="font-size:15px; color:#c53030;" title="红牌">红 0</span>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; background:#e9d8fd; color:#44337a; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
               <span style="font-size:12px; font-weight:bold;">⏱ 本队计时 · B 队 T-016</span>
@@ -1374,7 +1406,7 @@
 </div>
               </div>
             </div>
-            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记犯规（黄 0 · 红 0）</span></div>
+            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记红牌（黄 0 · 红 0）</span></div>
           </div>
         </div>
         <div class="card">
@@ -1414,125 +1446,10 @@
   </div>
 </div>
 
-<!-- ============ P5.8 记犯规弹窗（浮层） ============ -->
-<div class="page">
-  <div class="page-title">P5.8 · 记黄牌弹窗（浮层 · 从「🚩 记犯规」唤起）</div>
-  <div class="page-desc">在<b>全部可编辑页（P2b 改分模式 / P3 / P4 / P5 / P5.5 / P5.6 / P5.7）</b>点「🚩 记犯规」即浮出<b>黄牌记牌弹窗</b>——不跳页、不打断打分进度，关闭即回原页；<b>红牌为独立弹窗页（P5.8c）</b>。黄牌事由由工作人员后台按赛项配置下发，裁判端只读选择。</div>
-  <div class="tablet" style="position:relative;">
-    <div class="appbar" style="opacity:.45;"><span>⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮 · 场次 C-3</span><span style="font-size:12px;">⏱ 03:45</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
-    <div class="screen">
-      <div class="main" style="opacity:.3;">
-        <div style="font-size:13px; color:#718096;">（原打分界面保持原状，仅被遮罩压暗——关闭弹窗即回到原状态：不回退、不重载、不丢草稿）</div>
-      </div>
-    </div>
-    <div style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(26,32,44,.5); display:flex; align-items:center; justify-content:center; padding:16px;">
-      <div style="width:100%; max-width:620px; background:#fff; border-radius:10px; box-shadow:0 16px 48px rgba(0,0,0,.4); overflow:hidden;">
-        <div style="background:#d69e2e; color:#fff; padding:11px 16px; font-size:14px; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
-          <span>🚩 记黄牌 · T-015 未来先锋队（A 队）</span>
-          <span style="font-size:12px; font-weight:normal; opacity:.95;">当前 黄 1 · 红 0</span>
-        </div>
-        <div style="padding:12px 16px;">
-          <div class="qrow"><span style="color:#718096;">距红牌</span><span style="font-size:12px; color:#c05621;">再记 2 张黄牌将自动升级 1 张红牌</span></div>
-          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; margin:10px 0 4px;">
-            <div style="font-size:15px; font-weight:bold; padding:10px 12px 8px; background:#f7fafc; border-bottom:1px solid #e2e8f0;">判罚事由 · <span style="color:#c05621;">黄牌</span>（本赛项 6 条 · 可下滑查看）</div>
-            <div style="padding:4px 12px 8px; max-height:200px; overflow-y:auto;">
-              <div class="qrow"><span><span class="snum y">1</span>恶意撞击能源轨道</span><span style="color:#2b6cb0; font-weight:bold;">● 已选</span></div>
-              <div class="qrow"><span><span class="snum y">2</span>破坏矿石存储仓</span><span style="color:#a0aec0;">○ 选择</span></div>
-              <div class="qrow"><span><span class="snum y">3</span>击落矿石合成仓二层道具</span><span style="color:#a0aec0;">○ 选择</span></div>
-              <div class="qrow"><span><span class="snum y">4</span>不听从裁判指示</span><span style="color:#a0aec0;">○ 选择</span></div>
-              <div class="qrow"><span><span class="snum y">5</span>擅自摘下脑电设备</span><span style="color:#a0aec0;">○ 选择</span></div>
-              <div class="qrow" style="border-bottom:none;"><span><span class="snum y">6</span>擅自触碰场地设备及道具</span><span style="color:#a0aec0;">○ 选择</span></div>
-            </div>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid #e2e8f0;">
-            <span style="font-size:12px; color:#718096;">本场已记：黄 1（恶意撞击能源轨道 · 12:26）<span style="color:#2b6cb0; cursor:pointer;"> 撤销</span></span>
-            <span style="display:flex; gap:8px; align-items:center;">
-              <span class="btn-gray btn-sm">取消</span>
-              <span class="btn-primary btn-sm">确认记牌（不计分）</span>
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="note">
-    <span class="num">1</span> <b>为什么是弹窗而不是独立页</b>：记犯规是打分过程中的<b>高频轻量动作</b>，做成独立页会跳走、打断打分进度，返回后还要重新定位队伍；弹窗保持上下文，关闭即回原页、草稿不丢。<b>P2b 改分模式下同样走本浮层</b> —— 那里是偶发的<b>补记 / 纠正</b>，不跳页的理由一致。<br>
-    <span class="num">2</span> <b>判罚不计分</b>：黄牌 / 红牌只作记录、留痕与公示，<b>不参与任何算分</b>——总分即 base（各任务分之和），没有 penalty 项。<br>
-    <span class="num">3</span> <b>事由按赛项配置</b>：<b>黄牌、红牌各一套事由</b>，且各赛项不同（脑机星球 6+4 / 火星救援 7+4 / 未来之城 9+4 条），由工作人员后台按当季规则增删填写（如「黄牌：小球出界」「红牌：顶撞裁判」），裁判端<b>只读选择、不能自造</b>；黄牌与红牌分两个独立弹窗页（P5.8 / P5.8c）各自展示对应事由列表。<br>
-    <span class="num">4</span> <b>累计升级</b>：同一场次同一队伍累计 <b>3 张黄牌自动升级 1 张红牌</b>；裁判也可直接记红牌（严重违规）。<br>
-    <span class="num">5</span> <b>红牌 ≠ 取消资格</b>：红牌是“比赛结束、<b>成绩保留</b>”；取消资格是独立档位（<b>成绩作废</b>），只在 <b>P8 裁定台</b>判定，不因红牌自动触发。<br>
-    <span class="num">6</span> <b>后果不在此处配置</b>：判罚导致的道具失效 / 不计分，由裁判在打分页对该任务项直接打 0 分处理；两者都不写进事由清单。名次由<b>排名规则</b>决定：总分降序，<b>总分相同先比用时升序（少者前）、再用时相同比黄牌少者前</b>，仍相同则并列（完整规则见 P11 公示页）。<br>
-    <span class="num">7</span> <b>比赛时间结束时的提醒</b>：若裁判正开着记牌浮层（P5.8 / P5.8b）记牌，屏幕<b>右上角滑入 toast</b> 提醒「比赛时间已结束 · 请通知选手停止操作」（见 <b>P5.8d</b>）；若浮层未打开，则在打分页顶部直接弹 toast（见 <b>P5.9</b>）。两者均<b>不阻断</b>当前操作，记牌与打分照常可继续。<br>
-    <span class="num">8</span> <b>多张判罚如何展示</b>：「本场已记」<b>常驻只显示第 1 张</b>，其右侧出现<b>竖向三点「更多」图标（⋮）</b>——点击 / 触碰即弹出本场其余判罚（逐张可撤销）；牌数再多也<b>不撑高弹窗、不挤动底部按钮</b>。多张形态见 <b>P5.8b</b>。
-  </div>
-</div>
-
-<!-- ============ P5.8b 记黄牌弹窗 · 已累计 3 张（升级红牌） ============ -->
-<div class="page">
-  <div class="page-title">P5.8b · 记黄牌弹窗 · 已累计 3 张（自动升级红牌）</div>
-  <div class="page-desc">与 P5.8 是<b>同一弹窗的另一个累计状态</b>：已记满 <b>3 张黄牌</b>并<b>自动升级 1 张红牌</b>；「本场已记」<b>常驻只显示第 1 张</b>，其右侧竖向三点「更多」图标 <b>⋮</b> 点开即为本页——弹出本场其余判罚，逐张可撤销</div>
-  <div class="tablet" style="position:relative;">
-    <div class="appbar" style="opacity:.45;"><span>⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮 · 场次 C-3</span><span style="font-size:12px;">⏱ 02:14</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
-    <div class="screen">
-      <div class="main" style="opacity:.3;">
-        <div style="font-size:13px; color:#718096;">（原打分界面保持原状，仅被遮罩压暗——关闭弹窗即回到原状态：不回退、不重载、不丢草稿）</div>
-      </div>
-    </div>
-    <div style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(26,32,44,.5); display:flex; align-items:center; justify-content:center; padding:16px;">
-      <div style="width:100%; max-width:620px; background:#fff; border-radius:10px; box-shadow:0 16px 48px rgba(0,0,0,.4); overflow:hidden;">
-        <div style="background:#d69e2e; color:#fff; padding:11px 16px; font-size:14px; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
-          <span>🚩 记黄牌 · T-015 未来先锋队（A 队）</span>
-          <span style="font-size:12px; font-weight:normal; opacity:.95;">当前 黄 3 · 红 1</span>
-        </div>
-        <div style="padding:12px 16px;">
-          <div class="qrow"><span style="color:#718096;">距红牌</span><span style="font-size:12px; color:#c05621;">已升级 1 张红牌 · 每累计 3 张黄牌升级 1 张</span></div>
-          <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; margin:10px 0 4px;">
-            <div style="font-size:15px; font-weight:bold; padding:10px 12px 8px; background:#f7fafc; border-bottom:1px solid #e2e8f0;">判罚事由 · <span style="color:#c05621;">黄牌</span>（本赛项 6 条 · 可下滑查看）</div>
-            <div style="padding:4px 12px 8px; max-height:200px; overflow-y:auto;">
-              <div class="qrow"><span><span class="snum y">1</span>恶意撞击能源轨道</span><span style="color:#2b6cb0; font-weight:bold;">● 已选</span></div>
-              <div class="qrow"><span><span class="snum y">2</span>破坏矿石存储仓</span><span style="color:#2b6cb0; font-weight:bold;">● 已选</span></div>
-              <div class="qrow"><span><span class="snum y">3</span>击落矿石合成仓二层道具</span><span style="color:#2b6cb0; font-weight:bold;">● 已选</span></div>
-              <div class="qrow"><span><span class="snum y">4</span>不听从裁判指示</span><span style="color:#a0aec0;">○ 选择</span></div>
-              <div class="qrow"><span><span class="snum y">5</span>擅自摘下脑电设备</span><span style="color:#a0aec0;">○ 选择</span></div>
-              <div class="qrow" style="border-bottom:none;"><span><span class="snum y">6</span>擅自触碰场地设备及道具</span><span style="color:#a0aec0;">○ 选择</span></div>
-            </div>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid #e2e8f0;">
-            <span style="display:flex; align-items:center; gap:6px;">
-              <span style="font-size:12px; color:#718096;">本场已记：黄 1（恶意撞击能源轨道 · 12:26）<span style="color:#2b6cb0; cursor:pointer;"> 撤销</span></span>
-              <span style="position:relative; display:inline-block;">
-                <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border:1px solid #cbd5e0; border-radius:5px; background:#fff; color:#4a5568; font-size:13px; font-weight:bold; line-height:1; cursor:pointer;">⋮</span>
-                <span style="position:absolute; left:-6px; bottom:26px; width:296px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.16); padding:8px 10px; z-index:3;">
-                  <div style="font-size:11px; color:#a0aec0; margin-bottom:2px;">本场其余判罚（3 张 · 第 1 张常驻显示）</div>
-                  <div class="qrow" style="padding:5px 0;"><span style="font-size:12px; color:#4a5568;">黄 2（破坏矿石存储仓 · 13:05）</span><span style="font-size:12px; color:#2b6cb0; cursor:pointer;">撤销</span></div>
-                  <div class="qrow" style="padding:5px 0;"><span style="font-size:12px; color:#4a5568;">黄 3（击落矿石合成仓二层道具 · 13:18）</span><span style="font-size:12px; color:#2b6cb0; cursor:pointer;">撤销</span></div>
-                  <div class="qrow" style="padding:5px 0; border-bottom:none;"><span style="font-size:12px; color:#9b2c2c;">红 1（黄×3 自动升级 · 13:18）</span><span style="font-size:12px; color:#2b6cb0; cursor:pointer;">撤销</span></div>
-                </span>
-              </span>
-            </span>
-            <span style="display:flex; gap:8px; align-items:center;">
-              <span class="btn-gray btn-sm">取消</span>
-              <span class="btn-primary btn-sm">确认记牌（不计分）</span>
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="note">
-    <span class="num">1</span> <b>累计升级</b>：同一场次同一队伍累计满 <b>3 张黄牌</b>自动升级 <b>1 张红牌</b>（见 P5.8 note 4）；升级后弹窗头「当前」同步为 <b>黄 3 · 红 1</b>。<br>
-    <span class="num">2</span> <b>多张怎么展示</b>：「本场已记」<b>常驻只显示第 1 张</b>（黄 1 ＋ 时间 ＋ 撤销），其右侧出现<b>竖向三点「更多」图标 ⋮</b>；点击 / 触碰 ⋮ 即<b>向上弹出其余判罚浮层</b>（黄 2 / 黄 3 / 红 1，逐张带撤销）。<br>
-    <span class="num">3</span> <b>为什么用 ⋮ 而不是平铺</b>：弹窗底部要留给「取消 / 确认记牌」，平铺多张会撑高弹窗、挤动按钮；⋮ 把“第 1 张常驻 ＋ 其余按需展开”分开，<b>牌数再多也不改变弹窗高度</b>（本页即 ⋮ 已点开的展开态）。<br>
-    <span class="num">4</span> <b>逐张撤销 ＋ 联动回退</b>：浮层内每张可单独撤销；撤销任一张黄牌会<b>同步回退已升级的红牌</b>（3 → 2 张，红牌失效），避免“黄牌撤了红牌还在”。<br>
-    <span class="num">5</span> <b>单张时 ⋮ 不出现</b>：仅 1 张时不存在“其余判罚”，即 P5.8 常态（无 ⋮）；<b>≥2 张才出现</b>该图标。<br>
-    <span class="num">6</span> <b>⚠ 待与赛规确认</b>：升级后黄牌计数是「归零重新累计」还是「保留 3 张继续加」——本页按<b>累计显示（黄 3 · 红 1）</b>示意，赛规明确后同步文案。
-  </div>
-</div>
-
 <!-- ============ P5.8c 记红牌弹窗（浮层） ============ -->
   <div class="page">
-    <div class="page-title">P5.8c · 记红牌弹窗（浮层 · 从「🚩 记犯规 · 红牌」唤起）</div>
-    <div class="page-desc">严重违规时由裁判直接记红牌（不走黄牌累计），浮出<b>红牌记牌弹窗</b>；红牌事由由后台按赛项配置（未来之城 4 条）。红牌 ≠ 取消资格，<b>成绩保留</b>。</div>
+    <div class="page-title">P5.8c · 记红牌弹窗（浮层 · 从「🚩 记红牌」唤起）</div>
+    <div class="page-desc">严重违规时由裁判点「🚩 记红牌」<b>直接浮出本红牌弹窗</b>（不经黄牌累计路径）；<b>黄牌不再用弹窗</b>，改为<b>计分板常驻计数器</b>（见 P5.6 / P5.7 侧板，累计满 3 张自动升级 1 张红牌）。红牌事由由后台按赛项配置（未来之城 4 条）。红牌 ≠ 取消资格，<b>成绩保留</b>。</div>
     <div class="tablet" style="position:relative;">
       <div class="appbar" style="opacity:.45;"><span>⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮 · 场次 C-3</span><span style="font-size:12px;">⏱ 03:45</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
       <div class="screen">
@@ -1568,10 +1485,11 @@
       </div>
     </div>
     <div class="note">
-      <span class="num">1</span> <b>红牌为独立弹窗页</b>：与黄牌弹窗（P5.8）分离，裁判直接选择红牌事由记牌，<b>不经由黄牌累计升级</b>路径；黄牌累计满 3 张自动升级红牌的逻辑见 P5.8 note 4。<br>
+      <span class="num">1</span> <b>红牌为唯一记牌弹窗页</b>：裁判点「🚩 记红牌」直接选择红牌事由记牌，<b>不经由黄牌累计升级</b>路径；<b>黄牌改为计分板常驻计数器</b>（见 P5.6 / P5.7 侧板），累计满 3 张自动升级 1 张红牌。<br>
       <span class="num">2</span> <b>红牌 ≠ 取消资格</b>：记红牌后比赛结束、<b>成绩保留</b>；取消资格是独立判定档位（<b>成绩作废</b>），仅在 <b>P8 裁定台</b>由裁判长裁定，不随红牌自动触发。<br>
       <span class="num">3</span> <b>事由按赛项配置</b>：红牌事由各赛项不同（未来之城 4 条 / 脑机星球 4 条 / 火星救援 4 条），由后台按当季规则下发，裁判端只读选择、不能自造。<br>
-      <span class="num">4</span> <b>不计分、留痕公示</b>：红牌只作记录与公示，<b>不参与任何算分</b>；名次由排名规则决定（总分降序，同分先比用时、再用时同比黄牌少者前，见 P11）。
+      <span class="num">4</span> <b>不计分、留痕公示</b>：红牌只作记录与公示，<b>不参与任何算分</b>；名次由排名规则决定（总分降序，同分先比用时、再用时同比黄牌少者前，见 P11）。<br>
+    <span class="num">5</span> <b>黄牌改为计分板常驻计数器</b>：原「黄牌记牌弹窗（P5.8）」与「已累计 3 张（P5.8b）」两页<b>已删除</b>——黄牌是<b>轻量累计动作</b>，不值得为此弹窗打断打分。改在<b>计分板侧板加常驻黄牌计数器</b>（P5.6 / P5.7 各一队一个）：显示「黄 N」+ <b>「再记 2 张自动升级 1 张红牌」</b>的临界提示，红牌数并排显示；<b>累计满 3 张自动升级 1 张红牌</b>的规则不变，只是提示位置从弹窗顶部移到计数器旁。原「记犯规」按钮相应改名为<b>「🚩 记红牌」</b>，直接唤起本红牌弹窗。
     </div>
   </div>
 
@@ -1620,7 +1538,7 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>触发条件</b>：裁判已打开记牌浮层（P5.8 / P5.8b / P5.8c）且<b>尚未关闭</b>时，比赛计时归零。<br>
+    <span class="num">1</span> <b>触发条件</b>：裁判已打开记牌浮层（<b>P5.8c</b>）且<b>尚未关闭</b>时，比赛计时归零。<br>
     <span class="num">2</span> <b>提醒方式</b>：屏幕<b>右上角滑入 toast</b>「⏰ 比赛时间已结束 · 请通知选手停止操作」，数秒后自动收起；不遮挡弹窗主体与记牌操作。<br>
     <span class="num">3</span> <b>不打断记牌</b>：<b>不自动关闭浮层</b>——正在记的牌不丢、可继续完成提交；计时结束后的补录仍属有效记录，强行关掉浮层会造成漏记与草稿丢失。<br>
     <span class="num">4</span> <b>为什么记牌时只做轻提示</b>：裁判此刻注意力在弹窗上、记牌又需连续操作，用角落 toast 既不打断录入，又能把「通知选手停止操作」及时带到眼前。<br>
@@ -1669,7 +1587,7 @@
         <div class="action-bar">
           <div style="display:flex; gap:8px;">
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
-            <span class="btn-gray">🚩 记犯规（黄 0 · 红 0）</span>
+            <span class="btn-gray">🚩 记红牌（黄 0 · 红 0）</span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
           <span class="btn-primary">保存并继续 →</span>
@@ -2539,7 +2457,7 @@
         <div class="action-bar">
           <div style="display:flex; gap:8px;">
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
-            <span class="btn-gray">🚩 记犯规（黄 1 · 红 0）</span>
+            <span class="btn-gray">🚩 记红牌（黄 1 · 红 0）</span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
           <span class="btn-submit">提交成绩 →</span>
@@ -2625,7 +2543,7 @@
         <div class="action-bar">
           <div style="display:flex; gap:8px;">
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
-            <span class="btn-gray">🚩 记犯规（黄 1 · 红 0）</span>
+            <span class="btn-gray">🚩 记红牌（黄 1 · 红 0）</span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
           <span class="btn-submit">提交成绩 →</span>
@@ -2711,7 +2629,7 @@
         <div class="action-bar">
           <div style="display:flex; gap:8px;">
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
-            <span class="btn-gray">🚩 记犯规（黄 1 · 红 0）</span>
+            <span class="btn-gray">🚩 记红牌（黄 1 · 红 0）</span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
           <span class="btn-submit">提交成绩 →</span>
@@ -2728,7 +2646,7 @@
   </div>
 </div>
 
-<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.7.20 · 共 40 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b / P8c 裁定三态（详情）· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / P5.8 · P5.8b · P5.8c 记犯规弹窗（黄牌 / 3 黄升级红 / 红牌）/ P5.8d · P5.9 比赛时间结束提醒 / P5.10 争议上报 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-09-27</div>
+<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.7.20 · 共 40 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b / P8c 裁定三态（详情）· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / P5.8c 记红牌弹窗（红牌）/ P5.8d · P5.9 比赛时间结束提醒 / P5.10 争议上报 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-09-27</div>
 
 </body>
 </html>
