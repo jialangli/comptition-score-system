@@ -48,6 +48,7 @@ func newRepos(q querier) store.Repos {
 		Snapshots: &SnapshotStore{q: q},
 		CfgSnaps:  &ConfigSnapshotStore{q: q},
 		Changes:   &ChangeStore{q: q},
+		Disputes:  &DisputeStore{q: q},
 	}
 }
 

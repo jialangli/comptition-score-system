@@ -146,6 +146,17 @@ var ErrChangePending = errors.New("已有待审批的改分申请")
 // ErrAlreadyDecided 申请单已被处理过（授权或驳回），不允许再次处理。
 var ErrAlreadyDecided = errors.New("该申请单已处理，不能重复审批")
 
+// ErrDisputePending 该队该轮已有一条同类型的待裁定争议工单。
+//
+// 由 disputes 的部分唯一索引 ux_disputes_one_open 兜底（离线补传是并发的，
+// 应用层「先查再插」会双插），这里把 23505 翻译成运营看得懂的一句话。
+var ErrDisputePending = errors.New("该队该轮已有一条同类待裁定工单")
+
+// ErrDisputeNotPending 工单已不在待裁定状态（已裁定或已撤回）。
+//
+// 撤回只对「待裁定」成立：已裁定的工单不能撤，只能再裁定一次并留痕（P8e 口径）。
+var ErrDisputeNotPending = errors.New("该工单已处理，仅待裁定工单可撤回")
+
 func firstMessage(issues []engine.Issue) string {
 	if len(issues) == 0 {
 		return ""

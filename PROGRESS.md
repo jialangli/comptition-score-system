@@ -410,6 +410,88 @@ go test ./...（默认并行）           → service 包 8 个 FAIL：events_pk
 
 ---
 
+## P7 已完成：争议工单落库（2026-10-05）
+
+### 背景
+
+前端 P8 家族定义了一整套争议裁定流程，但后端**没有承载它的实体**。此前只有
+`score_change_requests`（改分申请单），二者是两回事：改分申请单是「我要把这个分改成 X」
+（申请改数），争议工单是「出现两份成绩 / 申诉，请判定是非」（裁定结论）。
+缺口导致 P8 队列无处查询、裁定三态没有落点、E 项「补传冲突自动建单」无处可建。
+
+### 交付文件
+
+```
+migrations/0005_disputes.{up,down}.sql   争议工单表 + 部分唯一索引
+internal/model/dispute.go                工单模型 + 三档裁定结论 + 中文标签
+internal/model/audit.go                  新增「上报争议 / 裁定争议 / 撤回争议」三个动作
+internal/store/repo.go                   DisputeRepo 接口 + Repos.Disputes
+internal/store/postgres/dispute.go       仓储实现（6 个方法）
+internal/store/postgres/admin.go         TruncateAll 补 disputes
+internal/service/dispute_service.go      上报 / 系统建单 / 撤回 / 裁定 / 队列查询
+internal/service/service.go              ErrDisputePending / ErrDisputeNotPending
+internal/api/dispute_handler.go          6 个端点 + 参数校验
+internal/api/router.go / response.go     路由注册 + 语义错误映射
+internal/service/dispute_test.go         6 个集成用例（真实 PG）
+internal/api/dispute_test.go             1 个 HTTP 集成用例
+```
+
+### 关键设计
+
+| 决策 | 说明 |
+|---|---|
+| **状态三态而非布尔** | 待裁定 / 已裁定 / 已撤回。撤回是独立状态而非物理删除 —— 工单提错了也要留痕，与「队伍弃赛只做软删除」同一条原则 |
+| **去重靠部分唯一索引** | `ux_disputes_one_open ... WHERE status='pending'`。离线补传是并发的，「先查再插」两个请求都会查到「没有」然后都插进去。带 WHERE 是为了已裁定 / 已撤回之后还能再提 |
+| **允许再裁定** | `Decide` 刻意不加 `AND status='pending'` 守卫（与 `ChangeStore.Decide` 相反）。P8e 明确支持「确需推翻时再裁定一次并留痕」，每次裁定都写审计，本表只保留最新结论 |
+| **系统建单幂等** | 补传会重试，同一队同一轮重复撞车只建一条工单；并发下被唯一索引挡下的后来者同样按幂等处理，不打断 `/sync` 主流程 |
+| **来源列区分人工与系统** | `source = referee / system`，共用同一队列与裁定流程，但「提出人 / 来源」列必须能分开，否则运营分不清是人报的还是补传撞车 |
+| **同步冲突不接受人工上报** | 它不是人能观察到的现象，让人去提只会产生来源与事实不符的工单。HTTP 层直接 400 |
+| **结论只记录、不联动改榜** | `verdict=disqualify` 后的名次顺延与递补由工作人员在后台执行（P8c note 7 口径），避免「裁定」与「执行」耦合 |
+| **`TruncateAll` 同步补表** | 新增表必须一并更新清单，否则测试间互相污染，症状是「单独跑能过、全量跑就挂」 |
+
+### 与前端 P8 家族的对应
+
+| 前端页 | 后端能力 |
+|---|---|
+| P8 待裁定队列 | `GET /api/v1/disputes`（OpenDisputes） |
+| P8a 维持原判 / P8b 授权改分 / P8c 取消资格 | `POST /api/v1/disputes/{id}/decide`，verdict = uphold / adjust / disqualify |
+| P8e 已裁定只读态 + 再裁定一次 | 同一 decide 端点可重复执行，每次留痕 |
+| P2「我的申请」→ 撤回 | `POST /api/v1/disputes/{id}/withdraw` |
+| P2e2 已作废成绩单 | `GET /api/v1/teams/{id}/disputes` 判断该队是否被判取消资格 |
+| P12 离线补传同步冲突 | `service.ReportSyncConflict`（**已就绪，尚未接到 /sync**） |
+
+### 验证记录（真实执行）
+
+```
+bash scripts/test_db.sh   → neuroscore_test / neuroscore_test_api 均 15 张表（新增 disputes）
+go build ./...            → BUILD_OK
+go vet ./...              → 0 告警
+gofmt -l（新增文件）       → 全部规范
+go test -p 1 -count=1 ./... → api ok (5.6s) / engine ok (1.3s) / service ok (9.0s)
+```
+
+**新增 7 个集成用例（全部打到真实 PG，无 mock）**
+
+| 用例 | 验证内容 |
+|---|---|
+| `TestDisputeLifecycle` | 上报 → 进队列 → 裁定（取消资格）→ 出队列且结论落库 → 历史仍可查 → 上报与裁定各留 1 条审计 |
+| `TestDisputeDuplicateReportBlocked` | 同队同轮同类型重复上报被唯一索引挡下；换类型 / 换轮次仍可再提 |
+| `TestDisputeSyncConflictIdempotent` | 补传重试只建一条工单；来源为 system、类型为 sync_conflict |
+| `TestDisputeWithdraw` | 撤回出队列但留记录；重复撤回与裁定已撤回工单均被拒 |
+| `TestDisputeRedecide` | 已裁定可再裁定，结论覆盖最新、审计留 2 条 |
+| `TestDisputeReasonRequired` | 上报与裁定都必须说明原因 |
+| `TestDisputesOverHTTP` | 6 个端点 + 参数校验：非法类型/轮次/结论 400、同步冲突人工上报 400、重复上报 409、已裁定不可撤 409 |
+
+### 后续（P0 剩余，按依赖顺序）
+
+- [ ] **E 项联动**：`/sync` 补传发现同队同轮已存在服务端记录时，调用 `ReportSyncConflict`
+      自动建单（`sync_handler.go:108` 目前只返回错误字符串）。service 侧已就绪。
+- [ ] **P0-1 发布 / 移交 / 回流状态机**：前端 P11 + P13 已上线四态看板，后端仍**完全空白**（0 处匹配）。
+- [ ] **P1 裁判码**（6 位 · 首登激活 · 断网可登）与**赛台-队伍可写锁**：后端均无。
+- [ ] **P1 留底证据库**：无专门表（`audit_logs` 部分覆盖）。
+
+---
+
 ## 已知问题 / 待办
 
 ### ✅ 已定调（2026-10-04）

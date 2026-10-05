@@ -17,6 +17,8 @@ func (d *DB) TruncateAll(ctx context.Context) error {
 	// 顺序无实际影响（CASCADE），但按「先叶子后根」排列便于人工核对
 	// 0004 新增的两张表也要清空：
 	//   score_change_requests —— 改分申请单，漏了会让用例间互相污染
+	//   disputes             —— 争议工单（0005）。同样是队伍级叶子表，
+	//                            且带部分唯一索引，残留会让「重复上报」类断言随机失败
 	//   contests             —— 赛事表。放在最后（其余表外键引用它，
 	//                            CASCADE 会连带清掉子表，顺序上仍是「先叶子后根」）
 	tables := []string{
@@ -26,6 +28,7 @@ func (d *DB) TruncateAll(ctx context.Context) error {
 		"seats",
 		"scores",
 		"score_change_requests",
+		"disputes",
 		"teams",
 		"tasks",
 		"screen_config",

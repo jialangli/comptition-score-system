@@ -116,6 +116,19 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/v1/audit-summary", s.handleAuditSummary)
 
 	// ---------------------------------------------------------------------
+	// 争议工单（0005 · 前端 P8 家族）
+	//
+	// 队列与裁定分两层：列表页只排队，裁定动作挂在单张工单下。
+	// 「同步冲突」不开 POST 入口 —— 它由 /api/v1/sync 在补传撞车时自动建立。
+	// ---------------------------------------------------------------------
+	mux.HandleFunc("GET /api/v1/disputes", s.handleListDisputes)
+	mux.HandleFunc("POST /api/v1/disputes", s.handleCreateDispute)
+	mux.HandleFunc("GET /api/v1/disputes/{id}", s.handleGetDispute)
+	mux.HandleFunc("POST /api/v1/disputes/{id}/decide", s.handleDecideDispute)
+	mux.HandleFunc("POST /api/v1/disputes/{id}/withdraw", s.handleWithdrawDispute)
+	mux.HandleFunc("GET /api/v1/teams/{id}/disputes", s.handleListTeamDisputes)
+
+	// ---------------------------------------------------------------------
 	// 离线批量上行
 	// ---------------------------------------------------------------------
 	mux.HandleFunc("POST /api/v1/sync", s.handleSync)

@@ -22,6 +22,12 @@ const (
 	ActDelete   AuditAction = "删队"
 	ActImport   AuditAction = "导入队伍"
 	ActLock     AuditAction = "锁定成绩" // 成绩/配置锁定与解锁
+
+	// 争议工单（0005）。单独成组、不并入 AllAuditActions —— 后者是 P3 验收
+	// 基线「六类核心操作」的覆盖度校验清单，往里加会改变既有断言的语义。
+	ActDisputeReport   AuditAction = "上报争议" // 裁判人工上报 / 系统自动建单
+	ActDisputeDecide   AuditAction = "裁定争议" // 裁判长裁定（含推翻后的再裁定）
+	ActDisputeWithdraw AuditAction = "撤回争议" // 上报人在裁定前撤回
 )
 
 // AllAuditActions 必须留痕的六类操作。

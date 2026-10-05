@@ -134,6 +134,14 @@ func Fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeJSON(w, http.StatusBadRequest, Envelope{
 			Code: CodeBadRequest, Message: "未勾选任何行，没有可入库的数据"})
 		return
+	case errors.Is(err, service.ErrDisputePending):
+		writeJSON(w, http.StatusConflict, Envelope{
+			Code: CodeConflict, Message: "该队该轮已有一条同类待裁定工单，请勿重复上报"})
+		return
+	case errors.Is(err, service.ErrDisputeNotPending):
+		writeJSON(w, http.StatusConflict, Envelope{
+			Code: CodeConflict, Message: "该工单已处理，仅待裁定工单可撤回（已裁定请走再裁定）"})
+		return
 	case errors.Is(err, store.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, Envelope{Code: CodeNotFound, Message: "资源不存在"})
 		return

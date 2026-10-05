@@ -52,6 +52,7 @@ type Repos struct {
 	Snapshots SnapshotRepo       // 加时赛场内快照
 	CfgSnaps  ConfigSnapshotRepo // 配置快照
 	Changes   ChangeRequestRepo  // 改分申请单
+	Disputes  DisputeRepo        // 争议工单（0005）
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +158,42 @@ type ChangeRequestRepo interface {
 	Decide(ctx context.Context, id int64, approver string, approved bool) error
 	// ListByTeam 某队全部历史申请（含已处理），按时间倒序。
 	ListByTeam(ctx context.Context, teamID int64) ([]model.ScoreChangeRequest, error)
+}
+
+// ---------------------------------------------------------------------------
+// 争议工单（0005）
+// ---------------------------------------------------------------------------
+
+// DisputeRepo 争议工单读写。
+//
+// 与 ChangeRequestRepo 的关键差异：**允许再裁定**。
+// ChangeRequestRepo.Decide 带 `AND NOT approved` 守卫（一单只能批一次），
+// 本接口的 Decide 不加该守卫 —— 前端 P8e 明确支持「确需推翻时再裁定一次并留痕」，
+// 每次裁定都写审计，本表只保留最新结论。
+//
+// 「同一队同一轮同一类型最多一条待裁定」由部分唯一索引 ux_disputes_one_open 兜底，
+// 违反时 Create 返回 ErrDuplicate —— 去重放在数据库，因为离线补传是并发的，
+// 应用层「先查再插」两个请求都会查到「没有」然后都插进去。
+//
+// 全部方法按当前赛事（ctx 中的 contest_id）分区，实现层自行注入，调用方无感。
+type DisputeRepo interface {
+	// Create 落库一条工单，回填 ID / CreatedAt / Code。
+	// 同队同轮同类型已有待裁定工单时返回 ErrDuplicate。
+	Create(ctx context.Context, d *model.Dispute) error
+	// Get 按工单号读取；不存在返回 ErrNotFound。
+	Get(ctx context.Context, id int64) (*model.Dispute, error)
+	// ListOpen 待裁定队列，先到先裁（P8 队列页数据源）。
+	ListOpen(ctx context.Context) ([]model.Dispute, error)
+	// ListByTeam 某队全部历史工单（含已裁定 / 已撤回），按时间倒序。
+	// 用于成绩单页判断该队是否被判取消资格。
+	ListByTeam(ctx context.Context, teamID int64) ([]model.Dispute, error)
+	// Decide 裁定：写入结论、裁定人、原因与时间。允许对已裁定工单再裁定。
+	// 不存在返回 ErrNotFound。
+	Decide(ctx context.Context, id int64, decider string,
+		verdict model.DisputeVerdict, reason string) error
+	// Withdraw 撤回：仅在待裁定状态下允许（已裁定不可撤，只能再裁定）。
+	// 不存在或状态不允许返回 ErrNotFound。
+	Withdraw(ctx context.Context, id int64) error
 }
 
 // ---------------------------------------------------------------------------
