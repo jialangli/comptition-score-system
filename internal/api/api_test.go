@@ -482,6 +482,16 @@ func TestScoreAndStandingsOverHTTP(t *testing.T) {
 		t.Error("改分申请不应自动获批")
 	}
 
+	// 重复改分申请 → 409：由 ux_scr_one_pending 唯一索引挡下，
+	// 必须映射成 409（正常误操作）而不是 500（会被运营当成故障上报）
+	dup := ts.do(t, http.MethodPost, base+"/2/change-requests", map[string]any{
+		"after": 88, "reason": "又点了一次改分申请",
+	}, "裁判A")
+	dup.expect(t, http.StatusConflict)
+	if !strings.Contains(dup.Msg, "待审批") {
+		t.Errorf("409 应说明该队该轮已有待审批申请：%q", dup.Msg)
+	}
+
 	// 授权改分（缺审批人 → 400）
 	ts.do(t, http.MethodPost, base+"/2/apply-change", map[string]any{
 		"tasks": map[string]any{"focus": 100, "build": 92}, "time": 90, "signed": true,

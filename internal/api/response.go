@@ -93,6 +93,7 @@ func Created(w http.ResponseWriter, data any) {
 //	service.ValidationError → 400，并把完整校验结论放进 data（前端一次标出所有问题）
 //	ErrReasonRequired     → 400，缺「必须说明的原因」
 //	ErrScoreSubmitted     → 409，已签字成绩禁止直接改
+//	ErrChangePending      → 409，该队该轮已有待审批改分申请
 //	ErrConflictRows       → 409，导入存在冲突行待裁决
 //	store.Err*            → 404 / 409
 //	model.FieldError      → 400，字段级
@@ -125,6 +126,13 @@ func Fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, service.ErrScoreSubmitted):
 		writeJSON(w, http.StatusConflict, Envelope{
 			Code: CodeConflict, Message: "成绩已提交签字，禁止直接修改，请发起改分申请"})
+		return
+	// 该队该轮已有一条待审批的改分申请：由 ux_scr_one_pending 部分唯一索引挡下
+	//（并发下也不会双插）。这是调用方的正常误操作而非服务端故障，
+	// 必须给 409 —— 给 500 会让界面弹「服务器内部错误」，运营会当成故障上报。
+	case errors.Is(err, service.ErrChangePending):
+		writeJSON(w, http.StatusConflict, Envelope{
+			Code: CodeConflict, Message: "该队该轮已有一条待审批的改分申请，请先处理后再提交"})
 		return
 	case errors.Is(err, service.ErrConflictRows):
 		writeJSON(w, http.StatusConflict, Envelope{
