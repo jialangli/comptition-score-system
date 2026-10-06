@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jialangli/comptition-score-server/internal/engine"
 	"github.com/jialangli/comptition-score-server/internal/model"
 	"github.com/jialangli/comptition-score-server/internal/store"
 )
@@ -139,10 +140,26 @@ func (s *Service) WithdrawDispute(ctx context.Context, id int64) error {
 //
 // 结论只记录、不联动改榜：verdict=disqualify 后的名次顺延与递补由工作人员
 // 在后台执行（P8c note 7 口径），避免「裁定」与「执行」耦合。
+//
+// verdict=adjust（P8b 授权改分）：必须同时给出「采纳轮次 + 目标分数」，
+// 本方法在**同一事务**内生成一张 Approved=false 的改分申请单（P9 路径），
+// 并把该争议单的申述书照片继承到这张改分单（两处都挂）。
+// 真正的分数写入仍留在 P9（ApplyScoreChange），本页不本页改分。
+// 该轮尚无成绩时裁定失败并整体回滚（不留空改分单）。
 func (s *Service) DecideDispute(ctx context.Context, id int64,
-	verdict model.DisputeVerdict, reason string) error {
+	verdict model.DisputeVerdict, reason string,
+	adoptRoundNo int, targetScore float64) error {
+
 	if err := requireReason(reason); err != nil {
 		return err
+	}
+	if verdict == model.VerdictAdjust {
+		if adoptRoundNo < model.MinRound || adoptRoundNo > model.MaxRound {
+			return ErrAdjustRequiresTarget
+		}
+		if targetScore < 0 {
+			return ErrAdjustRequiresTarget
+		}
 	}
 	decider := CurrentUser(ctx)
 
@@ -157,6 +174,15 @@ func (s *Service) DecideDispute(ctx context.Context, id int64,
 		if err := r.Disputes.Decide(ctx, id, decider, verdict, reason); err != nil {
 			return err
 		}
+
+		// P8b：授权改分 → 在同一事务内生成待审批改分单 + 继承申述书照片
+		if verdict == model.VerdictAdjust {
+			if err := s.spawnChangeRequestFromDispute(ctx, r, d, decider,
+				adoptRoundNo, targetScore, reason); err != nil {
+				return err
+			}
+		}
+
 		before := d.Status.Label()
 		if d.Verdict != nil {
 			before += "（" + d.Verdict.Label() + "）"
@@ -164,6 +190,61 @@ func (s *Service) DecideDispute(ctx context.Context, id int64,
 		after := model.DisputeDecided.Label() + "（" + verdict.Label() + "）"
 		return log(ctx, r, model.ActDisputeDecide, disputeTarget(d), before, after, reason)
 	})
+}
+
+// spawnChangeRequestFromDispute 在裁定为「授权改分」时，生成一张待审批改分单（P8b）。
+//
+// 与裁判主动发起的 ScoreChangeRequest 共用同一张表与同一套待审批队列，
+// 区别仅在于触发源是争议裁定、且从争议单继承申述书照片（两处都挂）。
+// 该采纳轮次尚未录入成绩时返回 FieldError，由外层事务整体回滚（不留空改分单）。
+func (s *Service) spawnChangeRequestFromDispute(ctx context.Context, r store.Repos,
+	d *model.Dispute, decider string, adoptRoundNo int, targetScore float64,
+	reason string) error {
+
+	team, err := r.Teams.Get(ctx, d.TeamID)
+	if err != nil {
+		return err
+	}
+	ev, err := r.Events.Get(ctx, team.EventID)
+	if err != nil {
+		return err
+	}
+	old, err := r.Scores.Get(ctx, d.TeamID, adoptRoundNo)
+	if err != nil {
+		// 该轮尚无成绩：无法生成改分单，整体回滚
+		if errors.Is(err, store.ErrNotFound) {
+			return &model.FieldError{
+				Field: "adoptRoundNo",
+				Msg:   fmt.Sprintf("%s 第 %d 轮尚无成绩，无法生成授权改分单", teamLabel(team), adoptRoundNo),
+			}
+		}
+		return err
+	}
+	before := engine.Score(ev, *old, engine.RefTimeFor(ev, 0)).Total
+
+	req := &model.ScoreChangeRequest{
+		ScoreID: old.ID, TeamID: d.TeamID, RoundNo: adoptRoundNo,
+		Before: before, After: targetScore,
+		Reason: reason, Operator: decider, Approved: false,
+	}
+	if err := r.Changes.Create(ctx, req); err != nil {
+		return err
+	}
+
+	// 两处都挂：把该争议单的申述书照片继承到这张改分单
+	if appealID, aerr := s.AppealEvidenceIDOfDispute(ctx, d.ID); aerr != nil {
+		return aerr
+	} else if appealID != nil {
+		if err := r.Changes.SetAppeal(ctx, req.ID, *appealID); err != nil {
+			return err
+		}
+	}
+
+	return log(ctx, r, model.ActScore,
+		fmt.Sprintf("%s 第 %d 轮", teamLabel(team), adoptRoundNo),
+		fmt.Sprintf("总分 %.1f", before),
+		fmt.Sprintf("总分 %.1f（授权改分申请单 #%d，待裁判长授权）", targetScore, req.ID),
+		reason)
 }
 
 // OpenDisputes 待裁定队列（P8 队列页数据源），先到先裁。

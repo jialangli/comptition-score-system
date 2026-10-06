@@ -142,6 +142,10 @@ func Fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeJSON(w, http.StatusConflict, Envelope{
 			Code: CodeConflict, Message: "该工单已处理，仅待裁定工单可撤回（已裁定请走再裁定）"})
 		return
+	case errors.Is(err, service.ErrAdjustRequiresTarget):
+		writeJSON(w, http.StatusBadRequest, Envelope{
+			Code: CodeBadRequest, Message: "授权改分必须指定有效的采纳轮次（1 或 2）与目标分数"})
+		return
 	case errors.Is(err, service.ErrReleaseNotPublishable):
 		writeJSON(w, http.StatusConflict, Envelope{
 			Code: CodeConflict, Message: "该发布单元当前不可发布（须先由裁判长移交）"})

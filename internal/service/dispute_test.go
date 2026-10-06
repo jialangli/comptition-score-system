@@ -64,7 +64,7 @@ func TestDisputeLifecycle(t *testing.T) {
 
 	// 裁定：取消资格（P8c）
 	decideCtx := operatorCtx("裁判长C")
-	if err := svc.DecideDispute(decideCtx, d.ID, model.VerdictDisqualify, "确认重复提交，取消资格"); err != nil {
+	if err := svc.DecideDispute(decideCtx, d.ID, model.VerdictDisqualify, "确认重复提交，取消资格", 0, 0); err != nil {
 		t.Fatalf("裁定失败: %v", err)
 	}
 
@@ -215,7 +215,7 @@ func TestDisputeWithdraw(t *testing.T) {
 		t.Fatalf("重复撤回应返回 ErrDisputeNotPending，实际 %v", err)
 	}
 	// 已撤回不可裁定
-	if err := svc.DecideDispute(operatorCtx("裁判长C"), d.ID, model.VerdictUphold, "试着裁定已撤回的工单"); !errors.Is(err, service.ErrDisputeNotPending) {
+	if err := svc.DecideDispute(operatorCtx("裁判长C"), d.ID, model.VerdictUphold, "试着裁定已撤回的工单", 0, 0); !errors.Is(err, service.ErrDisputeNotPending) {
 		t.Fatalf("裁定已撤回工单应返回 ErrDisputeNotPending，实际 %v", err)
 	}
 
@@ -236,10 +236,10 @@ func TestDisputeRedecide(t *testing.T) {
 	if err != nil {
 		t.Fatalf("上报失败: %v", err)
 	}
-	if err := svc.DecideDispute(decideCtx, d.ID, model.VerdictUphold, "证据不足，维持原判"); err != nil {
+	if err := svc.DecideDispute(decideCtx, d.ID, model.VerdictUphold, "证据不足，维持原判", 0, 0); err != nil {
 		t.Fatalf("首次裁定失败: %v", err)
 	}
-	if err := svc.DecideDispute(decideCtx, d.ID, model.VerdictDisqualify, "新证据出现，改判取消资格"); err != nil {
+	if err := svc.DecideDispute(decideCtx, d.ID, model.VerdictDisqualify, "新证据出现，改判取消资格", 0, 0); err != nil {
 		t.Fatalf("再裁定失败: %v", err)
 	}
 
@@ -271,7 +271,7 @@ func TestDisputeReasonRequired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("上报失败: %v", err)
 	}
-	if err := svc.DecideDispute(operatorCtx("裁判长C"), d.ID, model.VerdictAdjust, "短"); !errors.Is(err, service.ErrReasonRequired) {
+	if err := svc.DecideDispute(operatorCtx("裁判长C"), d.ID, model.VerdictAdjust, "短", 0, 0); !errors.Is(err, service.ErrReasonRequired) {
 		t.Fatalf("裁定原因过短应返回 ErrReasonRequired，实际 %v", err)
 	}
 }
@@ -287,4 +287,142 @@ func countAction(t *testing.T, svc *service.Service, action model.AuditAction) i
 		t.Fatalf("查审计失败: %v", err)
 	}
 	return len(logs)
+}
+
+// TestDisputeAdjustGeneratesChangeRequest P8b 核心：授权改分裁定后，
+// 生成一张待审批改分单（P9 路径）并把申述书照片继承过去（两处都挂）。
+func TestDisputeAdjustGeneratesChangeRequest(t *testing.T) {
+	svc, _ := newSvc(t)
+	teamID := newDisputeFixture(t, svc, "9007", "改分队")
+	ctx := operatorCtx("裁判A")
+	decideCtx := operatorCtx("裁判长C")
+
+	// 先录一份第 1 轮成绩（Before 取这一份）
+	if _, err := svc.SaveScore(ctx, &model.ScoreRecord{
+		TeamID: teamID, RoundNo: 1, DurationSec: 100, Signed: true,
+		TaskValues: map[string]any{"focus": 80.0, "build": 82.0},
+	}); err != nil {
+		t.Fatalf("录入成绩失败: %v", err)
+	}
+
+	// 上报争议
+	d, err := svc.ReportDispute(ctx, teamID, 1, model.DisputeDuplicate, "同一轮出现两份成绩")
+	if err != nil {
+		t.Fatalf("上报争议失败: %v", err)
+	}
+
+	// 挂一张申述书照片（选手手写·裁判拍照）
+	appeal, err := svc.RecordEvidence(ctx, &model.Evidence{
+		TeamID: teamID, RoundNo: intPtr(1),
+		Kind:       model.EvAppeal,
+		Source:     model.SrcRefereeAppeal,
+		FileName:   "appeal_T9007_R1.jpg",
+		Status:     model.EvLocal,
+		Operator:   "裁判A",
+		DisputeID:  &d.ID,
+		StorageURL: "appeal_local.jpg",
+	})
+	if err != nil {
+		t.Fatalf("登记申述书失败: %v", err)
+	}
+
+	// 授权改分：采纳第 1 轮，目标分数 120.5
+	if err := svc.DecideDispute(decideCtx, d.ID, model.VerdictAdjust,
+		"复核后应以裁判长认定的成绩为准", 1, 120.5); err != nil {
+		t.Fatalf("授权改分裁定失败: %v", err)
+	}
+
+	// 待审批队列里应出现这张改分单
+	cr, err := svc.PendingChangeOf(ctx, teamID, 1)
+	if err != nil {
+		t.Fatalf("应生成待审批改分单: %v", err)
+	}
+	if cr.Approved {
+		t.Fatal("改分单应为待审批（Approved=false），待 P9 授权落库")
+	}
+	if cr.After != 120.5 {
+		t.Fatalf("改分单目标分数应为 120.5，实际 %.1f", cr.After)
+	}
+	if cr.Operator != "裁判长C" {
+		t.Fatalf("改分单申请人应为裁定人裁判长C，实际 %q", cr.Operator)
+	}
+	if cr.TeamID != teamID || cr.RoundNo != 1 {
+		t.Fatalf("改分单队伍/轮次不符：team=%d round=%d", cr.TeamID, cr.RoundNo)
+	}
+	if cr.AppealEvidenceID == nil {
+		t.Fatal("改分单应挂上申述书照片（两处都挂），实际为空")
+	}
+	if *cr.AppealEvidenceID != appeal.ID {
+		t.Fatalf("改分单挂的申述书 ID 应为 %d，实际 %d", appeal.ID, *cr.AppealEvidenceID)
+	}
+
+	// 裁定结论本身也应为 adjust
+	got, err := svc.Dispute(ctx, d.ID)
+	if err != nil {
+		t.Fatalf("查工单失败: %v", err)
+	}
+	if got.Verdict == nil || *got.Verdict != model.VerdictAdjust {
+		t.Fatalf("裁定结论应为 adjust，实际 %v", got.Verdict)
+	}
+}
+
+// TestDisputeAdjustWithoutScoreRollback 采纳轮次尚无成绩时裁定整体回滚，
+// 不留下空改分单，工单仍保持待裁定。
+func TestDisputeAdjustWithoutScoreRollback(t *testing.T) {
+	svc, _ := newSvc(t)
+	teamID := newDisputeFixture(t, svc, "9008", "空分改分队")
+	ctx := operatorCtx("裁判A")
+	decideCtx := operatorCtx("裁判长C")
+
+	d, err := svc.ReportDispute(ctx, teamID, 1, model.DisputeDuplicate, "第 2 轮分数有争议")
+	if err != nil {
+		t.Fatalf("上报争议失败: %v", err)
+	}
+
+	// 第 2 轮从未录入成绩，却要采纳第 2 轮 → 应失败
+	err = svc.DecideDispute(decideCtx, d.ID, model.VerdictAdjust,
+		"想改第 2 轮但第 2 轮没成绩", 2, 100.0)
+	if err == nil {
+		t.Fatal("采纳轮次无成绩时应裁定失败")
+	}
+
+	// 不应留下任何待审批改分单
+	if _, rerr := svc.PendingChangeOf(ctx, teamID, 2); !errors.Is(rerr, store.ErrNotFound) {
+		t.Fatalf("不应生成改分单，实际 err=%v", rerr)
+	}
+	// 工单本身仍应是待裁定（裁定回滚，未落结论）
+	got, err := svc.Dispute(ctx, d.ID)
+	if err != nil {
+		t.Fatalf("查工单失败: %v", err)
+	}
+	if got.Status != model.DisputePending {
+		t.Fatalf("裁定回滚后工单应仍待裁定，实际 %q", got.Status)
+	}
+}
+
+// TestDisputeUpholdDisqualifyNoChangeRequest 维持原判 / 取消资格不产生改分单。
+func TestDisputeUpholdDisqualifyNoChangeRequest(t *testing.T) {
+	svc, _ := newSvc(t)
+	teamID := newDisputeFixture(t, svc, "9009", "非改分队")
+	ctx := operatorCtx("裁判A")
+
+	if _, err := svc.SaveScore(ctx, &model.ScoreRecord{
+		TeamID: teamID, RoundNo: 1, DurationSec: 100, Signed: true,
+		TaskValues: map[string]any{"focus": 80.0, "build": 82.0},
+	}); err != nil {
+		t.Fatalf("录入成绩失败: %v", err)
+	}
+
+	d, err := svc.ReportDispute(ctx, teamID, 1, model.DisputeDuplicate, "证据不足")
+	if err != nil {
+		t.Fatalf("上报争议失败: %v", err)
+	}
+
+	if err := svc.DecideDispute(operatorCtx("裁判长C"), d.ID, model.VerdictUphold,
+		"证据不足，维持原判", 0, 0); err != nil {
+		t.Fatalf("维持原判裁定失败: %v", err)
+	}
+	if _, rerr := svc.PendingChangeOf(ctx, teamID, 1); !errors.Is(rerr, store.ErrNotFound) {
+		t.Fatalf("维持原判不应生成改分单，实际 err=%v", rerr)
+	}
 }

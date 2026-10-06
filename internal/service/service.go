@@ -157,6 +157,12 @@ var ErrDisputePending = errors.New("该队该轮已有一条同类待裁定工�
 // 撤回只对「待裁定」成立：已裁定的工单不能撤，只能再裁定一次并留痕（P8e 口径）。
 var ErrDisputeNotPending = errors.New("该工单已处理，仅待裁定工单可撤回")
 
+// ErrAdjustRequiresTarget 授权改分（P8b）必须指定有效的采纳轮次（1 或 2）与目标分数。
+//
+// 该错误在 HTTP 层由 handleDecideDispute 先挡一道（缺字段直接 400）；
+// 这里兜底「绕过后端直连 / 内部调用」的情况，仍给出可理解的 400。
+var ErrAdjustRequiresTarget = errors.New("授权改分必须指定有效的采纳轮次（1 或 2）与目标分数")
+
 // ErrReleaseNotPublishable 发布单元当前状态不允许发布。
 //
 // 未移交的单元不能发布 —— 裁判长还没确认数据完整就发出去，正是要防的事。

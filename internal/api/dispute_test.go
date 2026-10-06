@@ -129,3 +129,58 @@ func TestDisputesOverHTTP(t *testing.T) {
 	// ---------- 不存在的工单 ----------
 	ts.do(t, http.MethodGet, "/api/v1/disputes/999999", nil, "").expect(t, http.StatusNotFound)
 }
+
+// TestDisputeAdjustOverHTTP P8b 授权改分的 HTTP 层校验与 happy path。
+//
+// 重点：缺目标分数 / 采纳轮次非法都在 HTTP 层挡成 400；
+// 字段齐全且采纳轮次已有成绩时裁定成功（200），后续改分单生成由服务层测试覆盖。
+func TestDisputeAdjustOverHTTP(t *testing.T) {
+	ts := newTestServer(t)
+	ev := ts.createEvent(t, brainPlanetBody())
+	team := ts.createTeam(t, ev.ID, "9102", "授权改分队", "小学组")
+
+	// 先录一份第 1 轮成绩，否则授权改分会因「该轮无成绩」整体回滚
+	ts.do(t, http.MethodPut, "/api/v1/teams/"+itoa(team.ID)+"/scores/1",
+		map[string]any{"tasks": map[string]any{"focus": 80, "build": 82}, "time": 100, "signed": true},
+		"裁判A").expect(t, http.StatusOK)
+
+	// 上报争议
+	var d model.Dispute
+	ts.do(t, http.MethodPost, "/api/v1/disputes", map[string]any{
+		"teamId": team.ID, "roundNo": 1, "kind": "duplicate", "reason": "同一轮出现两份成绩",
+	}, "裁判A").expect(t, http.StatusCreated).as(t, &d)
+
+	// 授权改分但缺目标分数 → 400
+	ts.do(t, http.MethodPost, "/api/v1/disputes/"+itoa(d.ID)+"/decide", map[string]any{
+		"verdict": "adjust", "reason": "复核后应以裁判长认定的成绩为准", "adoptRoundNo": 1,
+	}, "裁判长C").expect(t, http.StatusBadRequest)
+
+	// 授权改分但采纳轮次非法（3）→ 400
+	ts.do(t, http.MethodPost, "/api/v1/disputes/"+itoa(d.ID)+"/decide", map[string]any{
+		"verdict": "adjust", "reason": "复核后应以裁判长认定的成绩为准",
+		"adoptRoundNo": 3, "targetScore": 120.5,
+	}, "裁判长C").expect(t, http.StatusBadRequest)
+
+	// 字段齐全 → 200
+	ts.do(t, http.MethodPost, "/api/v1/disputes/"+itoa(d.ID)+"/decide", map[string]any{
+		"verdict": "adjust", "reason": "复核后应以裁判长认定的成绩为准",
+		"adoptRoundNo": 1, "targetScore": 120.5,
+	}, "裁判长C").expect(t, http.StatusOK)
+
+	// 裁定结论应为 adjust
+	var got model.Dispute
+	ts.do(t, http.MethodGet, "/api/v1/disputes/"+itoa(d.ID), nil, "").
+		expect(t, http.StatusOK).as(t, &got)
+	if got.Verdict == nil || *got.Verdict != model.VerdictAdjust {
+		t.Fatalf("裁定结论应为 adjust，实际 %v", got.Verdict)
+	}
+
+	// 维持原判仍走旧字段（不带 adoptRoundNo / targetScore）→ 200
+	var d2 model.Dispute
+	ts.do(t, http.MethodPost, "/api/v1/disputes", map[string]any{
+		"teamId": team.ID, "roundNo": 2, "kind": "duplicate", "reason": "另一轮也有争议",
+	}, "裁判A").expect(t, http.StatusCreated).as(t, &d2)
+	ts.do(t, http.MethodPost, "/api/v1/disputes/"+itoa(d2.ID)+"/decide", map[string]any{
+		"verdict": "uphold", "reason": "证据不足，维持原判",
+	}, "裁判长C").expect(t, http.StatusOK)
+}

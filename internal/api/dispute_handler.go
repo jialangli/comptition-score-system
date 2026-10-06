@@ -108,7 +108,12 @@ func (s *Server) handleGetDispute(w http.ResponseWriter, r *http.Request) {
 
 // handleDecideDispute POST /api/v1/disputes/{id}/decide
 //
-// 请求体：{ "verdict": "uphold", "reason": "..." }
+// 请求体：
+//
+//	{ "verdict": "uphold", "reason": "..." }
+//	{ "verdict": "adjust", "reason": "...",
+//	    "adoptRoundNo": 1, "targetScore": 85.5 }   // P8b 授权改分必须带这两字段
+//	{ "verdict": "disqualify", "reason": "..." }
 //
 // verdict 三档对应前端三个页面：
 //
@@ -124,8 +129,10 @@ func (s *Server) handleDecideDispute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Verdict string `json:"verdict"`
-		Reason  string `json:"reason"`
+		Verdict      string   `json:"verdict"`
+		Reason       string   `json:"reason"`
+		AdoptRoundNo int      `json:"adoptRoundNo"` // P8b 授权改分：采纳轮次（1/2）
+		TargetScore  *float64 `json:"targetScore"`  // P8b 授权改分：目标分数；用指针区分「没传」与「传了 0」
 	}
 	if err := decodeJSON(w, r, &req); err != nil {
 		Fail(w, r, err)
@@ -140,7 +147,26 @@ func (s *Server) handleDecideDispute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.svc.DecideDispute(r.Context(), id, verdict, req.Reason); err != nil {
+	// P8b：授权改分必须带齐「采纳轮次 + 目标分数」，否则在 HTTP 层就挡下（400）
+	var adoptRoundNo int
+	var targetScore float64
+	if verdict == model.VerdictAdjust {
+		if req.AdoptRoundNo != model.MinRound && req.AdoptRoundNo != model.MaxRound {
+			Fail(w, r, NewBadRequest(
+				"授权改分必须指定采纳轮次（adoptRoundNo 为 1 或 2）"))
+			return
+		}
+		if req.TargetScore == nil {
+			Fail(w, r, NewBadRequest(
+				"授权改分必须指定目标分数（targetScore）"))
+			return
+		}
+		adoptRoundNo = req.AdoptRoundNo
+		targetScore = *req.TargetScore
+	}
+
+	if err := s.svc.DecideDispute(r.Context(), id, verdict, req.Reason,
+		adoptRoundNo, targetScore); err != nil {
 		Fail(w, r, err)
 		return
 	}
