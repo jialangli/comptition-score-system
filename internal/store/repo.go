@@ -160,6 +160,9 @@ type ChangeRequestRepo interface {
 	// Decide 标记申请已处理（授权或驳回），写入审批人与处理时间。
 	// 不存在返回 ErrNotFound，重复处理返回 ErrConflict。
 	Decide(ctx context.Context, id int64, approver string, approved bool) error
+	// SetAppeal 关联申述书照片证据（appeal_evidence_id）；用于 P8b 授权改分
+	// 生成改分单时从争议单继承同一张，实现「两处都挂」。不存在返回 ErrNotFound。
+	SetAppeal(ctx context.Context, id int64, appealEvidenceID int64) error
 	// ListByTeam 某队全部历史申请（含已处理），按时间倒序。
 	ListByTeam(ctx context.Context, teamID int64) ([]model.ScoreChangeRequest, error)
 }
@@ -293,6 +296,10 @@ type WriteLockRepo interface {
 type EvidenceRepo interface {
 	// Create 登记一条证据；重复（同队伍同轮次同类型同文件名）返回 ErrDuplicate。
 	Create(ctx context.Context, e *model.Evidence) error
+	// Get 按证据 ID 读取；不存在返回 ErrNotFound。
+	Get(ctx context.Context, id int64) (*model.Evidence, error)
+	// GetByDispute 取某争议工单关联的申述书照片（kind=appeal 且 dispute_id 匹配）。
+	GetByDispute(ctx context.Context, disputeID int64) ([]model.Evidence, error)
 	// MarkSynced 标记为已上云；不存在返回 ErrNotFound。
 	MarkSynced(ctx context.Context, id int64, storageURL string) error
 	// ListByTeam 某队全部证据；按轮次可筛选（round=0 表示不过滤）。

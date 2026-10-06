@@ -61,6 +61,34 @@ func (s *EvidenceStore) MarkSynced(ctx context.Context, id int64, storageURL str
 	return oneRow(tag, err)
 }
 
+// Get 按证据 ID 读取；不存在返回 ErrNotFound。
+func (s *EvidenceStore) Get(ctx context.Context, id int64) (*model.Evidence, error) {
+	return scanEvidence(s.q.QueryRow(ctx,
+		`SELECT `+evidenceColumns+` FROM evidence WHERE id=$1`, id))
+}
+
+// GetByDispute 取某争议工单关联的申述书照片（kind=appeal 且 dispute_id 匹配）。
+func (s *EvidenceStore) GetByDispute(ctx context.Context, disputeID int64) ([]model.Evidence, error) {
+	rows, err := s.q.Query(ctx, `
+		SELECT `+evidenceColumns+` FROM evidence
+		WHERE contest_id=$1 AND dispute_id=$2 AND kind='appeal'
+		ORDER BY id`, store.CurrentContest(ctx), disputeID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	defer rows.Close()
+
+	out := make([]model.Evidence, 0)
+	for rows.Next() {
+		e, err := scanEvidence(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *e)
+	}
+	return out, mapError(rows.Err())
+}
+
 // ListByTeam 某队全部证据；round=0 表示不按轮次过滤（发�� / 裁定类证据无轮次）。
 func (s *EvidenceStore) ListByTeam(ctx context.Context, teamID int64, round int) ([]model.Evidence, error) {
 	rows, err := s.q.Query(ctx, `

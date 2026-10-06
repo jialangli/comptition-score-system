@@ -68,16 +68,19 @@ type GroupStandings struct {
 // 字段与 score_change_requests 表一一对应（见 0003 迁移）。
 // (TeamID, RoundNo) 是去重键：同一队同一轮同时只允许存在一条待审批申请。
 type ScoreChangeRequest struct {
-	ID        int64      `json:"id"`                  // 申请单号，落库后回填
-	ScoreID   int64      `json:"scoreId"`
-	TeamID    int64      `json:"teamId"`
-	RoundNo   int        `json:"roundNo"`             // 第几轮（1 / 2）
-	Before    float64    `json:"before"`              // 修改前总分
-	After     float64    `json:"after"`               // 拟修改后总分
-	Reason    string     `json:"reason"`              // 必填：申诉 / 复核原因
-	Operator  string     `json:"operator"`            // 申请人
-	Approved  bool       `json:"approved"`            // 是否已获裁判长授权
-	Approver  string     `json:"approver,omitempty"`
-	CreatedAt time.Time  `json:"createdAt"`
-	DecidedAt *time.Time `json:"decidedAt,omitempty"` // 处理时间；待审批为 nil
+	ID       int64   `json:"id"` // 申请单号，落库后回填
+	ScoreID  int64   `json:"scoreId"`
+	TeamID   int64   `json:"teamId"`
+	RoundNo  int     `json:"roundNo"`  // 第几轮（1 / 2）
+	Before   float64 `json:"before"`   // 修改前总分
+	After    float64 `json:"after"`    // 拟修改后总分
+	Reason   string  `json:"reason"`   // 必填：申诉 / 复核原因
+	Operator string  `json:"operator"` // 申请人
+	Approved bool    `json:"approved"` // 是否已获裁判长授权
+	Approver string  `json:"approver,omitempty"`
+	// AppealEvidenceID 关联的申述书照片证据（evidence.id）。
+	// 争议触发的授权改分单由 P8b 生成时从争议单继承同一张，实现「两处都挂」。
+	AppealEvidenceID *int64     `json:"appealEvidenceId,omitempty"`
+	CreatedAt        time.Time  `json:"createdAt"`
+	DecidedAt        *time.Time `json:"decidedAt,omitempty"` // 处理时间；待审批为 nil
 }

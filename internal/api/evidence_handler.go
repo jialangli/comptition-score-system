@@ -56,10 +56,10 @@ func (s *Server) handleRecordEvidence(w http.ResponseWriter, r *http.Request) {
 	}
 	source := model.EvidenceSource(strings.TrimSpace(req.Source))
 	switch source {
-	case model.SrcRefereeSubmit, model.SrcChiefDecide, model.SrcStaffPublish:
+	case model.SrcRefereeSubmit, model.SrcChiefDecide, model.SrcStaffPublish, model.SrcRefereeAppeal:
 	default:
 		Fail(w, r, NewBadRequest(
-			"source 必须是 referee_submit / chief_decide / staff_publish，收到 "+req.Source))
+			"source 必须是 referee_submit / chief_decide / staff_publish / referee_appeal，收到 "+req.Source))
 		return
 	}
 	if req.RoundNo != nil && (*req.RoundNo != 1 && *req.RoundNo != 2) {

@@ -12,7 +12,8 @@ import (
 type ChangeStore struct{ q querier }
 
 const changeColumns = `id, score_id, team_id, round_no::int, before_total::float8,
-	after_total::float8, reason, operator, approved, approver, created_at, decided_at`
+	after_total::float8, reason, operator, approved, approver, created_at, decided_at,
+	appeal_evidence_id`
 
 func scanChange(row interface{ Scan(...any) error }) (*model.ScoreChangeRequest, error) {
 	var r model.ScoreChangeRequest
@@ -20,6 +21,7 @@ func scanChange(row interface{ Scan(...any) error }) (*model.ScoreChangeRequest,
 	if err := row.Scan(
 		&r.ID, &r.ScoreID, &r.TeamID, &r.RoundNo, &r.Before, &r.After,
 		&r.Reason, &r.Operator, &r.Approved, &r.Approver, &r.CreatedAt, &decided,
+		&r.AppealEvidenceID,
 	); err != nil {
 		return nil, notFoundIfNoRows(err)
 	}
@@ -88,6 +90,24 @@ func (s *ChangeStore) Decide(ctx context.Context, id int64, approver string, app
 		UPDATE score_change_requests
 		SET approved = $2, approver = $3, decided_at = now()
 		WHERE id = $1 AND NOT approved`, id, approved, approver)
+	if err != nil {
+		return mapError(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return store.ErrNotFound
+	}
+	return nil
+}
+
+// SetAppeal 关联申述书照片证据（appeal_evidence_id）。
+//
+// 用于 P8b 授权改分生成改分单时，从争议单继承同一张申述书照片，实现「两处都挂」。
+// 不存在返回 ErrNotFound；appealEvidenceID 必须指向一条真实存在的 evidence。
+func (s *ChangeStore) SetAppeal(ctx context.Context, id int64, appealEvidenceID int64) error {
+	tag, err := s.q.Exec(ctx, `
+		UPDATE score_change_requests
+		SET appeal_evidence_id = $2
+		WHERE id = $1`, id, appealEvidenceID)
 	if err != nil {
 		return mapError(err)
 	}

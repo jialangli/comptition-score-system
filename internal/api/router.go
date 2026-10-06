@@ -170,6 +170,16 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/evidence/{id}/synced", s.handleMarkEvidenceSynced)
 
 	// ---------------------------------------------------------------------
+	// 申述书照片（选手手写 · 裁判拍照上传）
+	//
+	// 复用 evidence 表的 appeal 类目：POST 落盘+登记，GET 按争议单取图、按证据 ID 出图。
+	// 同一张照片经 dispute_id 挂争议工单、经改分单 appeal_evidence_id 挂改分单（两处都挂）。
+	// ---------------------------------------------------------------------
+	mux.HandleFunc("POST /api/v1/appeals/upload", s.handleUploadAppeal)
+	mux.HandleFunc("GET /api/v1/appeals", s.handleListAppeals)
+	mux.HandleFunc("GET /api/v1/appeals/{id}/file", s.handleGetAppealFile)
+
+	// ---------------------------------------------------------------------
 	// 离线批量上行
 	// ---------------------------------------------------------------------
 	mux.HandleFunc("POST /api/v1/sync", s.handleSync)

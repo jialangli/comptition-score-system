@@ -27,6 +27,7 @@ const (
 	EvSubmitSnap EvidenceKind = "submit_snapshot" // 提交留底截图
 	EvDecision   EvidenceKind = "decision"        // 裁定单（裁判长产生）
 	EvRelease    EvidenceKind = "release"         // 发布产物（工作人员产生）
+	EvAppeal     EvidenceKind = "appeal"          // 申述书照片（选手手写·裁判拍照）
 )
 
 // EvidenceSource 产生端。
@@ -36,6 +37,7 @@ const (
 	SrcRefereeSubmit EvidenceSource = "referee_submit" // 裁判提交成绩时
 	SrcChiefDecide   EvidenceSource = "chief_decide"   // 裁判长提交裁定时
 	SrcStaffPublish  EvidenceSource = "staff_publish"  // 工作人员发布时
+	SrcRefereeAppeal EvidenceSource = "referee_appeal" // 裁判拍照上传申述书
 )
 
 // EvidenceStatus 上云状态。
@@ -85,6 +87,8 @@ func (k EvidenceKind) Label() string {
 		return "裁定单"
 	case EvRelease:
 		return "发布产物"
+	case EvAppeal:
+		return "申述书照片"
 	}
 	return string(k)
 }
@@ -98,6 +102,8 @@ func (s EvidenceSource) Label() string {
 		return "裁判长提交裁定"
 	case SrcStaffPublish:
 		return "工作人员发布"
+	case SrcRefereeAppeal:
+		return "裁判拍照上传(申述书)"
 	}
 	return string(s)
 }

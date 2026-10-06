@@ -34,9 +34,10 @@ import (
 const defaultTestDSN = "postgres://postgres@127.0.0.1:5432/neuroscore_test_api?sslmode=disable"
 
 type testServer struct {
-	handler http.Handler
-	svc     *service.Service
-	db      *postgres.DB
+	handler   http.Handler
+	svc       *service.Service
+	db        *postgres.DB
+	uploadDir string // 申述书照片等上传落盘目录（t.TempDir，测试结束自动清理）
 }
 
 func newTestServer(t *testing.T) *testServer {
@@ -60,8 +61,11 @@ func newTestServer(t *testing.T) *testServer {
 	}
 
 	svc := service.New(db)
-	srv := api.New(svc, &config.Config{StaticDir: "testdata/no-such-dir", Dev: false})
-	return &testServer{handler: srv.Routes(), svc: svc, db: db}
+	// UploadDir 指向每测试独立的临时目录，上传落盘后随测试自动清理，
+	// 避免申述书照片测试在仓库根目录留下文件。
+	uploadDir := t.TempDir()
+	srv := api.New(svc, &config.Config{StaticDir: "testdata/no-such-dir", Dev: false, UploadDir: uploadDir})
+	return &testServer{handler: srv.Routes(), svc: svc, db: db, uploadDir: uploadDir}
 }
 
 // resp 解包后的响应。

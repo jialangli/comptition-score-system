@@ -1663,6 +1663,11 @@
             <div class="qrow" style="border-bottom:none;"><span>其他</span><span style="color:#a0aec0;">○ 选择</span></div>
           </div>
           <div class="qrow"><span style="color:#718096;">情况说明（选填）</span><span style="font-size:12px; color:#a0aec0;">如发生时间 / 具体环节</span></div>
+          <div class="qrow"><span style="color:#718096;">申述书照片（选填）</span><span style="font-size:12px; color:#a0aec0;">选手手写 · 裁判拍照上传</span></div>
+          <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+            <span class="btn-outline btn-sm">📷 上传申述书照片</span>
+            <span style="font-size:12px; color:#a0aec0;">未上传（可选 · 争议裁定时裁判长仍可要求补拍）</span>
+          </div>
           <div style="border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-top:8px; background:#f7fafc; font-size:12px; color:#718096;">
             上报后由<b>裁判长</b>在 P8 裁定台裁定（维持原判 / 授权改分 / 取消资格）——<b>本队成绩暂不锁定</b>，比赛可继续进行。
           </div>
@@ -1683,6 +1688,7 @@
     <span class="num">6</span> <b>下游去向</b>：工单进 <b>P8 裁定台</b>；结论为“授权改分”时走 <b>P9 改分审批</b>，“取消资格”为独立档位（成绩作废），均触发版本复现与全量审计。<br>
     <span class="num">7</span> <b>类型按赛项配置（后台下发）</b>：争议 / 申诉类型由<b>工作人员</b>在<b>后台赛项配置</b>里按当季规程增删（与判罚事由同一套配置范式），裁判端<b>只读选择、不能自造</b>；不同赛项可有不同清单（如双队对抗赛项另加「对抗场次争议」）。<br>
     <span class="num">8</span> <b>处理前可撤回（入口已落地）</b>：上报后若属误报、或现场已自行澄清，<b>上报人可在裁判长处理前撤回工单</b>——入口在 <b>P2「我的申请」面板</b>的<b>待裁定行</b>（行内「<b>· 撤回</b>」，与改分申请的撤回同款）；撤回同样留痕（谁 / 何时 / 撤回了哪一单），<b>撤回后该单不再进 P8 待裁定队列</b>；一旦裁判长已裁定即不可撤回，只能「再裁定一次并留痕」（见 <b>P8e</b>）。
+          <span class="num">9</span> <b>申述书照片（可选附件 · 裁判拍照）</b>：对判罚有异议的选手会<b>现场手写一份申述书</b>，裁判在本题浮层点「📷 上传申述书照片」拍照 / 选图上传——原件随争议工单一起进入 <b>P8 裁定台</b>与 <b>P9 改分审批</b>（两处都挂同一张）。照片由<b>裁判端拍摄上传</b>，选手 / 教练不直传（修正原 P9 note 8 口径）。<br>
   </div>
 </div>
 
@@ -1918,6 +1924,7 @@
             </div>
           </div>
           <div class="qrow"><span>原始记录三件套<span style="color:#718096; font-size:11px;">（裁判端产生 · 随成绩同步）</span></span><span style="color:#2b6cb0;">成绩表 ✓ &nbsp; 签名图 ✓ ×2 &nbsp; 提交留底截图 ✓ &nbsp;<span style="background:#c6f6d5; color:#22543d; padding:1px 6px; border-radius:4px; font-size:11px;">已同步</span></span></div>
+          <div class="qrow"><span>申述书照片<span style="color:#718096; font-size:11px;">（选手手写 · 裁判拍照上传）</span></span><span style="color:#2b6cb0;">appeal_T013_R1.jpg ✓ &nbsp;<span style="background:#c6f6d5; color:#22543d; padding:1px 6px; border-radius:4px; font-size:11px;">已同步</span> &nbsp;<span style="font-size:11px; color:#a0aec0; cursor:pointer;">点开查看原件 →</span></span></div>
           <div class="card" style="background:#f7fafc; border-color:#e2e8f0; margin:8px 0;">
             <div style="display:flex; gap:8px; align-items:flex-start;">
               <div style="width:78px; height:54px; border:1px solid #cbd5e0; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; color:#a0aec0; flex-shrink:0; text-align:center; line-height:1.4; cursor:pointer; position:relative;"><span style="position:absolute; top:1px; right:3px; font-size:11px; color:#a0aec0; line-height:1;">⛶</span>✍ 签名图<br>记录 A</div>
@@ -1997,6 +2004,7 @@
             </div>
           </div>
           <div class="qrow"><span>原始记录三件套<span style="color:#718096; font-size:11px;">（裁判端产生 · 随成绩同步）</span></span><span style="color:#2b6cb0;">成绩表 ✓ &nbsp; 签名图 ✓ ×2 &nbsp; 提交留底截图 ✓ &nbsp;<span style="background:#c6f6d5; color:#22543d; padding:1px 6px; border-radius:4px; font-size:11px;">已同步</span></span></div>
+          <div class="qrow"><span>申述书照片<span style="color:#718096; font-size:11px;">（选手手写 · 裁判拍照上传）</span></span><span style="color:#2b6cb0;">appeal_T013_R1.jpg ✓ &nbsp;<span style="background:#c6f6d5; color:#22543d; padding:1px 6px; border-radius:4px; font-size:11px;">已同步</span> &nbsp;<span style="font-size:11px; color:#a0aec0; cursor:pointer;">点开查看原件 →</span></span></div>
           <div class="card" style="background:#f7fafc; border-color:#e2e8f0; margin:8px 0;">
             <div style="display:flex; gap:8px; align-items:flex-start;">
               <div style="width:78px; height:54px; border:1px solid #cbd5e0; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; color:#a0aec0; flex-shrink:0; text-align:center; line-height:1.4; cursor:pointer; position:relative;"><span style="position:absolute; top:1px; right:3px; font-size:11px; color:#a0aec0; line-height:1;">⛶</span>✍ 签名图<br>记录 A</div>
@@ -2076,6 +2084,7 @@
             </div>
           </div>
           <div class="qrow"><span>原始记录三件套<span style="color:#718096; font-size:11px;">（裁判端产生 · 随成绩同步）</span></span><span style="color:#2b6cb0;">成绩表 ✓ &nbsp; 签名图 ✓ ×2 &nbsp; 提交留底截图 ✓ &nbsp;<span style="background:#c6f6d5; color:#22543d; padding:1px 6px; border-radius:4px; font-size:11px;">已同步</span></span></div>
+          <div class="qrow"><span>申述书照片<span style="color:#718096; font-size:11px;">（选手手写 · 裁判拍照上传）</span></span><span style="color:#2b6cb0;">appeal_T013_R1.jpg ✓ &nbsp;<span style="background:#c6f6d5; color:#22543d; padding:1px 6px; border-radius:4px; font-size:11px;">已同步</span> &nbsp;<span style="font-size:11px; color:#a0aec0; cursor:pointer;">点开查看原件 →</span></span></div>
           <div class="card" style="background:#f7fafc; border-color:#e2e8f0; margin:8px 0;">
             <div style="display:flex; gap:8px; align-items:flex-start;">
               <div style="width:78px; height:54px; border:1px solid #cbd5e0; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; color:#a0aec0; flex-shrink:0; text-align:center; line-height:1.4; cursor:pointer; position:relative;"><span style="position:absolute; top:1px; right:3px; font-size:11px; color:#a0aec0; line-height:1;">⛶</span>✍ 签名图<br>记录 A</div>
@@ -2272,7 +2281,11 @@
           <div class="qrow"><span>构成（base · 黄/红牌不计分）</span><span>470 → <b>620</b></span></div>
           <div class="qrow"><span>申请来源</span><span><b>裁判端 P2b 改分模式</b>（P2 队列已完成队伍行「改分」进入 · 非争议触发）</span></div>
           <div class="qrow"><span>改分/改时原因（申请人填写）</span><span>任务③ 矿石运输<b>漏记 1 颗</b>：现场实际入仓 2 颗、原录入 1 颗，复核操作视频后<b>补记 +150</b>（用时与判罚记录均不变）</span></div>
-          <div class="qrow"><span>申诉件</span><span style="color:#a0aec0;">无 —— 本单由<b>裁判发起</b>（非争议触发），故无申诉书；争议触发的改分单（裁定台 P8b 生成）才有此件</span></div>
+          <div class="qrow"><span>申诉件（申述书照片）</span><span style="color:#a0aec0;">无 —— 本单由<b>裁判发起</b>（非争议触发），故无申诉书；争议触发的改分单（裁定台 P8b 生成）才有此件，示意见下</span></div>
+          <div style="display:flex; gap:10px; align-items:center; margin-top:8px; padding:8px 10px; border:1px dashed #cbd5e0; border-radius:8px; background:#f7fafc;">
+            <div style="width:78px; height:54px; border:1px solid #cbd5e0; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; color:#a0aec0;">📷 申述书<br>照片</div>
+            <div style="font-size:11px; color:#718096; line-height:1.6;"><b style="color:#4a5568;">（图示 · P8b 来源时此处展示原件）</b>：选手现场手写、裁判拍照上传，与争议工单「两处都挂」同一张（evidence.kind=appeal）；后台运营在留底证据库 / 争议详情同样可见（status=synced 即已上云）。</div>
+          </div>
           <div class="qrow"><span>申请人 / 时间</span><span>王老师 · 13:15（赛台 A）</span></div>
           <div class="qrow"><span>审批人 / 时间</span><span style="color:#a0aec0;">待填写（批准后写入 approver 独立列；若与申请人同一账号，自动标红「自批」）</span></div>
         </div>
@@ -2299,7 +2312,7 @@
     <span class="num">2</span> <b>diff 必看旧值 → 新值</b>：并排展示 + 变化量（本单为 +150），下方按构成公式（<b>base</b>）拆出明细，让审批人核对的是“算法结果”而不是一个孤立数字；<b>黄 / 红牌不在构成内</b>（不计分），因此改牌不改动分数；但牌面若在 <b>P2b</b> 一并修改，会作为本单的<b>附加项单列</b>展示，审批时同样要核对（见 P2b note 12）。<br>
     <span class="num">3</span> <b>已发布赛项必须常驻重发提示</b>：改分后榜单会变，但对外公示页仍是旧榜——若只在提交时弹一次提示，工作人员极易漏发新版，造成“现场屏 ≠ 后台真值”。该提示<b>只挂在已发布的赛项上</b>（示例见 <b>P11</b>「发布前确认」：火星救援 · 小学组 已于 11:20 发布 → R-006 改分已批准 → 待重发）；未发布的赛项（如本单所属的脑机星球 · 小学组）只变更排名、不触发重发。<br>
     <span class="num">4</span> <b>留痕口径（留痕威慑）</b>：申请人 + 审批人分列记录，审批意见必填；裁判长本人改分须走审批并留痕——<b>允许自批</b>（现场常只有一位裁判长），但若申请人＝审批人，系统强制标红「<b>自批</b>」并生成<b>独立告警</b>推送后台、供事后抽样复核。自批不是禁止项，而是“必须看得见、查得到”的高危项。<br>
-    <span class="num">8</span> <b>申诉件也是「有来源、有状态」的证据</b>：申诉书照片由<b>教练 / 选手代表在现场提交</b>，经<b>检录台代传</b>与本单关联（本册不做选手端上传），并以同样方式同步到裁判长端，故标「已同步」。凡是裁决 / 审批要看的东西（证据三件 + 申诉件），都要能回答「<b>谁产生、何时产生、同步到没到</b>」——否则会出现“审批时点开是空的”这种现场事故。<br>
+    <span class="num">8</span> <b>申诉件也是「有来源、有状态」的证据</b>：申述书照片由<b>选手现场手写、裁判在裁判端拍照上传</b>（选手 / 教练不直传），随争议工单登记（<b>evidence.kind=appeal</b>）并以同样方式同步到裁判长端与后台运营，故标「已同步」；当改分单来自 <b>P8b</b> 时，经 <b>score_change_requests.appeal_evidence_id</b> 与争议工单「两处都挂」同一张。凡是裁决 / 审批要看的东西（证据三件 + 申诉件），都要能回答「<b>谁产生、何时产生、同步到没到</b>」——否则会出现“审批时点开是空的”这种现场事故。<br>
     <span class="num">5</span> <b>通过后自动重算</b>：排名按每条成绩各自绑定的 config_version 逐队复现重算，不按“当前配置”回算历史成绩。<br>
     <span class="num">6</span> <b>申请来源 = 裁判端 P2b / 裁定台 P8b</b>：申请单有两条来源——<b>裁判在 P2b 改分模式</b>提交（P2 队列已完成队伍行的「改分」，或 P2e 成绩单底部「改分 →」进入），或<b>裁判长在 P8b 裁定“授权改分”</b>生成。本页只做<b>审批</b>——裁判端<b>不能直接改分</b>；裁判长自批按 note 4 的「留痕威慑」处理（标红「自批」+ 生成独立告警），两条来源在 diff 卡里用「申请来源」行标注区分。<br>
     <span class="num">7</span> <b>与「评分状态机」的关系（不重复 · 终态即闸门）</b>：分数一经<b>提交并签名</b>即进入<b>「已提交待公示」终态</b>，不经过任何手动锁；任何改动都必须走本页（P9 改分审批）或 P8 裁定台，<b>批准即生成新版本</b>并触发 <b>P11 重发提示</b>（改分即重发，不回退终态）。本页是<b>唯一的分数变更通道</b>（单队单轮级“怎么改、谁批”），与“成绩一旦发布即不可直接编辑”的终态口径完全一致——既保证留痕威慑，又避免现场“先解后改再锁”的三步来回。改分 / 裁定都以「强制原因 + 告警记录 + 后台可抽查」兜底，不留“裸奔”窗口。<br>

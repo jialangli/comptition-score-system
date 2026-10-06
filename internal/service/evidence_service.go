@@ -65,6 +65,43 @@ func (s *Service) PendingEvidence(ctx context.Context) ([]model.Evidence, error)
 	return s.ro().Evidence.ListPending(ctx)
 }
 
+// AppealForDispute 取某争议工单关联的申述书照片（kind=appeal）。
+//
+// 裁判长裁定台（P8 家族）据此在裁定详情里展示选手手写申述书的原件。
+func (s *Service) AppealForDispute(ctx context.Context, disputeID int64) ([]model.Evidence, error) {
+	return s.ro().Evidence.GetByDispute(ctx, disputeID)
+}
+
+// AppealByID 按证据 ID 读取申述书照片元数据（出图时定位文件用）。
+func (s *Service) AppealByID(ctx context.Context, id int64) (*model.Evidence, error) {
+	return s.ro().Evidence.Get(ctx, id)
+}
+
+// AppealEvidenceIDOfDispute 取某争议工单第一张申述书照片的证据 ID。
+//
+// 供 P8b「授权改分」生成改分单时调用，把同一张申诉书照片继承到改分单
+// （score_change_requests.appeal_evidence_id），实现「两处都挂」。
+// 该争议单无申述书时返回 (nil, nil)。
+func (s *Service) AppealEvidenceIDOfDispute(ctx context.Context, disputeID int64) (*int64, error) {
+	list, err := s.ro().Evidence.GetByDispute(ctx, disputeID)
+	if err != nil {
+		return nil, err
+	}
+	if len(list) == 0 {
+		return nil, nil
+	}
+	return &list[0].ID, nil
+}
+
+// InheritAppealToChangeRequest 把争议单的申述书照片挂到改分申请单（两处都挂）。
+//
+// 在 P8b 生成改分单后调用；appealEvidenceID 来自 AppealEvidenceIDOfDispute。
+func (s *Service) InheritAppealToChangeRequest(ctx context.Context, changeRequestID, appealEvidenceID int64) error {
+	return s.tx(ctx, func(r store.Repos) error {
+		return r.Changes.SetAppeal(ctx, changeRequestID, appealEvidenceID)
+	})
+}
+
 // EvidenceComplete 判断某队某轮的「证据三件」是否齐全。
 //
 // 三件 = 成绩表 + 签名图 + 提交留底截图（P2e note）。

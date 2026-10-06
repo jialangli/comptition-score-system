@@ -18,6 +18,7 @@ type Config struct {
 	StaticDir    string // 开发模式下的前端目录
 	LogLevel     string // debug | info | warn | error
 	MaxOpenConns int    // 连接池上限
+	UploadDir    string // 申述书照片等上传文件的落盘目录
 }
 
 // Load 从环境变量装载配置，缺失关键项时返回错误而不是 panic —— 让 main 决定怎么报告。
@@ -29,6 +30,7 @@ func Load() (*Config, error) {
 		StaticDir:    env("SCORE_STATIC_DIR", "web"),
 		LogLevel:     env("SCORE_LOG_LEVEL", "info"),
 		MaxOpenConns: envInt("SCORE_DB_MAX_CONNS", 20),
+		UploadDir:    env("SCORE_UPLOAD_DIR", "uploads/appeals"),
 	}
 
 	if strings.TrimSpace(c.DatabaseURL) == "" {
