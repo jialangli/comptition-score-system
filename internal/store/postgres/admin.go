@@ -21,6 +21,9 @@ func (d *DB) TruncateAll(ctx context.Context) error {
 	//                            且带部分唯一索引，残留会让「重复上报」类断言随机失败
 	//   release_units        —— 发布单元（0006）
 	//   referee_codes        —— 裁判码（0007）。带唯一索引，残留会让建档类用例撞重复
+	//   team_write_locks     —— 赛台-队伍可写锁（0008）。残留会让「抢锁」类用例
+	//                            一开始就被别人占着，症状是随机失败
+	//   evidence             —— 留底证据库（0009）。带唯一索引，同样会撞重复
 	//   contests             —— 赛事表。放在最后（其余表外键引用它，
 	//                            CASCADE 会连带清掉子表，顺序上仍是「先叶子后根」）
 	tables := []string{
@@ -33,6 +36,8 @@ func (d *DB) TruncateAll(ctx context.Context) error {
 		"disputes",
 		"release_units",
 		"referee_codes",
+		"team_write_locks",
+		"evidence",
 		"teams",
 		"tasks",
 		"screen_config",

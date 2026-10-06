@@ -151,6 +151,25 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/referee-codes/activate", s.handleActivateReferee)
 
 	// ---------------------------------------------------------------------
+	// 赛台-队伍可写锁（0008）
+	//
+	// 抢不到锁返回 200 + writable=false，不是 4xx —— 见 lock_handler.go 的说明。
+	// ---------------------------------------------------------------------
+	mux.HandleFunc("POST /api/v1/locks/acquire", s.handleAcquireLock)
+	mux.HandleFunc("GET /api/v1/locks", s.handleCheckLock)
+	mux.HandleFunc("POST /api/v1/locks/release", s.handleReleaseLock)
+	mux.HandleFunc("POST /api/v1/locks/force-release", s.handleForceReleaseLock)
+
+	// ---------------------------------------------------------------------
+	// 留底证据库（0009）
+	// ---------------------------------------------------------------------
+	mux.HandleFunc("GET /api/v1/evidence", s.handleListEvidence)
+	mux.HandleFunc("POST /api/v1/evidence", s.handleRecordEvidence)
+	mux.HandleFunc("GET /api/v1/evidence/pending", s.handleListPendingEvidence)
+	mux.HandleFunc("GET /api/v1/evidence/complete", s.handleEvidenceComplete)
+	mux.HandleFunc("POST /api/v1/evidence/{id}/synced", s.handleMarkEvidenceSynced)
+
+	// ---------------------------------------------------------------------
 	// 离线批量上行
 	// ---------------------------------------------------------------------
 	mux.HandleFunc("POST /api/v1/sync", s.handleSync)

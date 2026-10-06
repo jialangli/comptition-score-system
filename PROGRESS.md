@@ -598,10 +598,82 @@ go test -p 1 -count=1 ./... → api ok (7.5s) / engine ok (1.6s) / service ok (1
 
 ### 后续
 
-- [ ] **P1 赛台-队伍可写锁**（E 项已建单，但「同台同队仅一台平板持可写锁」的**预防**机制仍未做）
-- [ ] **P1 留底证据库**：无专门表（`audit_logs` 部分覆盖）
+- [x] **P1 赛台-队伍可写锁** —— 已在 P9 完成（0008）。
+- [x] **P1 留底证据库** —— 已在 P9 完成（0009）。
 - [ ] **本期不做**：裁判码不签发会话（鉴权仍是 `api.CurrentUser` 插槽）；
       离线登录由平板端凭本机缓存判定，不回后端
+
+---
+
+## P9 已完成：赛台-队伍可写锁 + 留底证据库（2026-10-06）
+
+### 背景
+
+- **可写锁**：E 项此前只做了「冲突**发生后**自动建单」，缺**预防**机制。
+  P12 note 7 要的是从源头掐断「两台平板各打一份」。
+- **留底证据库**：前端多处引用「证据层 / 留底三件」，后端无专门表。
+
+### 交付文件
+
+```
+migrations/0008_team_write_locks.{up,down}.sql  赛台-队伍可写锁
+migrations/0009_evidence.{up,down}.sql          留底证据库
+internal/model/{lock,evidence}.go               模型 + 中文标签
+internal/store/repo.go                          WriteLockRepo / EvidenceRepo
+internal/store/postgres/{lock,evidence}.go      仓储实现
+internal/store/postgres/admin.go                TruncateAll 补两张表
+internal/service/{lock,evidence}_service.go     抢锁 / 查询 / 释放 / 证据登记与上云
+internal/api/{lock,evidence}_handler.go         9 个端点
+internal/service/{lock,evidence}_test.go        7 个集成用例
+internal/api/{lock,evidence}_test.go            2 个 HTTP 集成用例
+```
+
+### 关键设计
+
+| 决策 | 说明 |
+|---|---|
+| **锁的粒度是（赛台, 队伍），不含轮次** | 同一台平板要连续打完第 1、2 轮；按轮次划分会在两轮之间留下被抢走的窗口 |
+| **唯一索引即锁** | `ux_team_write_lock`。抢占用 `INSERT ... ON CONFLICT ... WHERE`，由数据库裁决谁是第一个。应用层「先查再插」在两台平板同时提交时两边都会查到「没有」 |
+| **一条 SQL 覆盖四种情形** | 无人持锁→插入；锁已过期→覆盖；自己持锁→续期；他人持锁→WHERE 不成立、返回 0 行→拿不到 |
+| **锁必须有 TTL** | 没有 TTL 的锁会把一支队伍**永久锁死**（平板没电 / 掉线），比不加锁更糟。默认 2 小时 |
+| **只有持锁者能释放** | 释放带 `AND holder = $n`。否则 A 正在打分，B 点一下就把 A 的锁解了 |
+| **抢不到锁不是错误** | 返回 200 + `writable=false` 与持锁者信息。另一台平板该显示「该队正由 X 执裁」，而不是拿到 4xx 后反复重试 |
+| **锁不写审计** | 抢锁发生在每一次提交 / 暂存，频率极高，写审计会冲垮 `audit_logs`、稀释真正需要追溯的操作 |
+| **证据只存元数据** | 不收二进制本体 —— 图片本体属于对象存储的职责。后端回答的是「三件齐不齐、谁产生的、上云了没有」 |
+| **产生端必须可区分** | `source` = 裁判提交成绩 / 裁判长提交裁定 / 工作人员发布（P2e note 7「规范统一、触发点各异」） |
+| **补传重试不去重会让三件变七件** | 唯一索引落在（队伍, 轮次, 类型, 文件名） |
+
+### 验证记录（真实执行）
+
+```
+bash scripts/test_db.sh   → 两库均 19 张表（新增 team_write_locks / evidence）
+go build ./...            → BUILD_OK
+go vet ./...              → 0 告警
+gofmt -l（新增文件）       → 全部规范
+go test -p 1 -count=1 ./... → api ok (8.7s) / engine ok (1.4s) / service ok (18.0s)
+```
+
+**新增 9 个集成用例（全部打到真实 PG）**
+
+| 用例 | 验证内容 |
+|---|---|
+| `TestWriteLockExclusive` | A 抢到 → B 抢不到且带回持锁者与提示 → A 释放后 B 抢到 |
+| `TestWriteLockSelfRenewAndIsolation` | 自己续期不掉锁；别人解不开；裁判长可强制释放 |
+| `TestWriteLockExpiry` | 过期锁可被直接抢占（没有 TTL 会把队伍永久锁死） |
+| `TestWriteLockDifferentSeats` | 不同赛台是不同锁，互不影响 |
+| `TestEvidenceThreePieces` | 三件齐全性判定 + 待上云队列 + 补传上云流转 |
+| `TestEvidenceDuplicateBlocked` | 补传重试不产生重复证据 |
+| `TestEvidenceSourceDistinct` | 产生端可区分，且裁定类证据可无轮次 |
+| `TestLocksOverHTTP` | 抢不到锁返回 200 而非 4xx；别人释放 404；参数校验 |
+| `TestEvidenceOverHTTP` | 三件齐全性接口 + 待上云 + 上云 + 重复 409 + 非法 kind/source 400 |
+
+### 已知边界
+
+- **证据本体不入库**：`storage_url` 留给后续接入对象存储时填写，当前为空。
+- **锁只是并发互斥**，不承载业务结论；两台平板仍可能因离线各自打分 ——
+  那条路径由 E 项的补传冲突自动建单兜底。
+- **本期不做**：锁与 `/sync` 的联动（提交时自动抢锁）。当前锁由平板端显式调用，
+  后端已具备能力，接与不接取决于平板端实现节奏。
 
 ---
 

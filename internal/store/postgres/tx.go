@@ -51,6 +51,8 @@ func newRepos(q querier) store.Repos {
 		Disputes:  &DisputeStore{q: q},
 		Releases:  &ReleaseStore{q: q},
 		Referees:  &RefereeStore{q: q},
+		Locks:     &LockStore{q: q},
+		Evidence:  &EvidenceStore{q: q},
 	}
 }
 

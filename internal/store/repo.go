@@ -55,6 +55,8 @@ type Repos struct {
 	Disputes  DisputeRepo        // 争议工单（0005）
 	Releases  ReleaseUnitRepo    // 发布单元（0006）
 	Referees  RefereeCodeRepo    // 裁判码（0007）
+	Locks     WriteLockRepo      // 赛台-队伍可写锁（0008）
+	Evidence  EvidenceRepo       // 留底证据库（0009）
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +248,57 @@ type RefereeCodeRepo interface {
 	ListByContest(ctx context.Context) ([]model.RefereeCode, error)
 	// MarkActivated 标记已激活（首登联网激活）；不存在或已作废返回 ErrNotFound。
 	MarkActivated(ctx context.Context, id int64) error
+}
+
+// ---------------------------------------------------------------------------
+// 赛台-队伍可写锁（0008）
+// ---------------------------------------------------------------------------
+
+// WriteLockRepo 可写锁读写。
+//
+// 锁的本质就是 ux_team_write_lock 唯一索引：抢占用 INSERT ... ON CONFLICT，
+// 由数据库裁决谁是第一个 —— 应用层「先查再插」在两台平板同时提交时，
+// 两边都会查到「没有」。
+//
+// 关键约定：
+//   - 过期锁（expires_at < now）视为不存在，可被直接覆盖
+//   - 只有持锁者能释放（释放带 `AND holder = $n`）
+//   - 本仓储**不写审计**：抢锁发生在每一次提交 / 暂存，频率极高
+type WriteLockRepo interface {
+	// Acquire 抢占（赛台, 队伍）的写锁。
+	//   - 无人持锁或锁已过期 → 拿到锁，返回 acquired=true
+	//   - 自己已持锁 → 续期，返回 acquired=true
+	//   - 他人持锁 → 拿不到，返回 acquired=false 并带回持锁者信息
+	Acquire(ctx context.Context, seatID, teamID int64, holder, holderLabel string,
+		ttl time.Duration) (*model.WriteLock, bool, error)
+	// Get 查看当前锁（含过期判断所需的完整信息）；无锁返回 ErrNotFound。
+	Get(ctx context.Context, seatID, teamID int64) (*model.WriteLock, error)
+	// Release 释放自己的锁。只有持锁者能释放，否则命中 0 行 → ErrNotFound。
+	Release(ctx context.Context, seatID, teamID int64, holder string) error
+	// ForceRelease 强制释放（裁判长 / 运维处置平板掉线）。任意持锁者都可被解开。
+	ForceRelease(ctx context.Context, seatID, teamID int64) error
+}
+
+// ---------------------------------------------------------------------------
+// 留底证据库（0009）
+// ---------------------------------------------------------------------------
+
+// EvidenceRepo 留底证据读写。
+//
+// 只存**元数据**，不存二进制本体 —— 图片本体属于对象存储的职责。
+// 本仓储要回答的是合规追溯真正的问题：这一轮证据齐不齐、谁产生的、上云了没有。
+//
+// 去重落在业务键（队伍, 轮次, 类型, 文件名）的唯一索引上：
+// 补传会重试，不去重会让「证据三件」变成「七件」，反而没法判断齐不齐。
+type EvidenceRepo interface {
+	// Create 登记一条证据；重复（同队伍同轮次同类型同文件名）返回 ErrDuplicate。
+	Create(ctx context.Context, e *model.Evidence) error
+	// MarkSynced 标记为已上云；不存在返回 ErrNotFound。
+	MarkSynced(ctx context.Context, id int64, storageURL string) error
+	// ListByTeam 某队全部证据；按轮次可筛选（round=0 表示不过滤）。
+	ListByTeam(ctx context.Context, teamID int64, round int) ([]model.Evidence, error)
+	// ListPending 待上云队列（断网时先落本地，联网后补传）。
+	ListPending(ctx context.Context) ([]model.Evidence, error)
 }
 
 // ---------------------------------------------------------------------------

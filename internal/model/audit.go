@@ -38,6 +38,13 @@ const (
 	// 裁判码（0007）。激活是安全相关动作，必须留痕。
 	ActRefereeIssue    AuditAction = "建档裁判码" // 赛前生成码并预绑执裁范围
 	ActRefereeActivate AuditAction = "激活裁判码" // 首登联网激活
+
+	// 留底证据（0009）。
+	ActEvidence AuditAction = "留底证据" // 证据生成与上云
+
+	// ⚠️ 赛台-队伍可写锁（0008）**刻意不入审计**：抢锁发生在每一次提交 / 暂存，
+	// 频率极高，写审计会把 audit_logs 冲垮、稀释真正需要追溯的操作。
+	// 锁本身也不承载业务结论 —— 它只是并发互斥，丢失不会造成数据歧义。
 )
 
 // AllAuditActions 必须留痕的六类操作。
