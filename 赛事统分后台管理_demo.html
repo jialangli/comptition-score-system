@@ -60,6 +60,8 @@ tbody tr:hover{background:#fbfcfe}
 .btn.sm{padding:3px 9px;font-size:12px;border-radius:7px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 input,select,textarea{font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff;color:var(--txt)}
+/* 只读值：长得像输入框，但不给点、也不给改 —— 用于「本赛制只有一种」的配置项 */
+.ro{font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:8px;width:100%;background:#f4f6f8;color:var(--muted)}
 input:focus,select:focus,textarea:focus{outline:2px solid #cfe2f6;border-color:var(--brand)}
 textarea{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
 input[type=range]{padding:0;border:none;background:transparent}
@@ -314,7 +316,7 @@ var EVENT_TEMPLATES=[  { id:'brain_planet', name:'脑机星球', groups:['小学
   ],
   scoreRule:{template:'sum',params:{}},
   bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
-  penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,allowDirectRed:true,reasons:[
+  penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,reasons:[
   {code:'R01',card:'red',label:'严重违反安全规则'},
   {code:'R02',card:'red',label:'严重违背比赛精神'},
   {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
@@ -337,7 +339,7 @@ var EVENT_TEMPLATES=[  { id:'brain_planet', name:'脑机星球', groups:['小学
   {template:'count_bonus',params:{taskId:'bridge',perUnit:5,cap:null}},
   {template:'time_bonus',params:{perSecond:0.5,cap:10}}
   ],
-  penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,allowDirectRed:true,reasons:[
+  penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,reasons:[
   {code:'R01',card:'red',label:'严重违反安全规则'},
   {code:'R02',card:'red',label:'严重违背比赛精神'},
   {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
@@ -372,7 +374,7 @@ var EVENT_TEMPLATES=[  { id:'brain_planet', name:'脑机星球', groups:['小学
   ],
   scoreRule:{template:'sum',params:{}},
   bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
-  penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,allowDirectRed:true,reasons:[
+  penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,reasons:[
   {code:'R01',card:'red',label:'严重违反安全规则'},
   {code:'R02',card:'red',label:'严重违背比赛精神'},
   {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
@@ -752,6 +754,19 @@ function migrate(d){
     });
   }
   d.importLogs=[];
+  /* v5 迁移：两个「只有一种取值」的字段归一到唯一值 ——
+     计分规则 → sum（直接求和）；判罚模板 → record_only（仅记录不扣分）。
+     本赛制只有这两种（界面已只读显示它们），存量缓存里若还留着历史值
+     （计分规则 weighted_sum / average；判罚模板 per_card / none），
+     就会出现"界面显示 A、实际按 B 算分"。这里在读入时归一，
+     与后端迁移 0012 / 0013 同口径（那边改库、这边改缓存）。
+     判据是"值不等于唯一值才改" → 天然幂等，不需要额外版本号。 */
+  (d.events||[]).forEach(function(e){
+    if(!e.scoreRule)e.scoreRule={template:'sum',params:{}};
+    if(e.scoreRule.template!=='sum')e.scoreRule.template='sum';
+    if(!e.penaltyRule)e.penaltyRule={template:'record_only',params:{}};
+    if(e.penaltyRule.template!=='record_only')e.penaltyRule.template='record_only';
+  });
   return d;
 }
 function save(){
@@ -784,7 +799,9 @@ function taskRawScore(t,val){
 function computeTotal(ev,rec){
   rec=rec||{};
   var st=rec.tasks||{};
-  var tpl=(ev.scoreRule&&ev.scoreRule.template)||'weighted_sum';
+  /* 兜底用「直接求和」：本赛制只用这一种。历史上兜底是 weighted_sum，而它会把满分
+     口径整个改掉（数值项先归一化到 100 分制、再按权重加），兜错时**不报错只静默算错分**。 */
+  var tpl=(ev.scoreRule&&ev.scoreRule.template)||'sum';
   var tasks=ev.tasks||[];
   var base=0,scored=0;
   if(tpl==='weighted_sum'){
@@ -861,7 +878,6 @@ function substituteModeName(){return substituteMode()==='rank'?'按名次顺延'
 function cardRulesOf(ev){return (ev&&ev.penaltyRule&&ev.penaltyRule.cardRules)||null;}
 function cardCounterOn(ev){var c=cardRulesOf(ev);return !(c&&c.enabled===false);}
 function redThresholdOf(ev){var c=cardRulesOf(ev);var n=Number(c&&c.redThreshold);return (n>0?n:3);}
-function allowDirectRedOf(ev){var c=cardRulesOf(ev);return !(c&&c.allowDirectRed===false);}
 function redReasonsOf(ev){
   var c=cardRulesOf(ev);
   return ((c&&c.reasons)||[]).filter(function(r){return (r.card==='red'?'red':'yellow')==='red';});
@@ -1077,7 +1093,7 @@ function eventPickerHtml(){
       +'<span><b>'+esc(t.name)+'</b> <span class="tag">'+esc(t.ruleDoc||'')+'</span><br>'
       +'<span class="small muted">组别：'+esc((t.groups||[]).join('/'))+' · 任务 '+(t.tasks?t.tasks.length:0)+' 项</span></span></label>';
   }).join('');
-  return '<div class="card" style="margin-top:14px;background:#f8fbff"><h3 style="font-size:14px;margin:0 0 8px">选择赛项 <span class="muted">（勾选即带入该赛项完整规则：任务 / 分值 / 计分模板 / 判罚事由 / 争议类型）</span></h3>'
+  return '<div class="card" style="margin-top:14px;background:#f8fbff"><h3 style="font-size:14px;margin:0 0 8px">选择赛项 <span class="muted">（勾选即带入该赛项完整规则：任务 / 分值 / 计分规则 / 判罚事由 / 争议类型）</span></h3>'
     +'<div class="grid g3">'+cards+'</div></div>';
 }
 
@@ -1135,7 +1151,6 @@ function viewContests(){
         contestStatusTag(contestDisplayStatus(c))+'</td>'+
       '<td>'+(isCur?'<span class="small muted">正在使用</span>'
                  :'<button class="btn sm primary" onclick="switchContest(\''+c.id+'\')">进入</button>')+
-        ' <button class="btn sm" onclick="xrGotoContest(\''+c.id+'\')">看该场结果</button>'+
         ' <button class="btn sm" onclick="ecLoad(\''+c.id+'\')">编辑</button>'+
         ' <button class="btn sm" onclick="'+(c.status==='archived'?'unarchiveContest':'archiveContest')+'(\''+c.id+'\')">'+(c.status==='archived'?'解档':'归档')+'</button>'+
         ' <button class="btn sm danger" onclick="removeContest(\''+c.id+'\')">删除</button></td>'+
@@ -1176,7 +1191,7 @@ function viewContests(){
       '<button class="btn primary" onclick="createContest()" style="margin-top:18px">创建赛事</button>'+
       (NC.error?'<span class="tag err" style="margin-top:18px">'+esc(NC.error)+'</span>':'')+
     '</div>'+
-    '<div class="hint" style="margin-top:8px">新建后自动切换为当前赛事。勾选赛项模板会带入<b>赛项、任务、分值、计分模板、判罚事由、争议类型</b>，'+
+    '<div class="hint" style="margin-top:8px">新建后自动切换为当前赛事。勾选赛项模板会带入<b>赛项、任务、分值、计分规则、判罚事由、争议类型</b>，'+
       '但<b>不带队伍、不带成绩、不带工单、不带留底</b> —— 新赛事的<b>裁判码需重新发放</b>（已在平板上激活过的绑定也会清空）。</div>'+
     (NC.start?(ncOverlap().length
       ? '<div class="note" style="margin-top:8px;border-left-color:#d69e2e"><b>该赛期与已有 '+ncOverlap().length+' 场赛事重叠（并行举办）</b>：'+
@@ -1330,18 +1345,6 @@ function xrSearch(){
   render();
 }
 function xrReset(){XRF=xrBlank();XRA=xrBlank();XRS={by:'',dir:''};XRM.open=false;render();}
-/* 从赛事清单跳到「比赛结果总览」，并把这一场作为**已生效**的筛选条件带过去。
-   两个坑（都是只看代码看不出来的）：
-     ① 必须同时写 XRF 与 XRA —— xrPicked() 读的是 XRA；只写 XRF 会「跳过去了、
-        但筛选没生效」，界面上完全看不出哪里错了（回显里也不会出现这一场）；
-     ② 状态 / 赛期 / 赛项等条件必须一起清空 —— 上一轮若筛过「进行中」，
-        跳到一场已归档的赛事会看到空表，现场会以为「这场没成绩」。 */
-function xrGotoContest(cid){
-  XRF=xrBlank();XRA=xrBlank();
-  XRF.contest=[cid];XRA.contest=[cid];
-  XRS={by:'',dir:''};
-  VIEW='crossrank';render();
-}
 /* 当前生效条件（用于回显，也让用户知道「搜索」到底提交了什么） */
 function xrActive(fo){
   var a=[],nm={};
@@ -1740,7 +1743,7 @@ function viewDash(){
       kpi('待公示赛项',notPub,'大屏与公示页同源同步')+
     '</div>'+
   '<div class="card" style="margin-top:16px"><h2>赛项状态总览 <small>配置 → 报名 → 打分 → 公示</small></h2>'+
-    '<table><thead><tr><th>赛项</th><th>组别</th><th>计分项</th><th>计分模板</th><th class="num">队伍</th><th class="num">已签字</th><th>配置校验</th><th>公示</th></tr></thead>'+
+    '<table><thead><tr><th>赛项</th><th>组别</th><th>计分项</th><th>计分规则</th><th class="num">队伍</th><th class="num">已签字</th><th>配置校验</th><th>公示</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table>'+
   '</div>'+
   '<div class="card"><h2>设计说明 <small>这套后台的设计取舍</small></h2>'+
@@ -1762,7 +1765,11 @@ var CONTROL_NAMES={slider:'滑块（0–满分）',number:'数字输入',counter
 var BONUS_NAMES={time_bonus:'时间奖励（越快加分）',count_bonus:'计数奖励（按数量加分）',none:'无奖励'};
 var TIE_NAMES={score:'得分高者优先',time:'用时少者优先'};
 var IMPORT_ACT={insert:'新增',update:'更新',skip:'跳过',conflict:'冲突'};
-function tplName(t){return {weighted_sum:'加权求和',sum:'直接求和',average:'取平均值'}[t]||t||'—';}
+/* 本赛制只有「直接求和」一种计分规则 —— 界面上恒显示它，不再出现其它模板名。
+   前后端引擎仍保留其它模板的算分分支（历史数据要能逐位复现），但界面已无切换入口，
+   所以「显示」与「实际算法」不会分叉。签名保留参数是为了调用点读起来自然。 */
+function tplName(t){return '直接求和';}
+function tplText(ev){return tplName();}
 function taskTypeName(t){return TASK_TYPES[t]||t||'—';}
 function bonusName(t){return BONUS_NAMES[t]||t||'—';}
 function tieName(arr){return (arr||[]).map(function(k){return TIE_NAMES[k]||k;}).join(' → ')||'—';}
@@ -1836,7 +1843,6 @@ function eventForm(ev){
     return '<tr>'+
       '<td><input value="'+esc(p.name)+'" oninput="updPhase('+i+',\'name\',this.value)"></td>'+
       '<td><input type="number" min="0" value="'+(p.durationSec==null?'':p.durationSec)+'" oninput="updPhase('+i+',\'durationSec\',this.value)"></td>'+
-      '<td><input value="'+esc(p.source||'')+'" placeholder="colorcard / gamepad" oninput="updPhase('+i+',\'source\',this.value)"></td>'+
       '<td><input value="'+esc(p.desc||'')+'" oninput="updPhase('+i+',\'desc\',this.value)"></td>'+
       '<td><button class="btn sm danger" onclick="delPhase('+i+')">删</button></td>'+
     '</tr>';
@@ -1889,7 +1895,6 @@ function eventForm(ev){
   var cr=pr.cardRules||{};
   var crTpl=pr.template||'record_only';
   var crThresh=(cr.redThreshold==null?3:cr.redThreshold);
-  var crDirect=(cr.allowDirectRed==null?true:cr.allowDirectRed);
   var crOn=(cr.enabled!==false);   /* 未配置 = 开（与后端 EnabledOrDefault 同口径） */
   var crReasons=cr.reasons||[];
   function countOf(card){return crReasons.filter(function(r){return (r.card==='red'?'red':'yellow')===card;}).length;}
@@ -1953,8 +1958,8 @@ function eventForm(ev){
     '</div>'+
     '<div class="row" style="justify-content:space-between"><label class="small muted">阶段配置（两阶段赛制 · 各阶段独立计时与任务集）</label>'+
       '<button class="btn sm" onclick="addPhase()">+ 添加阶段</button></div>'+
-    '<table style="margin-top:8px"><thead><tr><th>阶段名</th><th>时长(秒)</th><th>录入方式</th><th>说明</th><th></th></tr></thead>'+
-      '<tbody>'+(phaseRows||'<tr><td colspan="5" class="muted">暂无阶段</td></tr>')+'</tbody></table>'+
+    '<table style="margin-top:8px"><thead><tr><th>阶段名</th><th>时长(秒)</th><th>说明</th><th></th></tr></thead>'+
+      '<tbody>'+(phaseRows||'<tr><td colspan="4" class="muted">暂无阶段</td></tr>')+'</tbody></table>'+
     '<div class="hint">本赛项走「自动阶段 → 手动阶段」双阶段：各阶段独立计时（同场两队共用一条阶段倒计时）、独立任务集；阶段小计 = 该阶段任务得分之和，本队总分 = 自动小计 + 手动小计 + 整体主观分 + 时间奖励。</div>'+
     '<hr class="sep">'+
     '<div class="row" style="justify-content:space-between"><label class="small muted">任务项（计分最小单元 · 四类原语 · 按阶段归属）</label>'+
@@ -1964,9 +1969,7 @@ function eventForm(ev){
     '<div class="hint">'+(isWS?'数值评分 = 得分 ÷ 满分 × 权重；计数得分 = 数量 × 每单位分。':'数值评分 = 裁判给分直接计入（满分即该任务分值）；计数得分 = 数量 × 每单位分。')+'</div>'+
     '<hr class="sep">'+
     '<div class="grid g2">'+
-      '<div class="fld"><label>计分模板</label><select onchange="updEventTpl(this.value)">'+
-        ['weighted_sum','sum','average'].map(function(x){return '<option value="'+x+'" '+((ev.scoreRule&&ev.scoreRule.template)===x?'selected':'')+'>'+tplName(x)+'</option>';}).join('')+
-      '</select></div>'+
+      '<div class="fld"><label>计分规则</label><div class="ro">'+esc(tplText(ev))+'</div></div>'+
       '<div class="fld"><label>同分时的裁决规则</label><select onchange="updTieBreakPreset(this.value)">'+
         '<option value="score,time" '+(tb==='score,time'?'selected':'')+'>按用时少者优先</option>'+
         '<option value="score" '+(tb==='score'?'selected':'')+'>并列（不额外裁决）</option>'+
@@ -1981,23 +1984,23 @@ function eventForm(ev){
       '<label class="row tight" style="gap:8px;cursor:pointer"><span class="small">黄牌计数器</span>'+
         '<span class="sw"><input type="checkbox" '+(crOn?'checked':'')+' onchange="updCardCounter(this.checked)"><i></i></span>'+
       '</label></div>'+
-    '<div class="grid g3" style="margin-top:8px">'+
-      '<div class="fld"><label>判罚模板</label><select onchange="updCardTpl(this.value)">'+
-        '<option value="record_only" selected>'+penName('record_only')+'</option>'+
-      '</select></div>'+
+    '<div class="grid g2" style="margin-top:8px">'+
+      '<div class="fld"><label>判罚模板</label><div class="ro">'+esc(penName(ev.penaltyRule&&ev.penaltyRule.template))+'</div></div>'+
       (crOn?
-        '<div class="fld"><label>累计升级阈值（张黄牌 → 1 张红牌）</label><input type="number" min="1" value="'+crThresh+'" oninput="updRedThreshold(this.value)"></div>'+
-        '<div class="fld"><label>允许直接记红牌</label><select onchange="updAllowDirectRed(this.value)">'+
-          '<option value="1" '+(crDirect?'selected':'')+'>是</option>'+
-          '<option value="0" '+(!crDirect?'selected':'')+'>否</option>'+
-        '</select></div>'
+        '<div class="fld"><label>累计升级阈值（张黄牌 → 1 张红牌）</label><input type="number" min="1" value="'+crThresh+'" oninput="updRedThreshold(this.value)"></div>'
         :
-        '<div class="fld" style="grid-column:span 2"><label>黄牌体系</label><div class="hint" style="padding-top:6px">已停用：裁判端不显示黄牌计数器，黄牌不累计、<b>也不会自动升级红牌</b>；红牌仍可直接记录。</div></div>')+
+        '<div class="fld"><label>累计升级阈值（张黄牌 → 1 张红牌）</label><div class="ro">已停用</div></div>')+
     '</div>'+
     '<div class="note" style="margin-top:14px;color:#718096;font-size:12px">'+(
       crOn?'黄牌：仅作<b>计分板常驻累计计数器</b>，<b>无需配置事由</b>；满 <b>'+crThresh+'</b> 张自动升级 1 张红牌。'
           :'<b>黄牌计数器已关闭</b>：整个黄牌体系停用（不显示、不累计、不升级红牌）。'
-    )+'<br><b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>，但<b>不参与名次与奖项</b>（赛制固定后果、不可配置）。</div>'+
+    )+'<br><b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>，但<b>不参与名次与奖项</b>（赛制固定后果、不可配置）。'+
+    /* 红牌事由为空 → 裁判端那个「记红牌」弹窗无从选择。
+       原判据是「某判罚开关为真 且 事由为空」，该开关已删除，故改为恒定检查。 */
+    (countOf('red')===0?
+      '<br><b style="color:#c53030">提醒</b>：<b>尚未配置红牌事由</b> —— 裁判端点「记红牌」时将无从选择。'
+      :'')+
+    '</div>'+
 
     '<div class="row" style="justify-content:space-between;margin-top:14px"><label class="small muted"><b style="color:#c53030">红牌</b> 事由（'+countOf('red')+' 条）</label>'+
       '<button class="btn sm" onclick="addReason(\'red\')">+ 添加红牌事由</button></div>'+
@@ -2034,6 +2037,9 @@ function groupsDropdown(ev){
   '</div>';
 }
 function updEventRounds(v){var ev=find(CUR_EVENT);if(!ev)return;ev.rounds=Number(v)||1;save();render();}
+/* ⚠️ 界面已不再提供入口（计分规则只读展示，见 tplText）。
+   保留此函数是为了：① 历史/外部调用；② 以后赛制若改口要用别的模板，接回下拉即可 ——
+   它负责的「切模板时保留 params.refTime」逻辑仍然是有用的参考。 */
 function updEventTpl(v){
   var ev=find(CUR_EVENT);if(!ev)return;
   var before=(ev.scoreRule&&ev.scoreRule.template)||'—';
@@ -2041,7 +2047,7 @@ function updEventTpl(v){
   ev.scoreRule={template:v,params:{}};
   /* 切模板不该把「赛项总时间」抹掉 —— 它是时间奖励的基准，后端引擎也读这个字段 */
   if(_keepRef!=null)ev.scoreRule.params.refTime=_keepRef;
-  logAudit('改配置',ev.name+' · 计分模板',before,v,'赛项规则调整');
+  logAudit('改配置',ev.name+' · 计分规则',before,v,'赛项规则调整');
   save();
 }
 function updTieBreak(v){var ev=find(CUR_EVENT);if(!ev)return;ev.rankRule.tieBreak=v.split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean);save();}
@@ -2053,17 +2059,20 @@ function updTieBreakPreset(v){
   save();
 }
 
-function penName(t){return {record_only:'仅记录不扣分',per_card:'按牌扣分',none:'不扣分'}[t]||t||'仅记录不扣分';}
+/* 判罚模板恒显示「仅记录不扣分」—— 本赛制只有这一种（与 tplName 恒显示「直接求和」对称）。
+   存量数据里若还是历史值（per_card / none），加载时已由 migrate 归一；后端则由迁移 0013 归一。
+   所以这里不再按值区分 —— 否则界面会显示出一个赛制里根本不存在的模板名。
+   签名保留参数是为了调用点读起来自然。 */
+function penName(t){return '仅记录不扣分';}
 function ensureCardRules(){
   var ev=find(CUR_EVENT);if(!ev)return null;
   if(!ev.penaltyRule)ev.penaltyRule={template:'record_only',params:{}};
   if(!ev.penaltyRule.params)ev.penaltyRule.params={};
-  if(!ev.penaltyRule.cardRules)ev.penaltyRule.cardRules={enabled:true,redThreshold:3,allowDirectRed:true,reasons:[]};
+  if(!ev.penaltyRule.cardRules)ev.penaltyRule.cardRules={enabled:true,redThreshold:3,reasons:[]};
   var cr=ev.penaltyRule.cardRules;
   if(!cr.reasons)cr.reasons=[];
   if(cr.enabled==null)cr.enabled=true;   /* 未配置 = 开：旧数据没这个字段，不能当成关 */
   if(cr.redThreshold==null)cr.redThreshold=3;
-  if(cr.allowDirectRed==null)cr.allowDirectRed=true;
   if(!ev.penaltyRule.template)ev.penaltyRule.template='record_only';
   if(!ev.disputeTypes)ev.disputeTypes=[
     {code:'D01',label:'选手申诉（对判罚有异议）'},
@@ -2081,8 +2090,7 @@ function updCardTpl(v){
   save();
 }
 /* 黄牌计数器总开关。关闭 = 整个黄牌体系停用：裁判端不显示计数器、黄牌不累计、
-   也不再有「累计 N 张升级红牌」；红牌是独立入口，仍可照记。
-   特意不写「关闭时允许直接记红牌」这类兜底 —— 关了就是关了，避免现场以为改了个「差不多」的东西。 */
+   也不再有「累计 N 张升级红牌」；红牌是独立入口，仍可照记。 */
 function updCardCounter(on){
   var cr=ensureCardRules();if(!cr)return;
   var ev=find(CUR_EVENT);
@@ -2092,7 +2100,6 @@ function updCardCounter(on){
   save();render();
 }
 function updRedThreshold(v){var cr=ensureCardRules();if(!cr)return;cr.redThreshold=Number(v)||3;save();}
-function updAllowDirectRed(v){var cr=ensureCardRules();if(!cr)return;cr.allowDirectRed=(v==='1');save();}
 function addReason(card){
   var cr=ensureCardRules();if(!cr)return;
   var ev=find(CUR_EVENT);
@@ -3680,7 +3687,6 @@ function scoreForm(ev){
         ? '同一场次同一队伍累计 <b>'+redThresholdOf(ev)+'</b> 张黄牌自动升级 1 张红牌；黄牌仅累计计数、不记事由。'
         : '<b>本赛项已关闭黄牌计数器</b>：黄牌不累计、不升级红牌。')+
       '<b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>，但不参与名次与奖项。'+
-      (allowDirectRedOf(ev)?'':'<b>本赛项不允许直接记红牌</b>，红牌只能由黄牌累计升级产生。')+
       '红牌的<b>事由</b>由现场裁判在平板端从本赛项配置的事由清单中选择。</div>'+
     '<div class="note" style="margin-bottom:12px">时间奖励：比赛总时间 <b>'+(tbInfo.has?mmss(tbInfo.total)+'（'+tbInfo.total+' 秒）':'—')+'</b> − 本队用时 <b>'+(tbInfo.used>0?mmss(tbInfo.used)+'（'+tbInfo.used+' 秒）':'未填')+'</b> = 奖励时间 <b>'+tbInfo.reward+' 秒</b>，每 1 秒 +'+(tbInfo.perSecond==null?'—':tbInfo.perSecond)+' 分'+(tbInfo.cap==null?'（不封顶）':'（封顶 '+tbInfo.cap+' 分）')+' → 本项 +'+tbInfo.score.toFixed(1)+' 分。</div>'+
     '<div class="row" style="justify-content:space-between">'+
@@ -3816,7 +3822,7 @@ function viewRank(){
       '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selRankEvent(this.value)">'+opts+'</select>'+
       '<button class="btn" onclick="exportStandings()">导出榜单 Excel</button>'+
       '<span class="sp" style="flex:1"></span>'+
-      '<span class="small muted">计分模板：'+esc(tplName(ev&&ev.scoreRule&&ev.scoreRule.template))+' · 同分裁决：'+esc(tieName((ev&&ev.rankRule&&ev.rankRule.tieBreak)||[]))+'</span>'+
+      '<span class="small muted">计分规则：'+esc(tplName(ev&&ev.scoreRule&&ev.scoreRule.template))+' · 同分裁决：'+esc(tieName((ev&&ev.rankRule&&ev.rankRule.tieBreak)||[]))+'</span>'+
     '</div></div>'+
   '<div class="card"><h2>实时榜单 <small>赛中视图 · 两轮取优 → 加权计分 → 加分 → 判罚记录（不计分）→ 排名</small></h2>'+
     /* 无队伍时不显示进度条（否则会说成「0 / 0 队已完成」）；
