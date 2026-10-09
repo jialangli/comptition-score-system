@@ -22,6 +22,10 @@ body{margin:0;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",system-u
 .ni{display:block;padding:9px 12px;border-radius:8px;color:#c7d3e3;cursor:pointer;margin-bottom:3px;font-size:13.5px;user-select:none}
 .ni:hover{background:#182a42;color:#fff}
 .ni.on{background:#1b63ab;color:#fff;font-weight:500}
+/* 本期暂不做的入口：置灰不可点（.ni.off 必须同时覆盖 :hover，否则鼠标划过仍会变亮） */
+.ni.off{color:#5b6b7e;cursor:not-allowed}
+.ni.off:hover{background:transparent;color:#5b6b7e}
+.nib{float:right;margin-top:2px;font-size:10px;line-height:14px;color:#7b8ea3;border:1px solid #2b3f57;border-radius:4px;padding:0 5px}
 .side .foot{margin-top:18px;padding:10px 12px;border-radius:8px;background:#132339;font-size:11.5px;color:#7d8ea6;line-height:1.7}
 .main{flex:1;min-width:0;display:flex;flex-direction:column}
 .top{background:#fff;border-bottom:1px solid var(--line);padding:12px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:8;flex-wrap:wrap}
@@ -990,11 +994,17 @@ function tabBarHtml(v){
   '</div>';
 }
 
+/* 本期暂不做的入口：置灰、不可点、行尾带「本期不做」小标。
+   渲染（sidebar）与点击（nav）都读这里 —— 否则会出现"视觉灰了但仍能被调起"。
+   下期启用大屏：把对象清空成 {} 即可，不必改渲染代码。 */
+var NAV_OFF={screen:'本期不做'};
 function sidebar(){
-    /* 22 项 / 6 组 → 15 项 / 4 组 + 总览置顶。
-       合并的 6 处：跨赛事(并行总控+汇总榜) / 队伍与报名(队伍管理+报名导入) /
-       裁判与排班(档案与裁判码+执裁排班) / 处理进度看板(告警+台账·只读) /
-       公示与发布(公示导出) / 合规(权限+审计)。子页用页内 tab 切。 */
+    /* 14 项 / 5 组，总览（dash）单独置顶。分组：赛事（赛事管理 + 比赛结果总览）/
+       赛前准备 / 赛中 / 赛后与合规。原来并列的若干页已合并，靠页内 tab 切：
+       队伍与报名（队伍管理 + 报名导入）/ 裁判与排班（档案与裁判码 + 执裁排班）/
+       处理进度看板（告警 + 台账·只读）/ 公示与发布（公示导出）/ 合规（权限 + 审计）。
+       注：原「并行总控」页已删（2026-10-08），跨赛事对照统一走「比赛结果总览」；
+       「大屏展示」本期置灰，见上方 NAV_OFF。 */
   var groups=[
     ['',[['dash','总览']]],
     ['赛事',[['contests','赛事管理'],['crossrank','比赛结果总览']]],
@@ -1004,7 +1014,10 @@ function sidebar(){
   ];
   var nav=groups.map(function(g){
     return (g[0]?'<div class="ngroup">'+g[0]+'</div>':'')+g[1].map(function(it){
-      return '<div class="ni'+(navOn(it[0])?' on':'')+'" onclick="nav(\''+it[0]+'\')">'+it[1]+'</div>';
+      var off=NAV_OFF[it[0]];
+      return '<div class="ni'+(navOn(it[0])?' on':'')+(off?' off':'')+'"'+
+             (off?' title="本期暂不做"':' onclick="nav(\''+it[0]+'\')"')+'>'+
+             it[1]+(off?'<span class="nib">'+off+'</span>':'')+'</div>';
     }).join('');
   }).join('');
   return '<aside class="side">'+
@@ -1049,7 +1062,7 @@ function viewHtml(){
   return '';
 }
 /* 从别的页进入大屏页时，重新自动钉住当前赛事（手动解除后不会再被自动钉回） */
-function nav(v){if(v==='screen'&&VIEW!=='screen')SCREEN.needPin=true;VIEW=v;render();}
+function nav(v){if(NAV_OFF[v])return;if(v==='screen'&&VIEW!=='screen')SCREEN.needPin=true;VIEW=v;render();}
 
 /* ---------- 视图 0：赛事管理（多次赛事 · 一次建库多场复用） ---------- */
 var NC={name:'',season:'',start:'',end:'',venue:'',host:'',staff:'',events:['brain_planet','mars_rescue','future_city'],error:''};
@@ -1182,16 +1195,19 @@ function viewContests(){
       '<b>⑤ 哪些是跨赛事共享的</b>：只有<b>登录身份</b>与<b>后端连接设置</b>。裁判「人」的档案可跨赛事复用，但<b>裁判码与赛台绑定是赛事级凭证</b> —— 换赛事必须重新建档发码，旧码在新赛事无效。'+
       '<b>⑥ 队伍编号可以重复</b>：编号只在赛事内唯一。同一支队伍在不同赛事里用同一编号不会冲突，成绩也各算各的。'+
       '<b>⑦ 报名按赛事分别导入</b>：WRC 报名表一场赛事导一次，导入记录进本场赛事的审计，便于按赛事追溯。'+
-      '<b>⑧ 两地同时办赛怎么做</b>：<b>每个标签页各自记住自己的赛事</b>（「当前赛事」存在标签里，刷新不丢、互不带走）；赛事清单用<b>合并式写入</b>，别的标签新建 / 删除赛事不会互相覆盖；现场大屏在「大屏展示」页可<b>锁定赛事</b>，后台切场带不走它；建赛事时若赛期与已有赛事重叠会给出<b>并行提示</b>（只提醒、不拦截）。值守建议：<b>每场单独开一个标签页，或用不同设备分别登录后台</b>。'+
-      '<b>⑩ 值守人是「这条赛事归谁」</b>：每场赛事登记值守人（可多人）。换场时若登记的守人不是你，系统会先问一句（<b>不硬拦</b>，现场经常临时顶班）。'+
-        '同一个守人被排到<b>赛期重叠</b>的两场，会在「并行总控」页标红 —— 那是排班冲突。'+
+      '<b>⑧ 两地同时办赛怎么做</b>：<b>每个标签页各自记住自己的赛事</b>（「当前赛事」存在标签里，刷新不丢、互不带走）；赛事清单用<b>合并式写入</b>，别的标签新建 / 删除赛事不会互相覆盖；（大屏本期暂不做）；建赛事时若赛期与已有赛事重叠会给出<b>并行提示</b>（只提醒、不拦截）。值守建议：<b>每场单独开一个标签页，或用不同设备分别登录后台</b>。'+
       '<b>⑨ 已知边界（演示范围）</b>：归档已是<b>强制只读 gate</b>（进入即拦截写操作，仅用于追溯/导出）；赛事已登记<b>值守人归属</b>（staff[]），换场会先问一句但<b>不硬拦</b>；真正的多场地多人协作强隔离（防串改、防越权）仍<b>需后端按赛事分区</b>——见 PRD 待办。'+
+      '<b>⑩ 值守人是「这条赛事归谁」</b>：每场赛事登记值守人（可多人）。换场时若登记的守人不是你，系统会先问一句（<b>不硬拦</b>，现场经常临时顶班）。'+
     '</div>'+
   '</div>';
 }
 
-/* ---------- 视图 0b：多场并行总控（跨赛事只读汇总） ---------- */
-/* 只读快照：不改当前赛事，直接读每一场自己的数据空间 */
+/* ---------- 跨赛事只读快照 ----------
+   供「比赛结果总览」使用：crossRanks() 与 xrResults() 都靠 .ready 判断某场有没有
+   本地数据（空赛事直接跳过），再借 withContestData() 读该场自己的数据空间。
+   只读，不改当前赛事。
+   注：返回的其它计数（teams / signed / published / req / dis / alert）原是给已删的
+   「多场并行总控」页用的，现在没有调用点，保留是为了将来做跨场看板。 */
 function contestSnapshot(cid){
   var d=null;
   try{var raw=localStorage.getItem(ckey(cid));if(raw)d=JSON.parse(raw);}catch(e){}
