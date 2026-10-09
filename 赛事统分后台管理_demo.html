@@ -119,6 +119,14 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .dd-opt:hover{background:#f4f7fb}
 .dd-opt input{margin:0;width:15px;height:15px;accent-color:var(--ok)}
 @media(max-width:1080px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g12,.g2,.g3{grid-template-columns:1fr}}
+/* 苹果风格滑动开关：用于「黄牌计数器」这类「开 / 关」型配置项。
+   关闭即整块规则停用，所以控件本身要能一眼看出状态，而不是靠文字描述。 */
+.sw{position:relative;display:inline-block;width:44px;height:26px;flex:none;vertical-align:middle;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:0;height:0}
+.sw i{position:absolute;left:0;right:0;top:0;bottom:0;background:#cbd5e0;border-radius:13px;transition:background .18s}
+.sw i:before{content:'';position:absolute;width:22px;height:22px;left:2px;top:2px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .18s}
+.sw input:checked + i{background:var(--brand)}
+.sw input:checked + i:before{transform:translateX(18px)}
 </style>
 </head>
 <body>
@@ -145,7 +153,66 @@ var CONTEST_STATUS={prep:'筹备中',live:'进行中',done:'已结束',archived:
    两地同时办赛时，总部一台电脑开多个标签，各自守自己那场，互不带走。
    索引里的 cur 只作为「新标签的默认起点」。 */
 var CKEY_CUR='brainco_contests_cur_tab';
-var REF_TIME=120;                 // 时间奖励基准时长（秒），demo 常量，实际由赛制给定
+var REF_TIME=120;                 /* 时间奖励基准时长的**全局兜底**（秒）：优先取赛项总时间 eventTotalSec(ev)，没配才用它 */
+/* ---------- 赛项总时间（整场倒计时总长）· 时间奖励明细 ----------
+   这两个是**不同的东西**，别混：
+     · 赛项总时间 —— 这场比赛给队伍的总时长（裁判端 appbar 的「/ 总 03:45」，整场倒计时）
+     · 时间奖励   —— 奖励时间 = 赛项总时间 − 本队实际用时（省下来的秒数），
+                     再按「每 1 秒几分」折算成加分（例：总 60 秒、用时 50 秒 → 奖励时间 10 秒）
+
+   赛项总时间取值优先级：
+     Σ 阶段时长（多阶段赛项，见「赛项与规则配置」的阶段表）
+     → ev.scoreRule.params.refTime（单阶段 / 无阶段赛项直接填的值；后端引擎读的也是这个字段）
+     → 全局兜底 REF_TIME。 */
+function eventTotalSec(ev){
+  var ps=(ev&&ev.phases)||[],i,s=0;
+  for(i=0;i<ps.length;i++){s+=Number(ps[i].durationSec)||0;}
+  if(ps.length&&s>0)return s;
+  var v=(ev&&ev.scoreRule&&ev.scoreRule.params)?ev.scoreRule.params.refTime:null;
+  if(v!=null&&v!==''){v=Number(v);if(v>0)return v;}
+  return REF_TIME;
+}
+/* 单阶段 / 无阶段赛项：直接填的「赛项总时间」写进 params.refTime（后端引擎同字段，口径一致）。
+   只有一个阶段时，改的其实是那一段的时长 —— 不制造第二个真相。 */
+function setEventTotalSec(sec){
+  var ev=find(CUR_EVENT);if(!ev)return;
+  var ps=ev.phases||[],v=Number(sec)||0;
+  if(v<=0)return;
+  if(ps.length>=2)return;                 /* 多阶段：总时间 = Σ阶段时长，界面上是只读的 */
+  if(ps.length===1){ps[0].durationSec=v;syncEventTotal(ev);}
+  else{ev.scoreRule=ev.scoreRule||{template:'sum',params:{}};ev.scoreRule.params=ev.scoreRule.params||{};ev.scoreRule.params.refTime=v;}
+  save();   /* 不 render：输入框正在打字，重渲染会丢焦点（与 updPhase 同一考虑） */
+}
+/* 有阶段时把 Σ 阶段时长镜像进 params.refTime：后端引擎只认这个字段，
+   不镜像就会出现「前端按 03:45 算、后端按旧的 120 算」的口径漂移。 */
+function syncEventTotal(ev){
+  if(!ev)return;
+  var ps=ev.phases||[],i,s=0;
+  for(i=0;i<ps.length;i++){s+=Number(ps[i].durationSec)||0;}
+  if(!ps.length||s<=0)return;
+  ev.scoreRule=ev.scoreRule||{template:'sum',params:{}};
+  ev.scoreRule.params=ev.scoreRule.params||{};
+  ev.scoreRule.params.refTime=s;
+}
+/* 时间奖励明细：奖励时间（秒）= 赛项总时间 − 本队用时；再按每 1 秒几分折算，封顶后就是本项加分。 */
+function timeBonusInfo(ev,rec){
+  var all=(ev&&ev.bonusRules)||[],i,tb=null;
+  for(i=0;i<all.length;i++){if(all[i].template==='time_bonus'){tb=all[i];break;}}
+  var p=(tb&&tb.params)||{};
+  var total=eventTotalSec(ev);
+  var used=Number(rec&&rec.time)||0;
+  var reward=used>0?Math.max(0,total-used):0;
+  var raw=reward*(Number(p.perSecond)||0);
+  return {has:!!tb,total:total,used:used,reward:reward,
+          perSecond:p.perSecond,cap:p.cap,
+          score:(p.cap!=null?Math.min(raw,Number(p.cap)):raw)};
+}
+/* 秒 → mm:ss（总时间 / 用时都用它显示，避免各处各写一份格式化） */
+function mmss(sec){
+  sec=Math.max(0,Math.round(Number(sec)||0));
+  var m=Math.floor(sec/60),s=sec%60;
+  return (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+}
 
 var VIEW='dash';
 var CUR_EVENT='brain_planet';     // 赛项与规则页当前编辑赛项
@@ -243,13 +310,7 @@ var EVENT_TEMPLATES=[  { id:'brain_planet', name:'脑机星球', groups:['小学
   ],
   scoreRule:{template:'sum',params:{}},
   bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
-  penaltyRule:{template:'record_only',params:{},cardRules:{redThreshold:3,allowDirectRed:true,reasons:[
-  {code:'Y01',card:'yellow',label:'恶意撞击能源轨道'},
-  {code:'Y02',card:'yellow',label:'破坏矿石存储仓'},
-  {code:'Y03',card:'yellow',label:'击落矿石合成仓二层道具'},
-  {code:'Y04',card:'yellow',label:'不听从裁判指示'},
-  {code:'Y05',card:'yellow',label:'擅自摘下脑电设备'},
-  {code:'Y06',card:'yellow',label:'擅自触碰场地设备及道具'},
+  penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,allowDirectRed:true,reasons:[
   {code:'R01',card:'red',label:'严重违反安全规则'},
   {code:'R02',card:'red',label:'严重违背比赛精神'},
   {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
@@ -272,14 +333,7 @@ var EVENT_TEMPLATES=[  { id:'brain_planet', name:'脑机星球', groups:['小学
   {template:'count_bonus',params:{taskId:'bridge',perUnit:5,cap:null}},
   {template:'time_bonus',params:{perSecond:0.5,cap:10}}
   ],
-  penaltyRule:{template:'record_only',params:{},cardRules:{redThreshold:3,allowDirectRed:true,reasons:[
-  {code:'Y01',card:'yellow',label:'变更桥梁块线路或触碰赛台道具'},
-  {code:'Y02',card:'yellow',label:'自动巡线阶段人为控制资源车'},
-  {code:'Y03',card:'yellow',label:'机械手未脱离时用手接触桥梁'},
-  {code:'Y04',card:'yellow',label:'未经裁判允许触碰资源车'},
-  {code:'Y05',card:'yellow',label:'擅自摘下脑电设备'},
-  {code:'Y06',card:'yellow',label:'人为移动能量块挪出初始方框区域'},
-  {code:'Y07',card:'yellow',label:'用推动方式使橙色能量块入仓'},
+  penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,allowDirectRed:true,reasons:[
   {code:'R01',card:'red',label:'严重违反安全规则'},
   {code:'R02',card:'red',label:'严重违背比赛精神'},
   {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
@@ -314,16 +368,7 @@ var EVENT_TEMPLATES=[  { id:'brain_planet', name:'脑机星球', groups:['小学
   ],
   scoreRule:{template:'sum',params:{}},
   bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
-  penaltyRule:{template:'record_only',params:{},cardRules:{redThreshold:3,allowDirectRed:true,reasons:[
-  {code:'Y01',card:'yellow',label:'违规操作致小车需重新回启动区'},
-  {code:'Y02',card:'yellow',label:'未使用 SSVEP 视觉稳态诱发操控'},
-  {code:'Y03',card:'yellow',label:'违规拾取能源'},
-  {code:'Y04',card:'yellow',label:'违规移除球或火种'},
-  {code:'Y05',card:'yellow',label:'违规跨区操作'},
-  {code:'Y06',card:'yellow',label:'小学组擅自切换脑控手'},
-  {code:'Y07',card:'yellow',label:'选手自行触碰脑电帽电极区域'},
-  {code:'Y08',card:'yellow',label:'不听从裁判指示'},
-  {code:'Y09',card:'yellow',label:'违规触碰赛事设施或场地道具'},
+  penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,allowDirectRed:true,reasons:[
   {code:'R01',card:'red',label:'严重违反安全规则'},
   {code:'R02',card:'red',label:'严重违背比赛精神'},
   {code:'R03',card:'red',label:'顶撞裁判或拒不服从判定'},
@@ -604,6 +649,24 @@ function setContestStatus(id,st){
   c.status=st;c.updatedAt=nowStr();c.archivedAt=(st==='archived')?nowStr():'';
   saveContests();render();
 }
+/* 赛事状态：不再用手动下拉，改为按规则固定的展示文案
+   - 已归档：本场成绩已归档（c.status==='archived'，即只读快照）
+   - 进行中：赛期包含今天（开始日期 <= 今天 <= 结束日期）
+   - 筹备中：其余（赛期未到 / 未填赛期） */
+function contestDisplayStatus(c){
+  if(c.status==='archived')return '已归档';
+  var d=new Date(),t=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(c.start && t>=c.start && t<=(c.end||c.start))return '进行中';
+  return '筹备中';
+}
+function contestStatusTag(st){
+  var ok=st==='进行中',arch=st==='已归档';
+  var color=arch?'#c53030':(ok?'#2f855a':'#718096');
+  var bg=arch?'#fcebeb':(ok?'#e6fffa':'#f7fafc');
+  return '<span class="tag" style="border-color:'+color+';color:'+color+';background:'+bg+'">'+st+'</span>';
+}
+function archiveContest(id){setContestStatus(id,'archived');}
+function unarchiveContest(id){setContestStatus(id,'prep');}
 function removeContest(id){
   if(CONTESTS.length<=1){alert('至少保留一场赛事。');return;}
   if(id===CUR_CONTEST){alert('不能删除当前正在使用的赛事，请先切换到其他赛事。');return;}
@@ -674,6 +737,17 @@ function migrate(d){
     if(x.chief==null)x.chief='';
   });
   (d.teams||[]).forEach(function(t){if(t.seatId==null)t.seatId='';if(t.order==null)t.order=0;});
+  /* v4 迁移：导入记录升级为「导入任务」（可筛 / 可导出 / 可撤回）。
+     旧 importLogs 一律转过去并标 legacy —— 那时没有回滚快照，撤回按钮会拒绝。 */
+  if(!d.importTasks){
+    d.importTasks=(d.importLogs||[]).map(function(l,i){
+      return {id:'it_legacy_'+i,ts:l.ts,operator:l.operator,source:l.source,
+        fileName:'（升级前的历史记录）',summary:l.summary||{insert:0,update:0,skip:0,conflict:0},
+        status:(l.status==='success'?'done':'partial'),detail:l.detail||[],
+        affectedScores:0,snapshot:null,legacy:true};
+    });
+  }
+  d.importLogs=[];
   return d;
 }
 function save(){
@@ -729,7 +803,7 @@ function computeTotal(ev,rec){
     var p=b.params||{};
     if(b.template==='time_bonus'){
       var t=Number(rec.time)||0;
-      if(t>0){var v=(REF_TIME-t)*(Number(p.perSecond)||0);if(v<0)v=0;if(p.cap!=null)v=Math.min(v,Number(p.cap));bonus+=v;}
+      if(t>0){var v=(eventTotalSec(ev)-t)*(Number(p.perSecond)||0);if(v<0)v=0;if(p.cap!=null)v=Math.min(v,Number(p.cap));bonus+=v;}
     }else if(b.template==='count_bonus'&&p.taskId){
       var c=Number(st[p.taskId])||0;var w=c*(Number(p.perUnit)||0);if(p.cap!=null)w=Math.min(w,Number(p.cap));bonus+=w;
     }
@@ -741,8 +815,12 @@ function computeTotal(ev,rec){
     var q=ev.penaltyRule.params||{};
     penalty=(Number(rec.yellow)||0)*(Number(q.yellow)||0)+(Number(rec.red)||0)*(Number(q.red)||0);
   }
-  var yellow=Number(rec.yellow)||0, red=Number(rec.red)||0;
-  return {total:Math.max(0,base+bonus-penalty),base:base,bonus:bonus,penalty:penalty,yellow:yellow,red:red,
+  /* 红牌按赛项规则归一：直接记的 + 黄牌累计升级出来的。
+     关闭黄牌计数器时不再升级 —— 「关掉开关」在规则上真的不生效，而不只是把界面藏起来。 */
+  var cards=effectiveRed(ev,rec);
+  var yellow=cards.yellow, red=cards.red;
+  return {total:Math.max(0,base+bonus-penalty),base:base,bonus:bonus,penalty:penalty,
+          yellow:yellow,red:red,upgradedRed:cards.upgraded,dq:red>0,
           complete:tasks.length>0&&scored===tasks.length};
 }
 function phaseSubtotal(ev,rec,phaseId){
@@ -769,15 +847,41 @@ function voidedTeamsOf(evId){
 function substituteMode(){return (S.substituteRule&&S.substituteRule.mode)==='rank'?'rank':'none';}
 function substituteModeName(){return substituteMode()==='rank'?'按名次顺延':'不递补（空缺不补）';}
 /* 原榜 = 取消资格之前的排名（含作废队），用于「影响预览」与名次空缺判定 */
+/* ---------- 牌面计数规则（黄牌计数器 / 累计升级 / 红牌后果） ----------
+   与后端 engine/cards.go **同口径**，两端必须一致：
+     黄牌 —— 只累计，满阈值升级成红牌；本身不产生任何后果。
+     红牌 —— **当场取消比赛资格**：成绩保留（照常算分、照常留痕），但不排名次、不参评奖项。
+     开关 —— 黄牌计数器关闭 = 整个黄牌体系停用（不显示、不累计、不升级红牌）；
+             红牌是独立入口，仍可直接记录。
+   与「裁定取消资格（成绩作废）」的区别见榜单页说明。 */
+function cardRulesOf(ev){return (ev&&ev.penaltyRule&&ev.penaltyRule.cardRules)||null;}
+function cardCounterOn(ev){var c=cardRulesOf(ev);return !(c&&c.enabled===false);}
+function redThresholdOf(ev){var c=cardRulesOf(ev);var n=Number(c&&c.redThreshold);return (n>0?n:3);}
+function allowDirectRedOf(ev){var c=cardRulesOf(ev);return !(c&&c.allowDirectRed===false);}
+function redReasonsOf(ev){
+  var c=cardRulesOf(ev);
+  return ((c&&c.reasons)||[]).filter(function(r){return (r.card==='red'?'red':'yellow')==='red';});
+}
+/* 归一后的牌面：黄牌数 + 红牌数（含黄牌累计升级出来的部分） */
+function effectiveRed(ev,rec){
+  var yellow=Math.max(0,Number(rec&&rec.yellow)||0);
+  var red=Math.max(0,Number(rec&&rec.red)||0);
+  var up=0;
+  if(cardCounterOn(ev))up=Math.floor(yellow/redThresholdOf(ev));
+  return {yellow:yellow,red:red+up,upgraded:up};
+}
 function rankAll(evId){
   var ev=find(evId);if(!ev)return [];
   var tb=(ev.rankRule&&ev.rankRule.tieBreak)||['score','time'];
   var list=S.teams.filter(function(t){return t.eventId===evId;}).map(function(t){
     var r=S.scores[t.id]||{};
     var c=computeTotal(ev,r);
-    return {team:t,total:c.total,base:c.base,bonus:c.bonus,penalty:c.penalty,yellow:c.yellow,red:c.red,complete:c.complete,time:Number(r.time)||0};
+    return {team:t,total:c.total,base:c.base,bonus:c.bonus,penalty:c.penalty,yellow:c.yellow,red:c.red,
+            dq:!!c.dq,complete:c.complete,time:Number(r.time)||0};
   });
   list.sort(function(a,b){
+    /* 红牌 = 当场取消比赛资格：不参与名次，排到榜单最后（分数仍保留可查） */
+    if(!!a.dq!==!!b.dq)return a.dq?1:-1;
     if(b.total!==a.total)return b.total-a.total;
     for(var i=0;i<tb.length;i++){if(tb[i]==='time'&&a.time!==b.time)return a.time-b.time;}
     return a.team.name.localeCompare(b.team.name,'zh');
@@ -790,10 +894,14 @@ function standings(evId){
   var all=rankAll(evId);
   var rows=all.filter(function(r){return !isVoided(r.team.id);});
   var useGap=(substituteMode()!=='rank');   /* 不递补（空缺不补）：保留原名次，作废队位置留空 */
-  rows.forEach(function(r,i){
+  /* 红牌取消比赛资格的队伍**留在榜内**（成绩与判罚要可查、公示要能说明少了一队），
+     但不占名次序号：名次只在「有资格」的队伍之间连续发放，避免后面全部少一名。 */
+  var live=rows.filter(function(r){return !r.dq;});
+  live.forEach(function(r,i){
     r.rank=useGap?r.origRank:(i+1);
-    r.tie=(i>0&&rows[i-1].total===r.total);
+    r.tie=(i>0&&live[i-1].total===r.total);
   });
+  rows.forEach(function(r){if(r.dq){r.rank=0;r.tie=false;}});
   return rows;
 }
 /* 作废队清单（用于「影响预览」与公示声明） */
@@ -851,7 +959,6 @@ function render(){
    这样原有的页名可以原样当 tab 名，正文文案与
    全部跨页跳转（gotoView / alertDrillView / gotoPub）都不用改。 */
 var PAGE_TABS=[
-  {page:'control', label:'跨赛事', items:[['control','并行总控'],['crossrank','跨赛事汇总榜']]},
   {page:'teams', label:'队伍与报名', items:[['teams','队伍管理'],['import','WRC 报名导入']]},
   {page:'referees', label:'裁判与排班', items:[['referees','裁判档案与裁判码'],['duty','执裁排班']]},
   {page:'watch', label:'处理进度看板', items:[['watch','处理进度看板']]},
@@ -890,7 +997,7 @@ function sidebar(){
        公示与发布(公示导出) / 合规(权限+审计)。子页用页内 tab 切。 */
   var groups=[
     ['',[['dash','总览']]],
-    ['赛事',[['contests','赛事管理'],['control','跨赛事']]],
+    ['赛事',[['contests','赛事管理'],['crossrank','比赛结果总览']]],
     ['赛前准备',[['events','赛项与规则'],['seats','赛台与赛程'],['teams','队伍与报名'],['referees','裁判与排班']]],
     ['赛中',[['score','裁判打分'],['rank','实时榜单'],['screen','大屏展示'],['watch','处理进度看板']]],
     ['赛后与合规',[['publish','公示与发布'],['evidence','留底证据库'],['roles','合规']]]
@@ -907,7 +1014,7 @@ function sidebar(){
   '</aside>';
 }
 function topbar(){
-  var titles={contests:'赛事管理（一场赛事一份数据 · 隔离与归档）',control:'跨赛事 · 并行总控（只读汇总，不切当前赛事）',crossrank:'跨赛事 · 跨赛事汇总榜（多场成绩对照）',dash:'总览（开赛就绪度 · 赛项状态）',events:'赛项与规则配置',seats:'赛台与赛程编排',teams:'队伍与报名 · 队伍管理',import:'队伍与报名 · WRC 报名导入',referees:'裁判与排班 · 裁判档案与裁判码',duty:'裁判与排班 · 执裁排班（赛台 × 时段 × 人）',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',watch:'处理进度看板（告警收件箱 + 改分 / 争议台账 · 只读看板）',dq:'公示与发布 · 资格与递补（取消资格登记 + 递补）',evidence:'留底证据库（服务端那一端）',publish:'公示与发布 · 公示与导出',roles:'合规 · 角色与权限',audit:'合规 · 全操作审计'};
+  var titles={contests:'赛事管理（一场赛事一份数据 · 隔离与归档）',crossrank:'比赛结果总览',dash:'总览（开赛就绪度 · 赛项状态）',events:'赛项与规则配置',seats:'赛台与赛程编排',teams:'队伍与报名 · 队伍管理',import:'队伍与报名 · WRC 报名导入',referees:'裁判与排班 · 裁判档案与裁判码',duty:'裁判与排班 · 执裁排班（赛台 × 时段 × 人）',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',watch:'处理进度看板（告警收件箱 + 改分 / 争议台账 · 只读看板）',dq:'公示与发布 · 资格与递补（取消资格登记 + 递补）',evidence:'留底证据库（服务端那一端）',publish:'公示与发布 · 公示与导出',roles:'合规 · 角色与权限',audit:'合规 · 全操作审计'};
   var contestPicker='<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;margin:0">'+
     '<span class="muted">赛事</span>'+
     '<select onchange="switchContest(this.value)" style="width:auto;min-width:230px;max-width:320px" title="切换赛事 = 切换整套数据（队伍 / 成绩 / 规则 / 留底 / 审计）">'+
@@ -922,7 +1029,6 @@ function topbar(){
 }
 function viewHtml(){
   if(VIEW==='contests')return viewContests();
-  if(VIEW==='control')return viewControl();
   if(VIEW==='crossrank')return viewCrossRank();
   if(VIEW==='dash')return viewDash();
   if(VIEW==='events')return viewEvents();
@@ -990,8 +1096,9 @@ c.note='按勾选赛项模板新建（已带入 '+data.events.length+' 个赛项
 }
 
 function viewContests(){
-  var live=CONTESTS.filter(function(c){return c.status==='live';}).length;
+  var live=CONTESTS.filter(function(c){return contestDisplayStatus(c)==='进行中';}).length;
   var arch=CONTESTS.filter(function(c){return c.status==='archived';}).length;
+  var conf=staffConflicts();
   var totTeams=0,totSigned=0;
   CONTESTS.forEach(function(c){var s=contestStats(c.id);totTeams+=s.teams;totSigned+=s.signed;});
   var kpi=function(lb,nm,ft){return '<div class="kpi"><div class="lb">'+lb+'</div><div class="nm">'+nm+'</div><div class="ft">'+ft+'</div></div>';};
@@ -999,8 +1106,6 @@ function viewContests(){
   var rows=CONTESTS.map(function(c){
     var s=contestStats(c.id);
     var isCur=(c.id===CUR_CONTEST);
-    var stOpts=Object.keys(CONTEST_STATUS).map(function(k){
-      return '<option value="'+k+'" '+(c.status===k?'selected':'')+'>'+CONTEST_STATUS[k]+'</option>';}).join('');
     var dateTxt=c.start?(esc(c.start)+(c.end&&c.end!==c.start?(' ~ '+esc(c.end)):'')):'（未填赛期）';
     var ov=overlappingContests(c);
     return '<tr'+(isCur?' style="background:#f2f8ff"':'')+'>'+
@@ -1013,12 +1118,13 @@ function viewContests(){
       '<td class="num">'+s.teams+'</td>'+
       '<td class="num">'+s.signed+'</td>'+
       '<td class="num">'+s.published+' / '+s.events+'</td>'+
-      '<td class="num">'+(s.queued?s.queued:'—')+'</td>'+
       '<td>'+(ov.length?'<span class="tag warn" title="赛期与其他赛事重叠（并行举办）">并行 '+ov.length+' 场</span> ':'')+
-        '<select onchange="setContestStatus(\''+c.id+'\',this.value)" style="width:auto">'+stOpts+'</select></td>'+
+        contestStatusTag(contestDisplayStatus(c))+'</td>'+
       '<td>'+(isCur?'<span class="small muted">正在使用</span>'
                  :'<button class="btn sm primary" onclick="switchContest(\''+c.id+'\')">进入</button>')+
+        ' <button class="btn sm" onclick="xrGotoContest(\''+c.id+'\')">看该场结果</button>'+
         ' <button class="btn sm" onclick="ecLoad(\''+c.id+'\')">编辑</button>'+
+        ' <button class="btn sm" onclick="'+(c.status==='archived'?'unarchiveContest':'archiveContest')+'(\''+c.id+'\')">'+(c.status==='archived'?'解档':'归档')+'</button>'+
         ' <button class="btn sm danger" onclick="removeContest(\''+c.id+'\')">删除</button></td>'+
     '</tr>';
   }).join('');
@@ -1030,11 +1136,17 @@ function viewContests(){
       kpi('已归档',arch,'只读历史快照 · 可导出追溯')+
       kpi('累计队伍 / 已签字',totTeams+' / '+totSigned,'跨赛事合计（隔离存储）')+
     '</div>'+
+  (conf.length?('<div class="card" style="border-left:3px solid #a32d2d"><h2>值守冲突 <small>同一个值守人被排到赛期重叠的两场 —— 这是排班冲突，不是提醒，必须重新安排人</small></h2>'+
+    conf.map(function(x){
+      return '<div class="note" style="border-left-color:#a32d2d"><b>'+esc(x.names.join(' / '))+'</b> 同时登记在「'+esc(x.a.name)+'」与「'+esc(x.b.name)+'」两场，'+
+        '而这两场赛期重叠（'+esc(x.a.start||'—')+' ~ '+esc(x.a.end||x.a.start||'—')+'）。<b>一个人不可能同时在两个场地</b>，请在本页改其中一场的值守人。</div>';
+    }).join('')+'</div>'):'')+
   '<div class="card" style="margin-top:16px"><h2>赛事清单 <small>每场赛事一份独立数据空间：队伍 / 成绩 / 规则 / 锁 / 工单 / 留底 / 审计 / 裁判码</small></h2>'+
-    '<table><thead><tr><th>赛事</th><th>场馆 / 主办</th><th>值守人</th><th class="num">赛项</th><th class="num">队伍</th><th class="num">已签字</th><th class="num">已公示</th><th class="num">待办</th><th>状态</th><th>操作</th></tr></thead>'+
+    '<table><thead><tr><th>赛事</th><th>场馆 / 主办</th><th>值守人</th><th class="num">赛项</th><th class="num">队伍</th><th class="num">已签字</th><th class="num">已公示</th><th>状态</th><th>操作</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table>'+
     '<div class="hint" style="margin-top:10px">顶部「赛事」下拉可随时切换；切换后<b>整套数据随之切换</b>，上一场的队伍、成绩、工单、留底不会出现在本场里。'+
-      '「待办」= 待审批改分申请 + 待裁定争议 + 待处理告警。</div>'+
+      '「并行 <b>N</b> 场」= 该赛事赛期与其他未收官赛事重叠 —— <b>并行不冲突</b>（各有独立数据空间，各写各的），值守建议每场单独一个标签页。'+
+      '</div>'+
   '</div>'+
   editCardHtml()+
   '<div class="card"><h2>新建赛事 <small>一场赛事由若干赛项组成：勾选赛项即带入其规则（规则不常变，无需每场重配）</small></h2>'+
@@ -1116,82 +1228,6 @@ function staffConflicts(){
   });
   return out;
 }
-function viewControl(){
-  var snaps=CONTESTS.map(function(c){return contestSnapshot(c.id);});
-  var live=snaps.filter(function(s){return s.status==='live';});
-  var running=snaps.filter(function(s){return s.status==='live'||s.status==='prep';});
-  var para=running.filter(function(s){return overlappingContests(contestById(s.id)).some(function(x){return x.status==='live'||x.status==='prep';});});
-  var q=snaps.reduce(function(n,s){return n+s.req+s.dis+s.alert;},0);
-  var conf=staffConflicts();
-  var kpi=function(lb,nm,ft){return '<div class="kpi"><div class="lb">'+lb+'</div><div class="nm">'+nm+'</div><div class="ft">'+ft+'</div></div>';};
-
-  var rows=snaps.map(function(s){
-    var c=contestById(s.id)||{};
-    var isCur=(s.id===CUR_CONTEST);
-    var dateTxt=s.start?(esc(s.start)+(s.end&&s.end!==s.start?(' ~ '+esc(s.end)):'')):'（未填赛期）';
-    var evHtml=s.events.length?s.events.map(function(e){
-        return '<div class="small" style="display:flex;gap:8px;align-items:baseline">'+
-          '<b style="min-width:70px">'+esc(e.name)+'</b>'+
-          '<span class="muted">队伍 '+e.teams+'</span>'+
-          '<span class="muted">已签字 '+e.signed+'</span>'+
-          (e.published?'<span class="tag b">已公示</span>':'<span class="tag">未公示</span>')+
-        '</div>';
-      }).join(''):'<span class="muted">无赛项</span>';
-    var qHtml=(s.req||s.dis||s.alert)
-      ? ('<div class="small">改分 <b>'+s.req+'</b></div><div class="small">争议 <b>'+s.dis+'</b></div><div class="small">告警 <b>'+s.alert+'</b></div>')
-      : '<span class="muted">—</span>';
-    var tag=CONTEST_STATUS[s.status]||s.status||'—';
-    var cls=(s.status==='live')?'ok':((s.status==='prep')?'warn':'');
-    return '<tr'+(isCur?' style="background:#f2f8ff"':'')+'>'+
-      '<td><b>'+esc(s.name)+'</b>'+(isCur?' <span class="tag b">当前</span>':'')+
-        '<div class="small muted">'+dateTxt+'</div>'+
-        (overlappingContests(c).length?'<span class="tag warn">并行 '+overlappingContests(c).length+' 场</span>':'')+'</td>'+
-      '<td>'+esc(s.venue||'—')+'</td>'+
-      '<td class="small">'+esc(staffLabel(s.id))+'</td>'+
-      '<td>'+evHtml+'</td>'+
-      '<td class="num">'+qHtml+'</td>'+
-      '<td><span class="tag '+cls+'">'+esc(tag)+'</span>'+(function(){
-          var ro=readinessItems(s.id);
-          if(!ro)return '';
-          return '<div class="small muted">就绪 '+(ro.items.length-ro.bad.length)+'/'+ro.items.length+
-            (ro.bad.length?'<br><span style="color:#a32d2d">缺 '+esc(ro.bad.map(function(x){return x.k;}).join('、'))+'</span>':'')+'</div>';
-        })()+'</td>'+
-      '<td>'+(isCur?'<span class="small muted">正在使用</span>'
-                 :'<button class="btn sm primary" onclick="switchContest(\''+s.id+'\')">进入</button>')+'</td>'+
-    '</tr>';
-  }).join('');
-
-  var confHtml=conf.length?('<div class="card"><h2>值守冲突 <small>同一个守人被排到赛期重叠的两场 —— 必须重新安排人</small></h2>'+
-      conf.map(function(x){
-        return '<div class="note" style="border-left-color:#a32d2d"><b>'+esc(x.names.join(' / '))+'</b> 同时登记在「'+esc(x.a.name)+'」与「'+esc(x.b.name)+'」两场，'+
-          '而这两场赛期重叠（'+esc(x.a.start||'—')+' ~ '+esc(x.a.end||x.a.start||'—')+'）。'+
-          '<b>一个人不可能同时在两个场地</b>，请到「赛事管理」改值守人，或由其中一场另派人。</div>';
-      }).join('')+'</div>'):'';
-
-  return '<div class="grid g4">'+
-      kpi('赛事总数',snaps.length,'本后台服务的举办场次')+
-      kpi('进行中',live.length,'含筹备中：'+running.length+' 场')+
-      kpi('并行场次',para.length,para.length?'赛期重叠且未收官':'当前没有并行场次')+
-      kpi('跨赛事待办',q,'改分 / 争议 / 告警 合计')+
-    '</div>'+
-  confHtml+
-  '<div class="card" style="margin-top:16px"><h2>跨赛事进度一览 <small>只读汇总 · 直接读每一场自己的数据空间，不会把你当前这场切走</small></h2>'+
-    '<div style="overflow:auto"><table><thead><tr><th style="min-width:170px">赛事</th><th>场馆</th><th style="min-width:110px">值守人</th><th style="min-width:230px">赛项进度</th><th style="width:80px">待办</th><th style="width:80px">状态</th><th style="width:100px">操作</th></tr></thead>'+
-    '<tbody>'+rows+'</tbody></table></div>'+
-    '<div class="hint" style="margin-top:10px">「并行 <b>N</b> 场」= 这条赛事的赛期与其他未收官的赛事重叠。<b>并行不冲突</b>：两场各有独立数据空间，各写各的；'+
-      '值守建议是<b>每场单独一个标签页</b>（每个标签各记住自己的赛事），或不同设备分别登录。</div>'+
-  '</div>'+
-  '<div class="card"><h2>设计说明 <small>「总控」和「总览」不是一回事</small></h2>'+
-    '<div class="note">'+
-      '<b>① 总览 vs 总控</b>：<b>总览</b>看的是<b>你当前这一场</b>里面的赛项状态（配置 → 报名 → 打分 → 公示）；<b>总控</b>看的是<b>所有场次</b>的进度，用来回答「我今天同时开着几场、各自跑到哪了、有没有人排重了」。'+
-      '<b>② 只读边界</b>：总控页<b>只读汇总</b>，不改任何赛事的数据；要改哪一场就点「进入」切过去改。'+
-      '<b>③ 不影响你当前那场</b>：总控是直接读各赛事的数据空间快照，<b>不会把你正在值守的场次切走</b>。'+
-      '<b>④ 值守冲突要点出来</b>：同一个值守人被排到赛期重叠的两场，这里会直接标红 —— 这是<b>排班冲突</b>，不是提醒。'+
-      '<b>⑤ 值守人是「这条赛事归谁」</b>：换场时如果登记的守人不是你，会先问一句（不硬拦，现场经常临时顶班）。真正的权限强隔离需要后端按赛事分区 —— 见说明文档「后端接口约定」。'+
-    '</div>'+
-  '</div>';
-}
-
 /* ---------- 开赛就绪度：运营最关心的一句话「这场能不能开赛」 ---------- */
 function readinessOf(cid){
   var cur=CUR_CONTEST,box={v:null};
@@ -1253,12 +1289,82 @@ function readinessCardHtml(cid){
   '</div>';
 }
 
-/* ---------- 视图 0c：跨赛事汇总榜（只做对照，不做跨场总分排名） ---------- */
-var XR={contests:{},event:'all',group:'all'};
-function xrInit(){if(!Object.keys(XR.contests).length)CONTESTS.forEach(function(c){XR.contests[c.id]=true;});}
-function xrToggle(cid){xrInit();XR.contests[cid]=!XR.contests[cid];render();}
-function xrAll(on){xrInit();CONTESTS.forEach(function(c){XR.contests[c.id]=!!on;});render();}
-function xrSet(k,v){XR[k]=v;render();}
+/* ---------- 视图 0c：比赛结果总览（跨赛事成绩对照；只做对照，不做跨场总分排名） ---------- */
+/* ---------- 比赛结果总览 · 筛选状态 ----------
+   两个状态：XRF = 正在输入的条件（不立即生效）；XRA = 已应用的条件（点「搜索」才生效）。
+   赛事范围由条件**推导**得出（xrPicked），不再维护「勾选了哪几场」。 */
+var XRF={contest:[],st:'all',from:'',to:'',ev:'all',grp:'all',team:'',member:''};
+var XRA={contest:[],st:'all',from:'',to:'',ev:'all',grp:'all',team:'',member:''};
+/* 赛事多选下拉面板的展开态。和 XRF/XRA 放在一起 —— 它是筛选区的界面状态，
+   不是筛选条件本身（不参与 xrPicked）。 */
+var XRM={open:false};
+/* 把 contest 条件归一成数组。
+   存在的理由：早年是单值（'all' | 赛事id），现在改多选后只要有**任何残留的旧形态**
+   （页面未刷新、外部代码写过、夹具传了字符串），xrActive 里的 .map 就会直接抛错、
+   整个「比赛结果总览」白屏 —— 这类残留无法完全避免，所以在读的地方统一归一一次。 */
+function xrSelArr(v){return Array.isArray(v)?v:(!v||v==='all'?[]:[v]);}
+function xrBlank(){return {contest:[],st:'all',from:'',to:'',ev:'all',grp:'all',team:'',member:''};}
+/* 输入只改草稿、不重渲染 —— 输入框焦点与光标不会丢 */
+function xrF(k,v){XRF[k]=v;}
+function xrSearch(){
+  /* contest 是数组，必须 slice 拷贝：直接赋引用会让「草稿」与「已生效」共用同一个数组，
+     之后在筛选卡里勾一下，生效中的条件会跟着变（字符串时代是值拷贝，换数组后才出现的坑）。 */
+  XRA={contest:(XRF.contest||[]).slice(),st:XRF.st,from:XRF.from,to:XRF.to,ev:XRF.ev,grp:XRF.grp,team:XRF.team,member:XRF.member};
+  XRM.open=false;                      /* 点搜索顺带收起多选面板 */
+  render();
+}
+function xrReset(){XRF=xrBlank();XRA=xrBlank();XRS={by:'',dir:''};XRM.open=false;render();}
+/* 从赛事清单跳到「比赛结果总览」，并把这一场作为**已生效**的筛选条件带过去。
+   两个坑（都是只看代码看不出来的）：
+     ① 必须同时写 XRF 与 XRA —— xrPicked() 读的是 XRA；只写 XRF 会「跳过去了、
+        但筛选没生效」，界面上完全看不出哪里错了（回显里也不会出现这一场）；
+     ② 状态 / 赛期 / 赛项等条件必须一起清空 —— 上一轮若筛过「进行中」，
+        跳到一场已归档的赛事会看到空表，现场会以为「这场没成绩」。 */
+function xrGotoContest(cid){
+  XRF=xrBlank();XRA=xrBlank();
+  XRF.contest=[cid];XRA.contest=[cid];
+  XRS={by:'',dir:''};
+  VIEW='crossrank';render();
+}
+/* 当前生效条件（用于回显，也让用户知道「搜索」到底提交了什么） */
+function xrActive(fo){
+  var a=[],nm={};
+  ((fo&&fo.evs)||[]).forEach(function(e){nm[e.id]=e.name;});
+  var selC=xrSelArr(XRA.contest);
+  if(selC.length){
+    var names=selC.map(function(id){var ct=CONTESTS.filter(function(c){return c.id===id;})[0];return ct?ct.name:id;});
+    /* 场次多时只列前 2 场 + 总数，免得回显被撑成一段长文（与筛选卡一行放得下为准） */
+    a.push('赛事 = '+(names.length<=2?names.join('、'):(names.slice(0,2).join('、')+' 等 '+names.length+' 场')));
+  }
+  if(XRA.st!=='all')a.push('状态 = '+XRA.st);
+  if(XRA.from||XRA.to)a.push('赛期 '+(XRA.from||'不限')+' ~ '+(XRA.to||'不限'));
+  if(XRA.ev!=='all')a.push('赛项 = '+(nm[XRA.ev]||XRA.ev));
+  if(XRA.grp!=='all')a.push('组别 = '+XRA.grp);
+  if(XRA.team)a.push('队伍名称 含「'+XRA.team+'」');
+  if(XRA.member)a.push('选手信息 含「'+XRA.member+'」');
+  return a;
+}
+/* 赛事级筛选：由条件推导纳入对照的场次 */
+function xrPicked(){
+  var pick=xrSelArr(XRA.contest);
+  return CONTESTS.filter(function(c){
+    if(pick.length && pick.indexOf(c.id)<0) return false;
+    if(XRA.st!=='all' && contestDisplayStatus(c)!==XRA.st) return false;
+    if(XRA.from||XRA.to){
+      var s=c.start||'';
+      if(!s) return false;                      /* 没填赛期 → 无法判断是否落在区间内，排除 */
+      var e=c.end||c.start||'';
+      if(XRA.from && e<XRA.from) return false;
+      if(XRA.to && s>XRA.to) return false;
+    }
+    return true;
+  });
+}
+/* 筛选栏的一个「标签 + 控件」单元 */
+function xrFld(label,ctrl){
+  return '<span style="display:inline-flex;align-items:center;gap:6px">'+
+    '<span class="small muted" style="white-space:nowrap">'+esc(label)+'</span>'+ctrl+'</span>';
+}
 function crossFilterOptions(){
   var evs=[],gs=[];
   CONTESTS.forEach(function(c){
@@ -1273,116 +1379,248 @@ function crossFilterOptions(){
 }
 /* 逐场逐赛项取榜单，按「队名 + 学校」把同一支队伍跨场合起来 */
 function crossRanks(){
-  xrInit();
-  var byTeam={},order=[],champs=[],used=0;
-  CONTESTS.forEach(function(c){
-    if(!XR.contests[c.id])return;
+  var chosen=xrPicked();
+  var byTeam={},order=[],used=0;
+  chosen.forEach(function(c){
     if(!contestSnapshot(c.id).ready)return;
     used++;
     withContestData(c.id,function(){
       (S.events||[]).forEach(function(ev){
-        if(XR.event!=='all'&&ev.id!==XR.event)return;
+        if(XRA.ev!=='all'&&ev.id!==XRA.ev)return;
         var rows=standings(ev.id);
         rows.forEach(function(r){
-          if(XR.group!=='all'&&(r.team.group||'')!==XR.group)return;
+          if(XRA.grp!=='all'&&(r.team.group||'')!==XRA.grp)return;
           var key=(r.team.name||'')+'|'+(r.team.school||'');
           if(!byTeam[key]){byTeam[key]={key:key,name:r.team.name,school:r.team.school||'',members:r.team.members||'',items:[]};order.push(key);}
           byTeam[key].items.push({contestId:c.id,contest:c.name,event:ev.name,group:r.team.group||'',
             rank:r.rank,total:r.total,of:rows.length});
         });
-        if(rows.length)champs.push({contest:c.name,event:ev.name,group:rows[0].team.group||'',
-          name:rows[0].team.name,school:rows[0].team.school||'',total:rows[0].total});
       });
     });
   });
   var list=order.map(function(k){
     var t=byTeam[k];
     t.count=t.items.length;
-    t.best=Math.min.apply(null,t.items.map(function(x){return x.rank;}));
-    t.avg=t.items.reduce(function(a,b){return a+b.total;},0)/t.count;
     t.froms=t.items.map(function(x){return x.contest;}).filter(function(v,i,a){return a.indexOf(v)===i;});
     t.multi=(t.froms.length>1);
     return t;
   });
-  /* 刻意不按总分排序：跨赛事赛制/难度不同，总分不可比。按「参赛场次 → 最佳名次 → 平均分」看趋势 */
-  list.sort(function(a,b){return (b.count-a.count)||(a.best-b.best)||(b.avg-a.avg)||a.name.localeCompare(b.name,'zh');});
-  champs.sort(function(a,b){return (a.contest+a.event).localeCompare(b.contest+b.event,'zh');});
-  return {list:list,champs:champs,used:used};
+  /* 刻意不按总分排序：跨赛事赛制 / 难度 / 权重不同，总分不可比，平均分同样不可比。
+     归并列表只用于 KPI 计数（覆盖队伍 / 跨场参赛队伍）；比赛结果明细的排序见 xrOrder（默认赛事 → 赛项 → 名次）。 */
+  list.sort(function(a,b){return (b.count-a.count)||a.name.localeCompare(b.name,'zh');});
+  return {list:list,used:used,picked:chosen.length};
+}
+/* ---------- 比赛结果总览 · 赛事多选下拉 ----------
+   为什么不是原生 <select multiple>：原生多选要**按住 Ctrl 点**，现场没人会；
+   也不是一长排平铺复选框 —— 场次一多会把筛选卡撑得很高。
+   做法：一个按钮（显示已选几场）+ 点开的下拉面板（面板里是复选框、带全选/清空）。
+
+   面板显隐与计数走「局部 DOM 更新」而不是 render()：render() 会整页重绘，而筛选卡里
+   还有日期与文本框，一边勾一边丢焦点没法用（与 xrF 只改草稿不重绘同一考虑）。 */
+function xrMList(){return xrSelArr(XRF.contest);}
+function xrMLabel(){
+  var sel=xrMList();
+  if(!sel.length)return '全部赛事（'+CONTESTS.length+' 场）';
+  if(sel.length===1){
+    var ct=CONTESTS.filter(function(c){return c.id===sel[0];})[0];
+    return ct?ct.name:'已选 1 场';
+  }
+  return '已选 '+sel.length+' 场';
+}
+function xrMultiHtml(){
+  var sel=xrMList();
+  var rows=CONTESTS.map(function(c){
+    return '<label class="row" style="cursor:pointer;padding:6px 2px;margin:0;gap:8px;border-top:1px solid var(--line)">'+
+      '<input type="checkbox" style="width:auto;margin:0" '+(sel.indexOf(c.id)>=0?'checked':'')+' onchange="xrMPick(\''+c.id+'\',this.checked)">'+
+      '<span class="small">'+esc(c.name)+'</span>'+
+      '<span class="sp" style="flex:1"></span>'+
+      '<span class="small muted">'+esc(contestDisplayStatus(c))+'</span>'+
+    '</label>';
+  }).join('')||'<div class="hint">暂无赛事</div>';
+  return '<span style="position:relative;display:inline-block">'+
+    '<button id="xrMCBtn" class="btn" style="width:230px;text-align:left" onclick="xrMToggle()">'+esc(xrMLabel())+' ▾</button>'+
+    '<div id="xrMCPanel" style="'+(XRM.open?'':'display:none;')+'position:absolute;z-index:50;top:34px;left:0;width:310px;max-height:290px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.13);padding:8px 10px;text-align:left">'+
+      '<div class="row" style="justify-content:space-between;margin-bottom:4px">'+
+        '<span class="small muted" id="xrMCount">已选 '+sel.length+' / '+CONTESTS.length+' 场</span>'+
+        '<span><button class="btn sm" onclick="xrMAll(true)">全选</button> <button class="btn sm" onclick="xrMAll(false)">清空</button></span>'+
+      '</div>'+
+      rows+
+      '<div class="hint" style="margin-top:6px">勾选后点「搜索」生效；一个都不勾 = 全部赛事。</div>'+
+    '</div>'+
+  '</span>';
+}
+function xrMToggle(){
+  XRM.open=!XRM.open;
+  var p=document.getElementById('xrMCPanel');
+  if(p)p.style.display=XRM.open?'':'none';
+}
+/* 只同步按钮文字与计数，不重绘整页 —— 否则每勾一次都会丢输入焦点 */
+function xrMSync(){
+  var b=document.getElementById('xrMCBtn');
+  if(b)b.innerHTML=esc(xrMLabel())+' ▾';
+  var n=document.getElementById('xrMCount');
+  if(n)n.innerHTML='已选 '+xrMList().length+' / '+CONTESTS.length+' 场';
+}
+function xrMPick(id,on){
+  var a=xrMList().filter(function(x){return x!==id;});   /* filter 返回新数组，不 mutate 原数组 */
+  if(on)a.push(id);
+  XRF.contest=a;
+  xrMSync();
+}
+function xrMAll(on){
+  XRF.contest=on?CONTESTS.map(function(c){return c.id;}):[];
+  xrMSync();
+}
+/* ---------- 比赛结果总览 · 筛选条件（字段式：条件推导范围 + 搜索 / 重置） ---------- */
+function xrFilterCardHtml(fo){
+  
+  var stOpts=[['all','全部状态'],['筹备中','筹备中'],['进行中','进行中'],['已归档','已归档']];
+  var act=xrActive(fo);
+  return '<div class="card" style="margin-top:10px"><h2>筛选条件 <small>条件决定纳入对照的场次范围</small></h2>'+
+    '<div class="row" style="gap:12px 18px">'+
+      xrFld('赛事',xrMultiHtml())+
+      xrFld('赛事状态','<select style="margin:0;width:128px" onchange="xrF.st=this.value">'+
+        stOpts.map(function(o){return '<option value="'+o[0]+'" '+(XRF.st===o[0]?'selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>')+
+      xrFld('赛期','<input type="date" style="margin:0;width:145px" value="'+esc(XRF.from)+'" oninput="xrF.from=this.value">'+
+        '<span class="muted">-</span>'+
+        '<input type="date" style="margin:0;width:145px" value="'+esc(XRF.to)+'" oninput="xrF.to=this.value">')+
+      xrFld('赛项','<select style="margin:0;width:160px" onchange="xrF.ev=this.value">'+
+        '<option value="all" '+(XRF.ev==='all'?'selected':'')+'>全部赛项</option>'+
+        fo.evs.map(function(e){return '<option value="'+e.id+'" '+(XRF.ev===e.id?'selected':'')+'>'+esc(e.name)+'</option>';}).join('')+'</select>')+
+      xrFld('组别','<select style="margin:0;width:128px" onchange="xrF.grp=this.value">'+
+        '<option value="all" '+(XRF.grp==='all'?'selected':'')+'>全部组别</option>'+
+        fo.gs.map(function(g){return '<option value="'+esc(g)+'" '+(XRF.grp===g?'selected':'')+'>'+esc(g)+'</option>';}).join('')+'</select>')+
+      xrFld('队伍名称','<input style="margin:0;width:150px" placeholder="模糊匹配" value="'+esc(XRF.team)+'" oninput="xrF.team=this.value" onkeydown="if(event.key===\'Enter\')xrSearch()">')+
+      xrFld('选手信息','<input style="margin:0;width:150px" placeholder="模糊匹配" value="'+esc(XRF.member)+'" oninput="xrF.member=this.value" onkeydown="if(event.key===\'Enter\')xrSearch()">')+
+      '<button class="btn primary" onclick="xrSearch()">搜索</button>'+
+      '<button class="btn" onclick="xrReset()">重置</button>'+
+      '<button class="btn" style="margin-left:auto" onclick="xrExport()">导出 <span style="color:var(--muted)">Excel</span></button>'+
+    '</div>'+
+    '<div class="hint" style="margin-top:10px">'+
+      (act.length?('<b>当前条件</b>：'+esc(act.join(' · '))+'　—— 点「重置」清空全部条件。')
+                 :'未设任何条件 → 默认纳入<b>全部赛事</b>。')+
+      '　赛项 / 组别决定下方结果的<b>排序与可比范围</b>：名次只在<b>同一赛项 + 同一组别</b>内可比。'+
+      '队伍名称 / 选手信息为<b>模糊匹配</b>（逐条成绩过滤，大小写不敏感）。</div>'+
+  '</div>';
+}
+/* ---------- 比赛结果明细 ----------
+   一条成绩一行：同一支队伍参加多个赛项 / 多场赛事就出现多行，不做跨场归并。
+   数据源 standings()：已剔除取消资格、按该场递补规则给出官方名次。 */
+var XRS={by:'',dir:''};   /* 排序：by=字段（total / rank），dir=asc / desc；为空＝默认顺序 */
+function xrResults(){
+  var chosen=xrPicked(),out=[];
+  chosen.forEach(function(c){
+    if(!contestSnapshot(c.id).ready)return;
+    withContestData(c.id,function(){
+      (S.events||[]).forEach(function(ev){
+        if(XRA.ev!=='all'&&ev.id!==XRA.ev)return;
+        var rows=standings(ev.id);
+        rows.forEach(function(r){
+          if(XRA.grp!=='all'&&(r.team.group||'')!==XRA.grp)return;
+          if(XRA.team && String(r.team.name||'').toLowerCase().indexOf(String(XRA.team).toLowerCase().trim())<0)return;
+          if(XRA.member && String(r.team.members||'').toLowerCase().indexOf(String(XRA.member).toLowerCase().trim())<0)return;
+          out.push({
+            contestId:c.id, contest:c.name, event:ev.name, of:rows.length,
+            no:r.team.no||'', name:r.team.name||'', school:r.team.school||'',
+            group:r.team.group||'', members:r.team.members||'',
+            total:r.total, rank:r.rank, tie:!!r.tie
+          });
+        });
+      });
+    });
+  });
+  return out;
+}
+/* 点表头切换正序 / 倒序。首次点：排名默认正序（第 1 名在前），分数默认倒序（高分在前） */
+function xrSort(k){
+  if(XRS.by===k)XRS.dir=(XRS.dir==='asc')?'desc':'asc';
+  else{XRS.by=k;XRS.dir=(k==='rank')?'asc':'desc';}
+  render();
+}
+function xrOrder(list){
+  if(!XRS.by)return list;                       /* 默认顺序＝赛事 → 赛项 → 名次（standings 已按名次升序） */
+  var d=(XRS.dir==='asc')?1:-1;
+  return list.slice().sort(function(a,b){
+    var va=a[XRS.by],vb=b[XRS.by];
+    if(va!==vb)return (va<vb?-1:1)*d;
+    return (a.contest+a.event+a.name).localeCompare(b.contest+b.event+b.name,'zh')||(a.rank-b.rank);
+  });
+}
+/* 可排序表头（只给比赛分数 / 成绩排名用） */
+function xrTh(key,label,num){
+  var on=(XRS.by===key);
+  var arrow=on?(XRS.dir==='asc'?'▲':'▼'):'⇅';
+  var col=on?'#1b63ab':'#a8b0bd';
+  return '<th'+(num?' class="num"':'')+' style="cursor:pointer;user-select:none;white-space:nowrap"'+
+    ' onclick="xrSort(\''+key+'\')" title="点击切换正序 / 倒序">'+esc(label)+
+    ' <span style="font-size:11px;color:'+col+'">'+arrow+'</span></th>';
 }
 function viewCrossRank(){
   var fo=crossFilterOptions();
   var r=crossRanks();
+  var picked=r.picked;
   var multi=r.list.filter(function(x){return x.multi;}).length;
   var kpi=function(lb,nm,ft){return '<div class="kpi"><div class="lb">'+lb+'</div><div class="nm">'+nm+'</div><div class="ft">'+ft+'</div></div>';};
-  var cOpts=CONTESTS.map(function(c){
-    return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;margin-right:12px;cursor:pointer">'+
-      '<input type="checkbox" style="width:auto" '+(XR.contests[c.id]?'checked':'')+' onchange="xrToggle(\''+c.id+'\')">'+esc(c.name)+'</label>';
-  }).join('');
-  var rows=r.list.map(function(t){
-    var det=t.items.map(function(x){
-      return '<div class="small"><b>'+esc(x.contest)+'</b> · '+esc(x.event)+' · 第 <b>'+x.rank+'</b> 名（共 '+x.of+'）· 总分 '+x.total.toFixed(1)+'</div>';
-    }).join('');
-    return '<tr'+(t.multi?' style="background:#fbfdff"':'')+'>'+
-      '<td><b>'+esc(t.name)+'</b>'+(t.multi?' <span class="tag b">跨场</span>':'')+'<div class="small muted">'+esc(t.school||'—')+'</div></td>'+
-      '<td class="num">'+t.count+'</td>'+
-      '<td class="num">第 '+t.best+'</td>'+
-      '<td class="num">'+t.avg.toFixed(1)+'</td>'+
-      '<td>'+det+'</td>'+
+
+  var list=xrOrder(xrResults());
+  var flatRows=list.map(function(x){
+    return '<tr>'+
+      '<td class="small">'+esc(x.no||'—')+'</td>'+
+      '<td><b>'+esc(x.name)+'</b></td>'+
+      '<td>'+esc(x.group||'—')+'</td>'+
+      '<td>'+esc(x.contest)+'</td>'+
+      '<td>'+esc(x.event)+'</td>'+
+      '<td>'+esc(x.school||'—')+'</td>'+
+      '<td class="small">'+esc(x.members||'—')+'</td>'+
+      '<td class="num"><b>'+x.total.toFixed(1)+'</b></td>'+
+      '<td class="num">'+x.rank+(x.tie?' <span class="tag warn">并列</span>':'')+'</td>'+
     '</tr>';
   }).join('');
-  var champRows=r.champs.map(function(c){
-    return '<tr><td>'+esc(c.contest)+'</td><td>'+esc(c.event)+'</td><td>'+esc(c.group||'—')+'</td>'+
-      '<td><b>'+esc(c.name)+'</b><div class="small muted">'+esc(c.school||'—')+'</div></td>'+
-      '<td class="num">'+c.total.toFixed(1)+'</td></tr>';
-  }).join('');
-  return '<div class="grid g4">'+
-      kpi('纳入赛事',r.used+' 场',CONTESTS.length+' 场中选中')+
-      kpi('归并队伍',r.list.length+' 支','按「队名 + 学校」归并')+
+  var listCard='<div class="card"><h2>比赛结果 <small>一条成绩一行 · 默认按「赛事 → 赛项 → 名次」排列</small></h2>'+
+    '<div class="hint" style="margin:0 0 8px">点表头的 <b>比赛分数</b> 或 <b>成绩排名</b> 可切换<b>正序 / 倒序</b>。'+
+      '<b>跨赛事直接排「比赛分数」仅供参考</b>：不同赛事的赛制 / 难度 / 权重不同，分数不可比 —— '+
+      '要严格比较，请先用上方「赛项 / 组别」把范围收窄到同一赛项。</div>'+
+    '<div style="overflow:auto"><table><thead><tr>'+
+      '<th style="min-width:70px">队伍ID</th><th>队伍名称</th><th style="min-width:76px">组别</th>'+
+      '<th style="min-width:150px">所属赛事</th><th style="min-width:96px">所属赛项</th>'+
+      '<th style="min-width:130px">参赛单位</th><th style="min-width:120px">选手信息</th>'+
+      xrTh('total','比赛分数',true)+xrTh('rank','成绩排名',true)+
+    '</tr></thead><tbody>'+
+    (flatRows||'<tr><td colspan="9" class="muted">没有选中任何赛事，或选中赛事暂无成绩</td></tr>')+
+    '</tbody></table></div></div>';
+
+  return '<div class="note" style="margin-bottom:12px"><b>本页定位：赛后分析台</b> —— 跨赛事按队伍对照各场成绩（<b>一条成绩一行</b>，只做对照、不做跨场总分排名）。'+
+      '<b>看当前正在进行的那一场</b>（含尚未提交的队伍、判罚与用时）请走侧栏「<b>实时榜单</b>」；对外正式成绩以「<b>公示与导出</b>」为准。</div>'+
+  '<div class="grid g4">'+
+      kpi('选中赛事',picked+' 场','跨赛事对照的范围')+
+      kpi('覆盖队伍',r.list.length+' 支','按「队名 + 学校」近似归并')+
       kpi('跨场参赛队伍',multi+' 支','在两场及以上出现过')+
-      kpi('各场第一名',r.champs.length+' 个','场次 × 赛项')+
+      kpi('数据完整度',r.used+' / '+picked,'有成绩场次 / 选中场次')+
     '</div>'+
-  '<div class="card" style="margin-top:16px"><h2>筛选 <small>范围口径直接决定下面的数字</small></h2>'+
-    '<div class="row" style="margin-bottom:10px"><span class="small muted">赛事</span>'+cOpts+
-      '<button class="btn sm" onclick="xrAll(true)">全选</button><button class="btn sm" onclick="xrAll(false)">全不选</button></div>'+
-    '<div class="row"><div class="fld" style="margin:0;min-width:200px"><label>赛项</label>'+
-      '<select onchange="xrSet(\'event\',this.value)"><option value="all" '+(XR.event==='all'?'selected':'')+'>全部赛项</option>'+
-      fo.evs.map(function(e){return '<option value="'+e.id+'" '+(XR.event===e.id?'selected':'')+'>'+esc(e.name)+'</option>';}).join('')+'</select></div>'+
-      '<div class="fld" style="margin:0;min-width:180px"><label>组别</label>'+
-      '<select onchange="xrSet(\'group\',this.value)"><option value="all" '+(XR.group==='all'?'selected':'')+'>全部组别</option>'+
-      fo.gs.map(function(g){return '<option value="'+esc(g)+'" '+(XR.group===g?'selected':'')+'>'+esc(g)+'</option>';}).join('')+'</select></div>'+
-      '<button class="btn" style="margin-top:18px" onclick="xrExport()">导出对照表 CSV</button>'+
-    '</div>'+
-  '</div>'+
-  '<div class="card"><h2>队伍跨赛事成绩对照 <small>同一支队伍在多场里的名次 / 总分</small></h2>'+
-    '<table><thead><tr><th>队伍</th><th class="num">参赛场次</th><th class="num">最佳名次</th><th class="num">平均总分</th><th style="min-width:360px">各场明细</th></tr></thead>'+
-    '<tbody>'+(rows||'<tr><td colspan="5" class="muted">没有选中任何赛事，或选中赛事暂无成绩</td></tr>')+'</tbody></table>'+
-  '</div>'+
-  '<div class="card"><h2>各场第一名一览 <small>场次 × 赛项 的第一名</small></h2>'+
-    '<table><thead><tr><th>赛事</th><th>赛项</th><th>组别</th><th>第一名</th><th class="num">总分</th></tr></thead>'+
-    '<tbody>'+(champRows||'<tr><td colspan="5" class="muted">暂无数据</td></tr>')+'</tbody></table>'+
-  '</div>'+
-  '<div class="card"><h2>设计说明 <small>这张表能用来干什么、不能用来干什么</small></h2>'+
-    '<div class="note">'+
-      '<b>① 只做对照，不做跨赛事总分排名</b>：不同赛事的赛制、难度、评分项权重都不一样，<b>总分直接横向比是错的</b>。'+
-        '所以本表按「<b>参赛场次 → 最佳名次 → 平均分</b>」排序，只回答"谁参加过哪几场、各场表现如何"。'+
-      '<b>② 同一支队伍怎么识别</b>：队伍编号只在赛事内唯一，跨场不能当身份用，所以这里按「<b>队名 + 学校</b>」归并 —— '+
-        '<b>同名同校视为同一支队伍</b>。真要做严格的跨赛事队伍身份，需要在队伍上加一个跨场唯一 ID（见 PRD 待办）。'+
-      '<b>③ 各场名次都是「该场当时的官方名次」</b>：已剔除取消资格的队伍、按该场的递补规则算名次，与各场公示一致。'+
-      '<b>④ 用途</b>：总部看晋级队伍在后续赛事的表现、赛后复盘、给赞助/媒体出素材。'+
-      '<b>⑤ 导出</b>：CSV 带 BOM，Excel 直接打开不分列乱码。'+
-    '</div>'+
-  '</div>';
+    xrFilterCardHtml(fo)+
+    listCard+
+    '<div class="card"><h2>设计说明 <small>这张表能用来干什么、不能用来干什么</small></h2>'+
+      '<div class="note">'+
+        '<b>① 只做对照，不做跨赛事总分排名</b>：不同赛事的赛制、难度、评分项权重都不一样，<b>总分直接横向比是错的</b>。'+
+          '「比赛分数」与「成绩排名」都是各场各赛项的<b>原始结果</b>，本页不给出任何跨赛事总排名。'+
+        '<b>② 一条成绩一行</b>：同一支队伍参加多个赛项、或多场赛事，就会出现<b>多行</b> —— 不做跨场归并、不取平均分。'+
+        '<b>③ 队伍ID 只在赛事内唯一</b>：它是该场赛事的队伍编号（报名表编号），<b>跨赛事会重复，不能当跨场身份用</b>。'+
+          '真要做严格的跨赛事队伍身份，需要在队伍上加一个跨场唯一 ID（见 PRD 待办）。'+
+        '<b>④ 各场名次都是「该场当时的官方名次」</b>：已剔除取消资格的队伍、按该场的递补规则算名次，与各场公示一致。'+
+        '<b>⑤ 用途</b>：赛后出结果清单 / 复盘 / 给赞助、媒体出素材。'+
+        '<b>⑥ 导出</b>：导出为 Excel（.xlsx），<b>列序与本表完全一致，导出顺序跟随当前排序</b>。'+
+      '</div>'+
+    '</div>';
 }
 function xrExport(){
-  var r=crossRanks();
-  var head=['队伍','学校','参赛场次','最佳名次','平均总分','各场明细'];
-  var lines=[head.join(',')];
-  r.list.forEach(function(t){
-    lines.push(['"'+String(t.name).replace(/"/g,'""')+'"','"'+String(t.school||'').replace(/"/g,'""')+'"',
-      t.count,t.best,t.avg.toFixed(1),
-      '"'+t.items.map(function(x){return x.contest+' '+x.event+' 第'+x.rank+'名 总分'+x.total.toFixed(1);}).join('；').replace(/"/g,'""')+'"'].join(','));
+  var list=xrOrder(xrResults());
+  var head=['队伍ID','队伍名称','组别','所属赛事','所属赛项','参赛单位','选手信息','比赛分数','成绩排名'];
+  var data=list.map(function(x){
+    return [x.no||'',x.name,x.group||'',x.contest,x.event,x.school||'',x.members||'',
+      x.total.toFixed(1),'第'+x.rank];
   });
-  download('跨赛事成绩对照_'+nowStr().replace(/[: ]/g,'')+'.csv','\ufeff'+lines.join('\n')+'\n','text/csv;charset=utf-8');
+  download('比赛结果_'+nowStr().replace(/[: ]/g,'')+'.xlsx', buildXlsx([head].concat(data)),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
 /* ---------- 跨赛事人员复用（复用的是「人」，不是凭证） ---------- */
@@ -1492,19 +1730,19 @@ function viewDash(){
   '<div class="card"><h2>设计说明 <small>这套后台的设计取舍</small></h2>'+
     '<div class="note">'+
       '<b>① 规则自由配</b>：赛项、任务、得分全部写在配置里 —— 换赛项只需换配置，打分引擎不用改。<br>'+
-      '<b>② 评分方式就三类</b>：数值评分、计数得分、等级评分 —— 任何赛项的评分项都能用这三类描述。<br>'+
+      '<b>② 评分方式就三类</b>：数值评分、计数得分、是否完成 —— 任何赛项的评分项都能用这三类描述。<br>'+
       '<b>③ 改配置有留痕</b>：每次改动都记入审计（旧值 → 新值 + 原因），可追溯。<br>'+
       '<b>④ 报名统一从 WRC 来</b>：官网导出 → 变更比对 → 合并入库；已有成绩的队伍不会被冲掉，退赛只标记不删除。<br>'+
       '<b>⑤ 成绩算法可解释</b>：<b>总分 = 基础分 + 加分</b>（黄 / 红牌不扣分，只作判罚记录），同分按用时裁决，规则全在赛项配置里，随时可查。<br>'+
-      '<b>⑥ 判罚事由按赛项配</b>：<b>黄牌、红牌各一套事由</b>，且各赛项不同（脑机星球 / 火星救援 / 未来之城 三套清单），在赛项配置里由工作人员增删填写（如「黄牌：小球出界」「红牌：顶撞裁判」），裁判端只读选择。'+
+      '<b>⑥ 判罚事由按赛项配</b>：<b>红牌一套事由</b>，且各赛项不同（脑机星球 / 火星救援 / 未来之城 三套清单），在赛项配置里由工作人员增删填写（如「红牌：顶撞裁判」），裁判端只读选择；<b>黄牌无需配置事由</b>——黄牌是计分板常驻累计计数器，不选择事由。'+
       '<b>⑦ 争议类型也按赛项配</b>：<b>争议 / 申诉类型同样按赛项各自配置</b>（如「选手申诉」「重复打分」「用时争议」「器材故障」，双队对抗赛项可另加「对抗场次争议」），由工作人员按当季规程增删；裁判端只读选择——普通裁判只能<b>上报</b>（生成工单进待裁定队列），裁定权在裁判长。'+
     '</div>'+
   '</div>';
 }
 /* 中文映射层：界面只出现中文，英文键仅用于内部存储与导出 JSON */
-var TASK_TYPES={numeric:'数值评分',count:'计数得分',enum:'等级评分',toggle:'是否完成'};
+var TASK_TYPES={numeric:'数值评分',count:'计数得分',enum:'等级评分',toggle:'是否完成'};   /* enum 界面已不可选，仅保留给历史数据只读显示 */
 var TASK_TYPE_HINT={numeric:'裁判给 0–满分 的连续分',count:'按数量 × 每单位分',enum:'选等级，按等级取分',toggle:'完成 = 满分，未完成 = 0'};
-var CONTROL_NAMES={slider:'滑块（0–满分）',number:'数字输入',counter:'计数器（增减）',select:'下拉选择'};
+var CONTROL_NAMES={slider:'滑块（0–满分）',number:'数字输入',counter:'计数器（增减）',select:'下拉选择',toggle:'开关（是/否）'};
 var BONUS_NAMES={time_bonus:'时间奖励（越快加分）',count_bonus:'计数奖励（按数量加分）',none:'无奖励'};
 var TIE_NAMES={score:'得分高者优先',time:'用时少者优先'};
 var IMPORT_ACT={insert:'新增',update:'更新',skip:'跳过',conflict:'冲突'};
@@ -1514,7 +1752,7 @@ function bonusName(t){return BONUS_NAMES[t]||t||'—';}
 function tieName(arr){return (arr||[]).map(function(k){return TIE_NAMES[k]||k;}).join(' → ')||'—';}
 function importActName(a){return IMPORT_ACT[a]||a;}
 function controlOptions(cur){
-  var keys=['slider','number','counter','select'];
+  var keys=['slider','number','counter','select','toggle'];
   var html=keys.map(function(x){return '<option value="'+x+'" '+(cur===x?'selected':'')+'>'+CONTROL_NAMES[x]+'</option>';}).join('');
   if(cur&&keys.indexOf(cur)<0)html='<option value="'+esc(cur)+'" selected>'+esc(cur)+'</option>'+html;
   return html;
@@ -1602,7 +1840,7 @@ function eventForm(ev){
     return '<tr>'+
       '<td><input value="'+esc(t.name)+'" oninput="updTask('+i+',\'name\',this.value)"></td>'+
       '<td><select onchange="updTask('+i+',\'type\',this.value)">'+
-        ['numeric','count','enum','toggle'].map(function(x){return '<option value="'+x+'" '+(t.type===x?'selected':'')+'>'+taskTypeName(x)+'</option>';}).join('')+
+        ['numeric','count','toggle'].map(function(x){return '<option value="'+x+'" '+(t.type===x?'selected':'')+'>'+taskTypeName(x)+'</option>';}).join('')+
       '</select><div class="small muted">'+esc(TASK_TYPE_HINT[t.type]||'')+'</div></td>'+
       '<td><input type="number" value="'+(t.maxScore==null?'':t.maxScore)+'" oninput="updTask('+i+',\'maxScore\',this.value)">'+(_isCount?'<div class="small muted">数量上限</div>':'')+'</td>'+
       wCell+
@@ -1636,6 +1874,7 @@ function eventForm(ev){
   var crTpl=pr.template||'record_only';
   var crThresh=(cr.redThreshold==null?3:cr.redThreshold);
   var crDirect=(cr.allowDirectRed==null?true:cr.allowDirectRed);
+  var crOn=(cr.enabled!==false);   /* 未配置 = 开（与后端 EnabledOrDefault 同口径） */
   var crReasons=cr.reasons||[];
   function countOf(card){return crReasons.filter(function(r){return (r.card==='red'?'red':'yellow')===card;}).length;}
   function reasonRowsOf(card){
@@ -1650,7 +1889,6 @@ function eventForm(ev){
     });
     return out.join('');
   }
-  var yellowReasonRows=reasonRowsOf('yellow');
   var redReasonRows=reasonRowsOf('red');
   /* 争议 / 申诉 类型（按赛项配置，裁判端只读） */
   var disputeTypes=ev.disputeTypes||[];
@@ -1668,6 +1906,16 @@ function eventForm(ev){
   var disputeTypeRows=disputeTypeRowsOf();
   var tb=(ev.rankRule&&ev.rankRule.tieBreak||[]).join(',');
 
+  var _totSec=eventTotalSec(ev);
+  var _phs=ev.phases||[];
+  /* 方案 C：多阶段 → 只读合计（改阶段时长即可）；单阶段 / 无阶段 → 可直接填。 */
+  var _multi=_phs.length>=2;
+  var totCell=_multi
+    ? '<input value="'+mmss(_totSec)+'" readonly style="background:#f5f6f8;color:#6b7280;cursor:not-allowed">'+
+      '<div class="small muted">= '+_phs.map(function(p){return esc(p.name||'阶段')+' '+mmss(p.durationSec);}).join(' + ')+'（改阶段时长即可）</div>'
+    : '<input type="number" min="1" step="1" value="'+_totSec+'" oninput="setEventTotalSec(this.value)">'+
+      '<div class="small muted">秒；裁判端 appbar 显示的「/ 总」就是它</div>';
+
   return '<h2>赛项配置 <small>'+esc(ev.name)+'</small></h2>'+
     '<div class="grid g2">'+
       '<div class="fld"><label>赛项名称</label><input value="'+esc(ev.name)+'" oninput="updEvent(\'name\',this.value)"></div>'+
@@ -1681,6 +1929,12 @@ function eventForm(ev){
       '</select><div class="small muted">2 轮时平板端出现「第 1 轮 / 第 2 轮」切换，第 1 轮全部提交前第 2 轮锁定；轮次在「赛台与赛程编排」逐场指定</div></div>'+
     '</div>'+
     '<hr class="sep">'+
+    '<div class="grid g2">'+
+      '<div class="fld"><label>赛项总时间 <span class="muted" style="font-weight:400">（整场倒计时总长 · 时间奖励的基准）</span></label>'+
+        totCell+'</div>'+
+      '<div class="fld"><label>时间奖励 <span class="muted" style="font-weight:400">（与本项不同：奖励时间 = 总时间 − 本队用时）</span></label>'+
+        '<div class="small muted" style="padding-top:6px">奖励时间按「每 1 秒几分」折算加分，规则在下面「奖励规则」里配。</div></div>'+
+    '</div>'+
     '<div class="row" style="justify-content:space-between"><label class="small muted">阶段配置（两阶段赛制 · 各阶段独立计时与任务集）</label>'+
       '<button class="btn sm" onclick="addPhase()">+ 添加阶段</button></div>'+
     '<table style="margin-top:8px"><thead><tr><th>阶段名</th><th>时长(秒)</th><th>录入方式</th><th>说明</th><th></th></tr></thead>'+
@@ -1691,7 +1945,7 @@ function eventForm(ev){
       '<button class="btn sm" onclick="addTask()">+ 添加任务</button></div>'+
     '<table style="margin-top:8px"><thead><tr><th>任务名</th><th>评分方式</th><th>满分</th><th>分值参数</th><th>阶段</th><th>裁判录入控件</th><th></th></tr></thead>'+
       '<tbody>'+(taskRows||'<tr><td colspan="6" class="muted">暂无任务</td></tr>')+'</tbody></table>'+
-    '<div class="hint">'+(isWS?'数值评分 = 得分 ÷ 满分 × 权重；计数得分 = 数量 × 每单位分；等级评分 = 按等级对应分值取分。':'数值评分 = 裁判给分直接计入（满分即该任务分值）；计数得分 = 数量 × 每单位分；等级评分 = 按等级对应分值取分。')+'</div>'+
+    '<div class="hint">'+(isWS?'数值评分 = 得分 ÷ 满分 × 权重；计数得分 = 数量 × 每单位分。':'数值评分 = 裁判给分直接计入（满分即该任务分值）；计数得分 = 数量 × 每单位分。')+'</div>'+
     '<hr class="sep">'+
     '<div class="grid g2">'+
       '<div class="fld"><label>计分模板</label><select onchange="updEventTpl(this.value)">'+
@@ -1707,26 +1961,33 @@ function eventForm(ev){
       '<button class="btn sm" onclick="addBonus()">+ 添加奖励</button></div>'+
     '<div style="margin-top:6px">'+(bonusRows||'<div class="hint">无奖励规则</div>')+'</div>'+
     '<hr class="sep">'+
-    '<div class="row"><label class="small muted">判罚规则（黄 / 红牌只作记录，不扣分）</label></div>'+
+    '<div class="row" style="justify-content:space-between"><label class="small muted">判罚规则（黄 / 红牌只作记录，不扣分）</label>'+
+      '<label class="row tight" style="gap:8px;cursor:pointer"><span class="small">黄牌计数器</span>'+
+        '<span class="sw"><input type="checkbox" '+(crOn?'checked':'')+' onchange="updCardCounter(this.checked)"><i></i></span>'+
+      '</label></div>'+
     '<div class="grid g3" style="margin-top:8px">'+
       '<div class="fld"><label>判罚模板</label><select onchange="updCardTpl(this.value)">'+
-        ['record_only','per_card'].map(function(x){return '<option value="'+x+'" '+(crTpl===x?'selected':'')+'>'+penName(x)+'</option>';}).join('')+
+        '<option value="record_only" selected>'+penName('record_only')+'</option>'+
       '</select></div>'+
-      '<div class="fld"><label>累计升级阈值（张黄牌 → 1 张红牌）</label><input type="number" min="1" value="'+crThresh+'" oninput="updRedThreshold(this.value)"></div>'+
-      '<div class="fld"><label>允许直接记红牌</label><select onchange="updAllowDirectRed(this.value)">'+
-        '<option value="1" '+(crDirect?'selected':'')+'>是</option>'+
-        '<option value="0" '+(!crDirect?'selected':'')+'>否</option>'+
-      '</select></div>'+
+      (crOn?
+        '<div class="fld"><label>累计升级阈值（张黄牌 → 1 张红牌）</label><input type="number" min="1" value="'+crThresh+'" oninput="updRedThreshold(this.value)"></div>'+
+        '<div class="fld"><label>允许直接记红牌</label><select onchange="updAllowDirectRed(this.value)">'+
+          '<option value="1" '+(crDirect?'selected':'')+'>是</option>'+
+          '<option value="0" '+(!crDirect?'selected':'')+'>否</option>'+
+        '</select></div>'
+        :
+        '<div class="fld" style="grid-column:span 2"><label>黄牌体系</label><div class="hint" style="padding-top:6px">已停用：裁判端不显示黄牌计数器，黄牌不累计、<b>也不会自动升级红牌</b>；红牌仍可直接记录。</div></div>')+
     '</div>'+
-    '<div class="row" style="justify-content:space-between;margin-top:14px"><label class="small muted"><b style="color:#c05621">黄牌</b> 事由（'+countOf('yellow')+' 条）</label>'+
-      '<button class="btn sm" onclick="addReason(\'yellow\')">+ 添加黄牌事由</button></div>'+
-    '<table style="margin-top:6px"><thead><tr><th style="width:56px" class="num">序号</th><th>事由名称</th><th style="width:70px"></th></tr></thead>'+
-      '<tbody>'+(yellowReasonRows||'<tr><td colspan="3" class="muted">暂无黄牌事由</td></tr>')+'</tbody></table>'+
+    '<div class="note" style="margin-top:14px;color:#718096;font-size:12px">'+(
+      crOn?'黄牌：仅作<b>计分板常驻累计计数器</b>，<b>无需配置事由</b>；满 <b>'+crThresh+'</b> 张自动升级 1 张红牌。'
+          :'<b>黄牌计数器已关闭</b>：整个黄牌体系停用（不显示、不累计、不升级红牌）。'
+    )+'<br><b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>，但<b>不参与名次与奖项</b>（赛制固定后果、不可配置）。</div>'+
+
     '<div class="row" style="justify-content:space-between;margin-top:14px"><label class="small muted"><b style="color:#c53030">红牌</b> 事由（'+countOf('red')+' 条）</label>'+
       '<button class="btn sm" onclick="addReason(\'red\')">+ 添加红牌事由</button></div>'+
     '<table style="margin-top:6px"><thead><tr><th style="width:56px" class="num">序号</th><th>事由名称</th><th style="width:70px"></th></tr></thead>'+
       '<tbody>'+(redReasonRows||'<tr><td colspan="3" class="muted">暂无红牌事由</td></tr>')+'</tbody></table>'+
-    '<div class="hint">黄牌 / 红牌<b>各一套事由，且按赛项各自配置</b>（不同赛项可判罚行为不同，由工作人员按当季规则填写，如「黄牌：小球出界」「红牌：顶撞裁判」）。裁判端只读选择、不能自造；此处<b>只记"原因"，不含分值、不含后果</b>——判罚导致的道具失效不计分，由裁判在打分页打 0 分处理；"同分看黄牌少"归排名规则。</div>'+
+    '<div class="hint"><b>红牌</b><b>事由按赛项配置</b>（不同赛项可判罚行为不同，由工作人员按当季规则填写，如「红牌：顶撞裁判」）；<b>黄牌无需配置事由</b>——黄牌是计分板常驻累计计数器，裁判点「黄牌计数 ＋」即记一张、不选择事由。裁判端只读选择红牌事由、不能自造；此处<b>只记"原因"，不含分值</b>——判罚导致的道具失效不计分，由裁判在打分页打 0 分处理；"同分看黄牌少"归排名规则。<br><b>红牌的后果是固定的、不在这里配</b>：记红牌 = 当场取消该队比赛资格（成绩保留、只取消名次与奖项）。</div>'+
     '<hr class="sep">'+
     '<div class="row" style="justify-content:space-between;margin-top:2px"><label class="small muted"><b style="color:#2b6cb0">争议 / 申诉</b> 类型（'+disputeTypes.length+' 条）</label>'+
       '<button class="btn sm" onclick="addDisputeType()">+ 添加争议类型</button></div>'+
@@ -1760,7 +2021,10 @@ function updEventRounds(v){var ev=find(CUR_EVENT);if(!ev)return;ev.rounds=Number
 function updEventTpl(v){
   var ev=find(CUR_EVENT);if(!ev)return;
   var before=(ev.scoreRule&&ev.scoreRule.template)||'—';
+  var _keepRef=(ev.scoreRule&&ev.scoreRule.params&&ev.scoreRule.params.refTime!=null)?ev.scoreRule.params.refTime:null;
   ev.scoreRule={template:v,params:{}};
+  /* 切模板不该把「赛项总时间」抹掉 —— 它是时间奖励的基准，后端引擎也读这个字段 */
+  if(_keepRef!=null)ev.scoreRule.params.refTime=_keepRef;
   logAudit('改配置',ev.name+' · 计分模板',before,v,'赛项规则调整');
   save();
 }
@@ -1778,9 +2042,10 @@ function ensureCardRules(){
   var ev=find(CUR_EVENT);if(!ev)return null;
   if(!ev.penaltyRule)ev.penaltyRule={template:'record_only',params:{}};
   if(!ev.penaltyRule.params)ev.penaltyRule.params={};
-  if(!ev.penaltyRule.cardRules)ev.penaltyRule.cardRules={redThreshold:3,allowDirectRed:true,reasons:[]};
+  if(!ev.penaltyRule.cardRules)ev.penaltyRule.cardRules={enabled:true,redThreshold:3,allowDirectRed:true,reasons:[]};
   var cr=ev.penaltyRule.cardRules;
   if(!cr.reasons)cr.reasons=[];
+  if(cr.enabled==null)cr.enabled=true;   /* 未配置 = 开：旧数据没这个字段，不能当成关 */
   if(cr.redThreshold==null)cr.redThreshold=3;
   if(cr.allowDirectRed==null)cr.allowDirectRed=true;
   if(!ev.penaltyRule.template)ev.penaltyRule.template='record_only';
@@ -1798,6 +2063,17 @@ function updCardTpl(v){
   ev.penaltyRule.template=v;
   logAudit('改配置',ev.name+' · 判罚模板',before,penName(v),'赛项判罚规则调整');
   save();
+}
+/* 黄牌计数器总开关。关闭 = 整个黄牌体系停用：裁判端不显示计数器、黄牌不累计、
+   也不再有「累计 N 张升级红牌」；红牌是独立入口，仍可照记。
+   特意不写「关闭时允许直接记红牌」这类兜底 —— 关了就是关了，避免现场以为改了个「差不多」的东西。 */
+function updCardCounter(on){
+  var cr=ensureCardRules();if(!cr)return;
+  var ev=find(CUR_EVENT);
+  cr.enabled=!!on;
+  logAudit('改配置',ev.name+' · 黄牌计数器',(on?'关闭':'开启'),(on?'开启':'关闭'),
+    on?'黄牌累计与红牌升级生效':'整个黄牌体系停用（不显示、不累计、不升级红牌），红牌仍可直接记录');
+  save();render();
 }
 function updRedThreshold(v){var cr=ensureCardRules();if(!cr)return;cr.redThreshold=Number(v)||3;save();}
 function updAllowDirectRed(v){var cr=ensureCardRules();if(!cr)return;cr.allowDirectRed=(v==='1');save();}
@@ -1875,12 +2151,12 @@ function addPhase(){
   var ps=ensurePhases();if(!ps)return;
   ps.push({id:'phase_'+uid('p'),name:'新阶段',durationSec:120,timerMode:'countdown',source:'',desc:''});
   logAudit('改配置',find(CUR_EVENT).name+' · 新增阶段','—','新阶段','赛项阶段配置');
-  save();render();
+  syncEventTotal(find(CUR_EVENT));save();render();
 }
-function updPhase(i,k,v){var ps=ensurePhases();if(!ps)return;ps[i][k]=(k==='durationSec')?(Number(v)||0):v;save();}
+function updPhase(i,k,v){var ps=ensurePhases();if(!ps)return;ps[i][k]=(k==='durationSec')?(Number(v)||0):v;syncEventTotal(find(CUR_EVENT));save();}
 function delPhase(i){var ps=ensurePhases();if(!ps)return;var p=ps[i];if(!p)return;ps.splice(i,1);
   logAudit('改配置',find(CUR_EVENT).name+' · 删除阶段',(p.name||'阶段')+' / '+(p.durationSec||'')+'s','—','赛项阶段配置');
-  save();render();
+  syncEventTotal(find(CUR_EVENT));save();render();
 }
 function addBonus(){var ev=find(CUR_EVENT);if(!ev)return;ev.bonusRules=ev.bonusRules||[];ev.bonusRules.push({template:'time_bonus',params:{perSecond:0.5,cap:10}});save();render();}
 function delBonus(i){var ev=find(CUR_EVENT);if(!ev)return;ev.bonusRules.splice(i,1);save();render();}
@@ -1900,7 +2176,10 @@ function doValidate(){
 function find(id){return S.events.find(function(e){return e.id===id;});}
 
 /* ---------- 视图 3：WRC 报名导入 ---------- */
-var IMP={text:'',headers:null,mapping:{},diff:null,error:'',lastResult:null,fileName:'',busy:false,showPaste:false,fromExcel:false};
+var IMP={text:'',headers:null,mapping:{},diff:null,error:'',lastResult:null,fileName:'',busy:false,showPaste:false,fromExcel:false,
+  mode:'',step:1,grid:null,parsed:false,decisions:{},f:{st:'all',kw:''},openTask:'',kind:'wrc',bulkEvent:''};
+var IMQ={st:'all',src:'all',from:'',to:'',kw:''};
+var IMQA={st:'all',src:'all',from:'',to:'',kw:''};
 var WRC_FIELDS=[
   {k:'team_number',label:'队伍编号',required:true},
   {k:'team_name',label:'参赛队伍名称',required:true},
@@ -1909,6 +2188,32 @@ var WRC_FIELDS=[
   {k:'group_code',label:'参赛组别',required:true},
   {k:'event_code',label:'赛项',required:true}
 ];
+/* 批量导入 Excel 的字段集（通用队伍表）。
+   与 WRC 官网报名表的差别：**不带「赛项」列**（整批落到第 2 步选定的赛项）、**多「成员」列**。
+   必填只有编号与名称 —— 现场补录常缺组别 / 学校，不能因为缺这些就整行拒绝。 */
+var BULK_FIELDS=[
+  {k:'team_number',label:'队伍编号',required:true},
+  {k:'team_name',label:'队伍名称',required:true},
+  {k:'group_code',label:'组别',required:false},
+  {k:'school',label:'学校 / 机构',required:false},
+  {k:'coach',label:'指导教师',required:false},
+  {k:'members',label:'成员',required:false}
+];
+/* 两个通道共用同一套向导 / 校验 / 冲突裁决 / 任务记录 / 撤回 ——
+   差别只在「字段集」与「赛项从哪来」。这样批量导入不会绕过审计。 */
+function impFields(){return IMP.kind==='bulk'?BULK_FIELDS:WRC_FIELDS;}
+function impIsBulk(){return IMP.kind==='bulk';}
+function impKindName(){return impIsBulk()?'批量导入 Excel':'导入 WRC 报名表';}
+function impSourceName(s){
+  return s==='excel'?'WRC 报名表':(s==='excel_bulk'?'批量导入 Excel':(s==='manual'?'手动录入':String(s==null?'':s)||'—'));
+}
+var BULK_SAMPLE=[
+  '队伍编号,队伍名称,组别,学校 / 机构,指导教师,成员',
+  '5001,星河队,小学组,杭州实验小学,张老师,张三/李四',
+  '5002,追光队,小学组,杭州实验小学,李老师,王五/赵六',
+  '5003,晨曦队,初中组,东莞东城实验小学,王老师,陈一/周二十',
+  '5001,星河队,小学组,杭州实验小学,张老师,张三/李四'
+].join('\n');
 var EVENT_BY_NAME={'脑机星球':'brain_planet','火星救援':'mars_rescue','未来之城':'future_city'};
 var DIFF_META={
   insert:{t:'🟢 新增',cls:'ok'},
@@ -1943,9 +2248,10 @@ function parseCSV(text){
     return out.map(function(s){return s.trim();});
   });
 }
-function autoMap(headers){
+function autoMap(headers,fields){
+  fields=fields||WRC_FIELDS;
   var m={};
-  WRC_FIELDS.forEach(function(f){
+  fields.forEach(function(f){
     var idx=-1;
     headers.forEach(function(h,i){
       if(idx>=0)return;
@@ -1956,108 +2262,295 @@ function autoMap(headers){
       else if(f.k==='coach'&&(s.indexOf('教练')>=0||s.indexOf('指导')>=0||s.indexOf('教师')>=0))idx=i;
       else if(f.k==='group_code'&&(s.indexOf('组别')>=0||s.indexOf('年级')>=0||s.indexOf('学段')>=0))idx=i;
       else if(f.k==='event_code'&&(s.indexOf('赛项')>=0||s.indexOf('项目')>=0||s.indexOf('赛道')>=0))idx=i;
+      else if(f.k==='members'&&(s.indexOf('成员')>=0||s.indexOf('队员')>=0||s.indexOf('选手')>=0||s.indexOf('学生')>=0))idx=i;
     });
     m[f.k]=idx;
   });
   return m;
 }
-function impLoadSample(){IMP.text=WRC_SAMPLE;IMP.diff=null;IMP.headers=null;IMP.error='';IMP.lastResult=null;IMP.fileName='';IMP.busy=false;IMP.fromExcel=false;IMP.showPaste=true;render();}
-function impSetMap(k,v){IMP.mapping[k]=Number(v);buildImport();}
-function buildImport(){
+/* ================= 队伍导入 · 重设计（WRC 报名表 / 批量导入 Excel） =================
+   口径（2026/10/08）：
+   · 页面主体 = 「导入任务」列表，一次导入 = 一条任务记录（可筛选 / 可导出 / 可撤回）；
+   · 导入动作走 4 步向导，一次只做一件事；
+   · 【关键】第 2 步只读表头与样例值，改列映射**不重跑全量校验**；
+     第 3 步才做校验 + Diff，冲突逐行裁决（以文件为准 / 以库内为准 / 跳过 / 改编号）；
+   · 第 4 步给影响面摘要 + 二次确认，写入后生成任务记录（带回滚快照）。 */
+function impTaskList(){
+  if(!S.importTasks){
+    S.importTasks=(S.importLogs||[]).map(function(l,i){
+      return {id:'it_legacy_'+i,ts:l.ts,operator:l.operator,source:l.source,
+        fileName:'（升级前的历史记录）',summary:l.summary||{insert:0,update:0,skip:0,conflict:0},
+        status:(l.status==='success'?'done':'partial'),detail:l.detail||[],
+        affectedScores:0,snapshot:null,legacy:true};
+    });
+    S.importLogs=[];
+  }
+  return S.importTasks;
+}
+function impDay(ts){return String(ts||'').slice(0,10).replace(/\//g,'-');}
+function imqSet(k,v){IMQ[k]=v;}
+function imqSearch(){IMQA={st:IMQ.st,src:IMQ.src,from:IMQ.from,to:IMQ.to,kw:IMQ.kw};IMP.openTask='';render();}
+function imqReset(){IMQ={st:'all',src:'all',from:'',to:'',kw:''};IMQA={st:'all',src:'all',from:'',to:'',kw:''};IMP.openTask='';render();}
+function impTaskRows(){
+  var q=IMQA;
+  return impTaskList().filter(function(t){
+    if(q.st!=='all'&&t.status!==q.st)return false;
+    if(q.src!=='all'&&t.source!==q.src)return false;
+    if(q.from&&impDay(t.ts)<q.from)return false;
+    if(q.to&&impDay(t.ts)>q.to)return false;
+    if(q.kw){
+      var k=q.kw.toLowerCase();
+      if((String(t.fileName||'')+' '+String(t.operator||'')).toLowerCase().indexOf(k)<0)return false;
+    }
+    return true;
+  });
+}
+function impOpenDetail(id){IMP.openTask=(IMP.openTask===id?'':id);render();}
+function impExportTasks(){
+  var stName={done:'已入库',partial:'部分成功',revoked:'已撤回',pending:'待确认'};
+  var head=['时间','来源','文件','操作人','新增','更新','跳过','冲突','影响已有成绩','状态'];
+  var data=impTaskRows().map(function(t){
+    return [t.ts,impSourceName(t.source),t.fileName||'—',t.operator||'—',
+      t.summary.insert,t.summary.update,t.summary.skip,t.summary.conflict,
+      (t.affectedScores||0),stName[t.status]||t.status];
+  });
+  download('导入任务_'+nowStr().replace(/[: ]/g,'')+'.xlsx',buildXlsx([head].concat(data)),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+/* ---------- 向导：步骤 ---------- */
+/* kind: 'wrc' = WRC 官网报名表（主通道，含赛项列）
+        'bulk'= 批量导入 Excel（通用队伍表，无赛项列，整批写入指定赛项） */
+function impWizardOpen(kind){
+  IMP.kind=(kind==='bulk')?'bulk':'wrc';
+  IMP.bulkEvent=CUR_EVENT;   /* bulk 的默认目标赛项 = 当前赛项 */
+  IMP.mode='wizard';IMP.step=1;IMP.error='';IMP.diff=null;IMP.grid=null;IMP.headers=null;IMP.mapping={};
+  IMP.parsed=false;IMP.decisions={};IMP.text='';IMP.fileName='';IMP.fromExcel=false;IMP.showPaste=false;
+  IMP.busy=false;IMP.lastResult=null;IMP.f={st:'all',kw:''};
+  render();
+}
+function impWizardClose(){
+  IMP.mode='';IMP.step=1;IMP.error='';IMP.diff=null;IMP.grid=null;IMP.headers=null;IMP.decisions={};IMP.lastResult=null;
+  render();
+}
+function impGoStep(n){
+  if(n<1||n>4)return;
+  if(n>1&&!IMP.headers)return;   /* 还没读到表头 */
+  if(n>2&&!IMP.diff)return;      /* 还没确认列映射 */
+  IMP.step=n;render();
+}
+function impLoadSample(){IMP.text=(impIsBulk()?BULK_SAMPLE:WRC_SAMPLE);IMP.showPaste=true;IMP.error='';render();}
+function impAdoptGrid(grid){
+  IMP.busy=false;
+  if(!grid||grid.length<2){IMP.error='数据不足：至少需要「表头 + 1 行数据」。';render();return;}
+  IMP.grid=grid;
+  IMP.headers=grid[0].map(function(s){return String(s==null?'':s).trim();}).map(function(s,i){return s||('列'+(i+1));});
+  IMP.mapping=autoMap(IMP.headers,impFields());IMP.diff=null;IMP.decisions={};IMP.error='';IMP.parsed=true;IMP.step=2;
+  render();
+}
+/* 第 1 步 → 第 2 步：只读表头 + 原始网格（不做校验，改映射不必重跑） */
+function impParse(){
   var t=(IMP.text||'').trim();
-  if(!t){IMP.error='请先选择 WRC 报名 Excel 文件，或展开「粘贴 CSV」兜底通道';IMP.diff=null;render();return;}
+  if(!t){IMP.error='请先选择 Excel 文件（.xlsx / .csv）'+(impIsBulk()?'。':'，或用「其它方式」粘贴 CSV。');render();return;}
   IMP.fromExcel=false;
-  ingestGrid(parseCSV(t));
+  impAdoptGrid(parseCSV(t));
+}
+function impSetMap(k,v){IMP.mapping[k]=Number(v);render();}
+function impConfirmMapping(){if(!IMP.headers||!IMP.grid)return;IMP.step=3;ingestGrid(IMP.grid);}
+/* 第 3 步的行筛选（状态 chip + 关键词；关键词用 onchange 以免打字时焦点丢失） */
+function impFs(v){IMP.f.st=(IMP.f.st===v?'all':v);render();}
+function impFkw(v){IMP.f.kw=String(v==null?'':v);render();}
+/* ---------- 单行判定（批量与单行重算共用） ---------- */
+function impRowCounts(items){
+  var c={};
+  items.forEach(function(it){var n=it.o.team_number;if(n)c[n]=(c[n]||0)+1;});
+  return c;
+}
+function impDiffRow(o,counts){
+  var errs=[];
+  impFields().forEach(function(f){if(f.required&&!o[f.k])errs.push('缺少「'+f.label+'」');});
+  if(o.team_number&&!/^\d+$/.test(o.team_number))errs.push('队伍编号须为纯数字（当前「'+o.team_number+'」）');
+  /* bulk 通道不带「赛项」列 —— 整批落到第 2 步选定的赛项 */
+  var evId=impIsBulk()?IMP.bulkEvent:EVENT_BY_NAME[o.event_code];
+  if(!impIsBulk()&&o.event_code&&!evId)errs.push('未知赛项「'+o.event_code+'」');
+  if(impIsBulk()&&!evId)errs.push('未选定本批写入的赛项');
+  var ev=evId?find(evId):null;
+  if(ev&&o.group_code&&(ev.groups||[]).indexOf(o.group_code)<0)errs.push('组别「'+o.group_code+'」不属于赛项「'+ev.name+'」');
+  if(o.team_number&&counts&&counts[o.team_number]>1)errs.push('编号在文件中出现 '+counts[o.team_number]+' 次，需人工裁决');
+  if(errs.length)return {status:'conflict',errs:errs,changes:[],canFile:false,reason:'invalid'};
+  var mt=null;
+  for(var i=0;i<S.teams.length;i++){if(S.teams[i].no===o.team_number){mt=S.teams[i];break;}}
+  if(!mt)return {status:'insert',errs:[],changes:[],canFile:false};
+  var curEv=find(mt.eventId),changes=[];
+  var pairs=[['team_name','name','队伍名称'],['school','school','学校'],['coach','coach','教练'],['group_code','group','组别']];
+  if(impIsBulk())pairs.push(['members','members','成员']);   /* bulk 多一项成员名单 */
+  pairs.forEach(function(p){
+    var oldV=(mt[p[1]]||'');
+    var newV=o[p[0]]||'';
+    if(oldV!==newV)changes.push({label:p[2],old:oldV||'—',new:newV||'—',structural:(p[2]==='组别')});
+  });
+  /* 「赛项」不在文件里 —— 与「本批目标赛项」比 id（比名字更稳，赛项改名不会误报变更） */
+  if(evId&&mt.eventId!==evId){
+    changes.push({label:'赛项',old:((curEv&&curEv.name)||'—'),new:((ev&&ev.name)||'—'),structural:true});
+  }
+  var hasScore=!!S.scores[mt.id];
+  if(hasScore&&changes.some(function(c){return c.structural;})){
+    return {status:'conflict',errs:['该队已有成绩，变更组别 / 赛项会破坏成绩归属'],changes:changes,canFile:true,team:mt,reason:'structural'};
+  }
+  if(changes.length)return {status:'update',errs:[],changes:changes,canFile:false,team:mt};
+  return {status:'skip',errs:[],changes:[],canFile:false,team:mt};
+}
+function impApplyRow(it,counts){
+  var d=impDiffRow(it.o,counts);
+  it.status=d.status;it.errs=d.errs;it.changes=d.changes;it.canFile=d.canFile;it.team=d.team;it.reason=d.reason;
+  it.checked=(it.status==='insert'||it.status==='update');
 }
 function ingestGrid(grid){
-  if(!grid||grid.length<2){IMP.error='数据不足：至少需要「表头 + 1 行数据」';IMP.diff=null;render();return;}
+  if(!grid||grid.length<2){IMP.error='数据不足：至少需要「表头 + 1 行数据」。';IMP.diff=null;render();return;}
   var headers=grid[0].map(function(s){return String(s==null?'':s).trim();}).map(function(s,i){return s||('列'+(i+1));});
   var dataRows=grid.slice(1).filter(function(r){return r&&r.some(function(c){return String(c==null?'':c).trim()!=='';});});
   if(!dataRows.length){IMP.error='未解析到有效数据行';IMP.diff=null;render();return;}
-  if(!IMP.headers||IMP.headers.join('|')!==headers.join('|')){
-    IMP.headers=headers;
-    IMP.mapping=autoMap(headers);
-  }
-  var items=[],firstIdx={};
-  dataRows.forEach(function(r,ri){
+  if(!IMP.headers||IMP.headers.join('|')!==headers.join('|')){IMP.headers=headers;IMP.mapping=autoMap(headers,impFields());}
+  var items=dataRows.map(function(r,ri){
     var o={_row:ri+2};
-    WRC_FIELDS.forEach(function(f){
-      var idx=IMP.mapping[f.k];
-      o[f.k]=(idx>=0&&idx!=null&&r[idx]!=null)?String(r[idx]):'';
+    impFields().forEach(function(fe){
+      var idx=IMP.mapping[fe.k];
+      o[fe.k]=(idx>=0&&idx!=null&&r[idx]!=null)?String(r[idx]):'';
     });
-    var errs=[];
-    WRC_FIELDS.forEach(function(f){ if(f.required&&!o[f.k])errs.push('缺少「'+f.label+'」'); });
-    if(o.team_number&&!/^\d+$/.test(o.team_number))errs.push('队伍编号须为纯数字（当前「'+o.team_number+'」）');
-    var evId=EVENT_BY_NAME[o.event_code];
-    if(o.event_code&&!evId)errs.push('未知赛项「'+o.event_code+'」');
-    var ev=evId?find(evId):null;
-    if(ev&&o.group_code&&(ev.groups||[]).indexOf(o.group_code)<0)errs.push('组别「'+o.group_code+'」不属于赛项「'+ev.name+'」');
-    var dup=false;
-    if(o.team_number){
-      if(firstIdx[o.team_number]==null)firstIdx[o.team_number]=ri+2;
-      else dup=true;
-    }
-    items.push({o:o,errs:errs,evId:evId,dup:dup,dupAt:firstIdx[o.team_number]});
+    return {i:ri,o:o,checked:false};
   });
-  items.forEach(function(it){
-    var o=it.o,status,changes=[];
-    if(it.dup)it.errs.push('编号在文件中重复（首次出现在第 '+it.dupAt+' 行），需人工裁决');
-    if(it.errs.length){ status='conflict'; }
-    else{
-      var mt=null;
-      for(var i=0;i<S.teams.length;i++){ if(S.teams[i].no===o.team_number){mt=S.teams[i];break;} }
-      if(!mt)status='insert';
-      else{
-        var curEv=find(mt.eventId);
-        var pairs=[['team_name','name','队伍名称'],['school','school','学校'],['coach','coach','教练'],['group_code','group','组别'],['event_code','evName','赛项']];
-        pairs.forEach(function(p){
-          var oldV=(p[1]==='evName')?((curEv&&curEv.name)||''):(mt[p[1]]||'');
-          var newV=o[p[0]]||'';
-          if(oldV!==newV)changes.push({label:p[2],old:oldV||'—',new:newV||'—'});
-        });
-        var hasScore=!!S.scores[mt.id];
-        var structural=changes.some(function(c){return c.label==='组别'||c.label==='赛项';});
-        if(hasScore&&structural){ status='conflict'; it.errs.push('该队已有成绩，不允许变更组别/赛项'); }
-        else if(changes.length){ status='update'; it.changes=changes; }
-        else status='skip';
-      }
-    }
-    it.status=status;
-    it.checked=(status==='insert'||status==='update');
-  });
-  IMP.diff=items;IMP.error='';IMP.lastResult=null;
+  var counts=impRowCounts(items);
+  items.forEach(function(it){impApplyRow(it,counts);});
+  IMP.diff=items;IMP.error='';IMP.decisions={};IMP.f={st:'all',kw:''};
   render();
 }
-function impToggle(i){ if(!IMP.diff||!IMP.diff[i])return; IMP.diff[i].checked=!IMP.diff[i].checked; render(); }
-function impToggleAll(v){ if(!IMP.diff)return; IMP.diff.forEach(function(it){ if(it.status==='insert'||it.status==='update')it.checked=!!v; }); render(); }
+/* ---------- 冲突裁决 / 有效状态 ----------
+   impEff = 裁决后这条行**实际会怎么处理**，表格计数与提交都以它为准。 */
+function impEff(it){
+  if(it.status!=='conflict')return it.status;
+  var d=IMP.decisions[it.i];
+  if(d==='file'&&it.canFile)return (it.changes&&it.changes.length)?'update':(it.team?'skip':'insert');
+  if(d==='db'||d==='skip')return 'skip';
+  return 'conflict';
+}
+function impEffCounts(){
+  var c={insert:0,update:0,skip:0,conflict:0};
+  (IMP.diff||[]).forEach(function(it){c[impEff(it)]++;});
+  return c;
+}
+function impDecide(i,v){
+  var it=IMP.diff&&IMP.diff[i];if(!it)return;
+  IMP.decisions[i]=v;
+  it.checked=(v==='file'&&it.canFile);
+  render();
+}
+function impSkipAllConflicts(){
+  (IMP.diff||[]).forEach(function(it){if(it.status==='conflict'&&!(it.i in IMP.decisions)){IMP.decisions[it.i]='skip';it.checked=false;}});
+  render();
+}
+function impToggle(i){
+  var it=IMP.diff&&IMP.diff[i];if(!it)return;
+  var e=impEff(it);
+  if(e!=='insert'&&e!=='update')return;
+  it.checked=!it.checked;render();
+}
+function impToggleAll(v){
+  (IMP.diff||[]).forEach(function(it){var e=impEff(it);if(e==='insert'||e==='update')it.checked=!!v;});
+  render();
+}
+/* 改编号：改完就地重算这一行（不是重跑全量） */
+function impRenum(i,el){
+  var it=IMP.diff&&IMP.diff[i];if(!it)return;
+  var nv=String(el&&el.value!=null?el.value:'').replace(/\s/g,'');
+  if(!nv)return;
+  it.o.team_number=nv;
+  delete IMP.decisions[i];
+  impApplyRow(it,impRowCounts(IMP.diff));
+  render();
+}
+/* ---------- 提交 ---------- */
 function impCommit(){
   if(!IMP.diff)return;
-  var sum={insert:0,update:0,skip:0,conflict:0},detail=[];
+  if(readonlyGuard())return;   /* 归档赛事只读 —— 与其它写路径一致，避免「界面改了但没落盘」 */
+  var eff=impEffCounts();
+  var undecided=(IMP.diff||[]).filter(function(it){return impEff(it)==='conflict';}).length;
+  if(undecided){
+    alert('还有 '+undecided+' 条冲突未裁决。\n请在第 3 步逐条选择「以文件为准 / 以库内为准 / 跳过」，或改编号后重算；也可点「冲突全部跳过」。');
+    return;
+  }
+  var pending=0,affected=0;
   IMP.diff.forEach(function(it){
-    sum[it.status]++;
-    if(!it.checked||it.status==='conflict'||it.status==='skip')return;
-    var o=it.o;
-    if(it.status==='insert'){
-      S.teams.push({id:uid('tm'),no:o.team_number,name:o.team_name,school:o.school,coach:o.coach,
-        eventId:it.evId,group:o.group_code,members:'',status:'active',source:'excel'});
+    var e=impEff(it);
+    if((e!=='insert'&&e!=='update')||!it.checked)return;
+    pending++;
+    if(it.team&&S.scores[it.team.id])affected++;
+  });
+  if(!pending){alert('没有可应用的行（可能全部为跳过，或都没勾选）。');return;}
+  var conflicted=IMP.diff.filter(function(it){return it.status==='conflict';}).length;
+  var msg='确认写入？\n\n· 新增 '+eff.insert+' 支\n· 更新 '+eff.update+' 支\n· 跳过 '+eff.skip+' 行\n'+
+    (conflicted?('· 其中 '+conflicted+' 行原为冲突，已按你的裁决处理\n'):'')+
+    (affected?('· 其中 '+affected+' 支已有成绩：只改报名信息，不动成绩\n'):'')+
+    '\n来源：'+(IMP.fileName||'（粘贴 / 样例数据）')+'\n操作人：'+currentUser().name;
+  if(!confirm(msg))return;
+  var snap={added:[],updated:[]},detail=[];
+  IMP.diff.forEach(function(it){
+    var e=impEff(it);
+    if((e!=='insert'&&e!=='update')||!it.checked)return;
+    var o=it.o,bulk=impIsBulk(),evId=bulk?IMP.bulkEvent:EVENT_BY_NAME[o.event_code];
+    var src=bulk?'excel_bulk':'excel';   /* 来源分开记 —— 审计里能看清是哪个通道进来的 */
+    if(e==='insert'){
+      var nid=uid('tm');
+      S.teams.push({id:nid,no:o.team_number,name:o.team_name,school:o.school,coach:o.coach,
+        eventId:evId,group:o.group_code,members:(o.members||''),status:'active',source:src});
+      snap.added.push(nid);
       detail.push({act:'insert',no:o.team_number,name:o.team_name});
-    }else if(it.status==='update'){
-      var mt=null;
-      for(var i=0;i<S.teams.length;i++){ if(S.teams[i].no===o.team_number){mt=S.teams[i];break;} }
-      if(mt){
-        mt.name=o.team_name;mt.school=o.school;mt.coach=o.coach;mt.group=o.group_code;
-        mt.eventId=it.evId;mt.source='excel';
-        detail.push({act:'update',no:o.team_number,name:o.team_name,changes:it.changes});
-      }
+    }else{
+      var mt=it.team;if(!mt)return;
+      snap.updated.push({id:mt.id,before:{name:mt.name,school:mt.school,coach:mt.coach,group:mt.group,eventId:mt.eventId,members:mt.members,source:mt.source}});
+      mt.name=o.team_name;mt.school=o.school;mt.coach=o.coach;mt.group=o.group_code;mt.eventId=evId;mt.source=src;
+      if(bulk)mt.members=(o.members||'');
+      detail.push({act:'update',no:o.team_number,name:o.team_name,changes:it.changes});
     }
   });
-  S.importLogs=S.importLogs||[];
-  S.importLogs.unshift({ts:nowStr(),source:'excel',operator:'记分员',summary:sum,detail:detail,status:'success'});
-  S.importLogs=S.importLogs.slice(0,20);
+  var tasks=impTaskList();
+  tasks.unshift({id:uid('it_'),ts:nowStr(),operator:currentUser().name,source:(impIsBulk()?'excel_bulk':'excel'),
+    fileName:IMP.fileName||'（粘贴 / 样例数据）',summary:eff,
+    status:(conflicted?'partial':'done'),detail:detail,affectedScores:affected,snapshot:snap});
+  S.importTasks=tasks.slice(0,50);
   save();
-  IMP.diff=null;IMP.text='';IMP.headers=null;
-  IMP.lastResult=sum;
+  IMP.lastResult={insert:eff.insert,update:eff.update,skip:eff.skip,conflict:eff.conflict,
+    affected:affected,fileName:IMP.fileName||'（粘贴 / 样例数据）'};
+  IMP.diff=null;IMP.text='';IMP.headers=null;IMP.grid=null;IMP.decisions={};IMP.parsed=false;IMP.fileName='';IMP.showPaste=false;
+  IMP.mode='wizard';IMP.step=5;   /* 第 5 态：完成页（否则成功提示会被立刻切走，用户看不到结果） */
   render();
+}
+/* ---------- 撤回 ---------- */
+function impRevoke(id){
+  if(readonlyGuard())return;
+  var t=null;
+  impTaskList().forEach(function(x){if(x.id===id)t=x;});
+  if(!t)return;
+  if(t.legacy){alert('这是升级前的历史导入记录，没有回滚快照，无法撤回。');return;}
+  if(t.status==='revoked'){alert('这批导入已经撤回过了。');return;}
+  if(t.affectedScores>0){
+    alert('撤回被拒绝：\n该批导入涉及的队伍已有 '+t.affectedScores+' 支产生成绩。\n撤回会破坏成绩与队伍的归属关系，请手工处理。');
+    return;
+  }
+  var sn=t.snapshot||{added:[],updated:[]};
+  if(!confirm('确认撤回这批导入？\n\n· 撤销本次新增 '+sn.added.length+' 支\n· 回滚本次更新 '+sn.updated.length+' 支\n\n撤回会另写一条记录，原记录保留可查。'))return;
+  sn.added.forEach(function(tid){S.teams=S.teams.filter(function(x){return x.id!==tid;});});
+  sn.updated.forEach(function(u){
+    var mt=null;
+    for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===u.id){mt=S.teams[i];break;}}
+    if(!mt)return;
+    var b=u.before||{};
+    mt.name=b.name;mt.school=b.school;mt.coach=b.coach;mt.group=b.group;mt.eventId=b.eventId;mt.source=b.source;
+    if('members' in b)mt.members=b.members;
+  });
+  t.status='revoked';t.revokedAt=nowStr();
+  impTaskList().unshift({id:uid('it_'),ts:nowStr(),operator:currentUser().name,source:t.source||'excel',
+    fileName:'（撤回）'+(t.fileName||''),summary:{insert:0,update:0,skip:0,conflict:0},
+    status:'revoked',detail:[{act:'revoke',no:'—',name:'撤回 '+(t.fileName||'')}],affectedScores:0,snapshot:null});
+  save();render();
 }
 /* ---------- .xlsx 直读（零依赖：ZIP central directory + DecompressionStream + XML 扫描） ---------- */
 function xmlUnescape(s){
@@ -2158,23 +2651,24 @@ async function readXlsxGrid(u8){
 }
 async function impHandleFile(file){
   if(!file)return;
-  IMP.error='';IMP.fileName=file.name||'';IMP.busy=true;IMP.diff=null;render();
+  IMP.error='';IMP.fileName=file.name||'';IMP.busy=true;IMP.diff=null;IMP.grid=null;IMP.headers=null;IMP.decisions={};
+  render();
   try{
     var nm=(file.name||'').toLowerCase();
     if(/\.csv$/.test(nm)){
       var text=await file.text();
       IMP.busy=false;IMP.text=text;IMP.fromExcel=false;IMP.showPaste=true;
-      ingestGrid(parseCSV(text));
+      impParse();                     /* 第 1 步 → 第 2 步：只读表头 */
       return;
     }
     if(/\.xls$/.test(nm))throw new Error('.xls 为旧版二进制格式，请在 Excel 中另存为 .xlsx 后重试');
     if(!/\.xlsx$/.test(nm))throw new Error('仅支持 .xlsx / .csv（当前：'+(file.name||'未知')+'）');
     var buf=new Uint8Array(await file.arrayBuffer());
     var grid=await readXlsxGrid(buf);
-    IMP.busy=false;IMP.fromExcel=true;IMP.text='';
-    ingestGrid(grid);
+    IMP.fromExcel=true;IMP.text='';
+    impAdoptGrid(grid);
   }catch(e){
-    IMP.busy=false;IMP.diff=null;
+    IMP.busy=false;IMP.diff=null;IMP.grid=null;IMP.headers=null;
     IMP.error='Excel 解析失败：'+((e&&e.message)?e.message:e);
     render();
   }
@@ -2188,108 +2682,287 @@ function impDrop(ev){
 function impTogglePaste(){IMP.showPaste=!IMP.showPaste;render();}
 
 function viewImport(){
-  var h='';
-  h+='<div class="card"><h2>导入链路 <small>对齐《裁判打分系统 · 队伍导入架构图 V0.2》</small></h2>'+
-     '<div class="row tight">'+
-       ['① 选择来源','② 解析+列映射','③ 字段校验','④ Diff 对比','⑤ 预览确认','⑥ 事务入库'].map(function(s,i){
-         return (i?'<span class="muted">→</span>':'')+'<span class="tag'+(IMP.diff?' b':'')+'">'+s+'</span>';
-       }).join('')+
-     '</div>'+
-     '<div class="hint" style="margin-top:10px">报名源头 = <b>WRC 官网导出报名表</b>（主通道）。导入采用<b>合并式 + 变更预览</b>，不做清空重建；已有成绩的队伍不会被物理删除，退赛仅标记为「已退赛」。</div>'+
+  if(IMP.mode==='wizard')return impWizardHtml();
+  return impListHtml();
+}
+/* ---------- 主体：导入任务列表 ---------- */
+function impListHtml(){
+  var all=impTaskList(),rows=impTaskRows();
+  var stOpts=[['all','全部状态'],['done','已入库'],['partial','部分成功'],['revoked','已撤回']];
+  var srcOpts=[['all','全部来源'],['excel','WRC 报名表'],['excel_bulk','批量导入 Excel'],['manual','手动录入']];
+  var stMap={done:['ok','已入库'],partial:['warn','部分成功'],revoked:['err','已撤回'],pending:['','待确认']};
+  var act=[];
+  if(IMQA.st!=='all')act.push('状态 = '+(stMap[IMQA.st]?stMap[IMQA.st][1]:IMQA.st));
+  if(IMQA.src!=='all')act.push('来源 = '+impSourceName(IMQA.src));
+  if(IMQA.from||IMQA.to)act.push('时间 '+(IMQA.from||'不限')+' ~ '+(IMQA.to||'不限'));
+  if(IMQA.kw)act.push('关键词 含「'+IMQA.kw+'」');
+
+  var h='<div class="card"><div class="row" style="justify-content:space-between">'+
+    '<h2 style="margin:0">导入任务 <small>每一次队伍导入 = 一条任务记录（可筛选 / 可导出 / 可撤回）</small></h2>'+
+    '<span class="row tight">'+
+      '<button class="btn primary" onclick="impWizardOpen(\'wrc\')">+ 导入 WRC 报名表</button>'+
+      '<button class="btn" onclick="impWizardOpen(\'bulk\')">批量导入 Excel</button>'+
+    '</span>'+
+  '</div>'+
+  '<div class="hint" style="margin-top:8px">两个通道：<b>导入 WRC 报名表</b>（WRC 官网导出的 6 列表，含赛项列，一份文件可覆盖多个赛项）与 <b>批量导入 Excel</b>（通用队伍表，不含赛项列，整批写入选定赛项，可一并写入成员名单）。两者都走<b>合并式 + 变更预览 + 冲突裁决</b>，不做清空重建 —— 已有成绩的队伍不会被物理删除；退赛请到「队伍管理」标记。</div>'+
   '</div>';
 
-  if(IMP.lastResult){
-    var r=IMP.lastResult;
-    h+='<div class="card" style="border-left:3px solid #2f6b0f"><b>导入成功</b> <span class="small">已写入 teams 表并生成 import_logs 审计记录：</span>'+
-       '<div class="row tight" style="margin-top:6px">'+
-       '<span class="tag ok">🟢 新增 '+r.insert+'</span><span class="tag warn">🟡 更新 '+r.update+'</span>'+
-       '<span class="tag">⚪ 跳过 '+r.skip+'</span><span class="tag err">🔴 冲突 '+r.conflict+'</span></div></div>';
-  }
-
-  h+='<div class="card"><h2>① 选择来源 <small>主通道 = 直接导入 WRC 官网导出的 Excel</small></h2>'+
-     '<label class="drop" for="impFile" ondragover="event.preventDefault()" ondrop="impDrop(event)">'+
-       '<b>'+(IMP.busy?'正在解析 Excel…':'点击选择 Excel 文件，或拖拽到此处')+'</b>'+
-       '<span>支持 .xlsx（WRC 官网导出）与 .csv；.xls 旧格式请先在 Excel 中另存为 .xlsx</span>'+
-     '</label>'+
-     '<input type="file" id="impFile" accept=".xlsx,.csv" style="display:none" onchange="impFilePicked(this)">'+
-     (IMP.fileName?'<div class="small muted" style="margin-top:8px">已选择：'+esc(IMP.fileName)+(IMP.fromExcel?' <span class="tag ok">已解析 Excel</span>':'')+'</div>':'')+
-     (IMP.error?'<div class="small" style="color:#a32d2d;margin-top:8px">'+esc(IMP.error)+'</div>':'')+
-     '<hr class="sep">'+
-     '<div class="row">'+
-       '<button class="btn" onclick="impLoadSample()">载入内置样例（7 行 · 新增 / 重复导入可见更新·跳过·冲突）</button>'+
-       '<button class="btn" onclick="impTogglePaste()">'+(IMP.showPaste?'收起':'展开')+'粘贴 CSV 兜底通道</button>'+
-     '</div>'+
-     '<div id="impPaste" style="display:'+(IMP.showPaste?'block':'none')+';margin-top:10px">'+
-       '<div class="fld"><label>报名数据（CSV，首行为表头）</label>'+
-       '<textarea id="impText" style="min-height:150px" oninput="IMP.text=this.value" placeholder="队伍编号,参赛队伍名称,学校名称,指导教师,参赛组别,赛项">'+esc(IMP.text)+'</textarea></div>'+
-       '<button class="btn primary" onclick="buildImport()">解析并比对</button>'+
-     '</div>'+
+  h+='<div class="card"><h2>筛选条件</h2>'+
+    '<div class="row" style="gap:12px 18px">'+
+      xrFldRaw('状态','<select style="margin:0;width:140px" onchange="imqSet(\'st\',this.value)">'+
+        stOpts.map(function(o){return '<option value="'+o[0]+'" '+(IMQ.st===o[0]?'selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>')+
+      xrFldRaw('来源','<select style="margin:0;width:140px" onchange="imqSet(\'src\',this.value)">'+
+        srcOpts.map(function(o){return '<option value="'+o[0]+'" '+(IMQ.src===o[0]?'selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>')+
+      xrFldRaw('时间','<input type="date" style="margin:0;width:145px" value="'+esc(IMQ.from)+'" oninput="imqSet(\'from\',this.value)">'+
+        '<span class="muted">-</span>'+
+        '<input type="date" style="margin:0;width:145px" value="'+esc(IMQ.to)+'" oninput="imqSet(\'to\',this.value)">')+
+      xrFldRaw('关键词','<input style="margin:0;width:180px" placeholder="文件名 / 操作人" value="'+esc(IMQ.kw)+'" oninput="imqSet(\'kw\',this.value)" onkeydown="if(event.key===\'Enter\')imqSearch()">')+
+      '<button class="btn primary" onclick="imqSearch()">搜索</button>'+
+      '<button class="btn" onclick="imqReset()">重置</button>'+
+      '<button class="btn" style="margin-left:auto" onclick="impExportTasks()">导出 <span style="color:var(--muted)">Excel</span></button>'+
+    '</div>'+
+    '<div class="hint" style="margin-top:10px">'+
+      (act.length?('<b>当前条件</b>：'+esc(act.join(' · '))+'　—— 点「重置」清空全部条件。'):'未设任何条件 → 显示全部任务。')+
+      '　共 <b>'+rows.length+'</b> / '+all.length+' 条任务。</div>'+
   '</div>';
 
-  if(IMP.headers){
-    h+='<div class="card"><h2>③ 列映射 <small>确认「哪一列是哪个字段」—— 防导错列（抄 fllscoring 的防呆设计）</small></h2><div class="grid g3">';
-    WRC_FIELDS.forEach(function(f){
-      h+='<div class="fld"><label>'+f.label+(f.required?' <span style="color:#a32d2d">*必填</span>':'')+'</label>'+
-         '<select onchange="impSetMap(\''+f.k+'\',this.value)">'+
-         '<option value="-1">（不导入）</option>'+
-         IMP.headers.map(function(hd,i){return '<option value="'+i+'" '+(IMP.mapping[f.k]===i?'selected':'')+'>'+esc(hd)+'</option>';}).join('')+
-         '</select></div>';
-    });
-    h+='</div>';
-    var firstRow=IMP.diff&&IMP.diff[0]?IMP.diff[0].o:null;
-    if(firstRow){
-      h+='<div class="note">首行示例预览：'+WRC_FIELDS.map(function(f){return esc(f.label)+' = <b>'+esc(firstRow[f.k]||'（空）')+'</b>';}).join(' · ')+'</div>';
+  var tbody=rows.map(function(t){
+    var sm=stMap[t.status]||['',t.status];
+    return '<tr>'+
+      '<td class="small">'+esc(t.ts)+'</td>'+
+      '<td><span class="tag b">'+esc(impSourceName(t.source))+'</span></td>'+
+      '<td class="small">'+esc(t.fileName||'—')+'</td>'+
+      '<td class="small">'+esc(t.operator||'—')+'</td>'+
+      '<td class="small">🟢 '+t.summary.insert+'　🟡 '+t.summary.update+'</td>'+
+      '<td class="small">⚪ '+t.summary.skip+'　🔴 '+t.summary.conflict+'</td>'+
+      '<td class="small">'+((t.affectedScores||0)?(t.affectedScores+' 支'):'—')+'</td>'+
+      '<td><span class="tag '+sm[0]+'">'+sm[1]+'</span></td>'+
+      '<td><span class="row tight"><button class="btn sm" onclick="impOpenDetail(\''+t.id+'\')">'+(IMP.openTask===t.id?'收起明细':'明细')+'</button>'+
+        ((!t.legacy&&t.status!=='revoked')?('<button class="btn sm" onclick="impRevoke(\''+t.id+'\')">撤回</button>'):'')+
+      '</span></td></tr>';
+  }).join('');
+  h+='<div class="card"><h2>任务列表 <small>按时间倒序</small></h2>'+
+    '<div style="overflow:auto"><table><thead><tr><th style="min-width:140px">时间</th><th>来源</th><th style="min-width:170px">文件</th><th>操作人</th>'+
+    '<th class="num">新增 / 更新</th><th class="num">跳过 / 冲突</th><th class="num">影响成绩</th><th>状态</th><th></th></tr></thead>'+
+    '<tbody>'+(tbody||'<tr><td colspan="9" class="muted">没有符合条件的导入任务。点右上「+ 导入 WRC 报名表」或「批量导入 Excel」开始一次导入。</td></tr>')+'</tbody></table></div>';
+
+  if(IMP.openTask){
+    var tk=null;
+    all.forEach(function(x){if(x.id===IMP.openTask)tk=x;});
+    if(tk){
+      h+='<hr class="sep"><h2 style="font-size:14px">明细 · '+esc(tk.ts)+' · '+esc(tk.fileName||'—')+'</h2>'+
+        '<div class="hint">来源：'+esc(impSourceName(tk.source))+'　操作人：'+esc(tk.operator||'—')+
+        '　结果：🟢 新增 '+tk.summary.insert+'　🟡 更新 '+tk.summary.update+'　⚪ 跳过 '+tk.summary.skip+'　🔴 冲突 '+tk.summary.conflict+
+        (tk.revokedAt?('　<b style="color:#a32d2d">已于 '+esc(tk.revokedAt)+' 撤回</b>'):'')+'</div>';
+      var det=(tk.detail||[]).map(function(d){
+        var chg=(d.changes||[]).map(function(c2){return esc(c2.label)+' <span class="muted">'+esc(c2.old)+' → </span><b>'+esc(c2.new)+'</b>';}).join('；');
+        return '<tr><td><span class="tag '+({insert:'ok',update:'warn',revoke:'err'}[d.act]||'')+'">'+esc(importActName(d.act))+'</span></td>'+
+          '<td>'+esc(d.no||'—')+'</td><td><b>'+esc(d.name||'—')+'</b></td>'+
+          '<td class="small">'+(chg||'—')+'</td></tr>';
+      }).join('');
+      h+='<table style="margin-top:8px"><thead><tr><th style="width:80px">动作</th><th style="width:90px">编号</th><th>队伍</th><th>字段变更</th></tr></thead>'+
+        '<tbody>'+(det||'<tr><td colspan="4" class="muted">无明细</td></tr>')+'</tbody></table>';
     }
-    h+='</div>';
-  }
-
-  if(IMP.diff){
-    var c={insert:0,update:0,skip:0,conflict:0};
-    IMP.diff.forEach(function(it){c[it.status]++;});
-    h+='<div class="card"><h2>④ 变更比对 <small>与库内 '+S.teams.length+' 支队伍比对</small></h2>'+
-       '<div class="row tight" style="margin-bottom:10px">'+
-       '<span class="tag ok">🟢 新增 '+c.insert+'</span><span class="tag warn">🟡 更新 '+c.update+'</span>'+
-       '<span class="tag">⚪ 跳过 '+c.skip+'</span><span class="tag err">🔴 冲突 '+c.conflict+'</span>'+
-       '<span class="sp" style="flex:1"></span>'+
-       '<button class="btn sm" onclick="impToggleAll(true)">全选可应用项</button>'+
-       '<button class="btn sm" onclick="impToggleAll(false)">全不选</button></div>'+
-       '<table><thead><tr><th style="width:34px"></th><th style="width:92px">状态</th><th style="width:46px">行</th><th>编号</th><th>队伍名称</th><th>学校</th><th>教练</th><th>组别</th><th>赛项</th><th>变更 / 问题</th></tr></thead><tbody>';
-    IMP.diff.forEach(function(it,i){
-      var o=it.o,meta=DIFF_META[it.status];
-      var chg='';
-      if(it.status==='update'&&it.changes)chg=it.changes.map(function(c2){return esc(c2.label)+' <span class="muted">'+esc(c2.old)+' → </span><b>'+esc(c2.new)+'</b>';}).join('；');
-      else if(it.errs&&it.errs.length)chg='<span style="color:#a32d2d">'+it.errs.map(esc).join('；')+'</span>';
-      else if(it.status==='skip')chg='<span class="muted">与库内完全一致，不写入</span>';
-      else if(it.status==='insert')chg='<span class="muted">库中不存在该编号，将新建</span>';
-      var cb=(it.status==='conflict')?'<input type="checkbox" disabled title="冲突项需人工裁决">'
-        :'<input type="checkbox" '+(it.checked?'checked':'')+' onchange="impToggle('+i+')">';
-      h+='<tr><td style="text-align:center">'+cb+'</td><td><span class="tag '+meta.cls+'">'+meta.t+'</span></td>'+
-         '<td class="muted">'+o._row+'</td><td>'+esc(o.team_number)+'</td><td>'+esc(o.team_name)+'</td>'+
-         '<td class="small">'+esc(o.school||'—')+'</td><td class="small">'+esc(o.coach||'—')+'</td>'+
-         '<td>'+esc(o.group_code)+'</td><td>'+esc(o.event_code)+'</td>'+
-         '<td class="small">'+(chg||'—')+'</td></tr>';
-    });
-    h+='</tbody></table>'+
-       '<div class="row" style="margin-top:12px">'+
-       '<button class="btn primary" onclick="impCommit()">⑤ 确认入库（事务 + upsert + 写 import_logs）</button>'+
-       '<span class="small muted">冲突项默认不可勾选，必须人工裁决后才能提交；跳过项不产生写入。</span>'+
-       '</div></div>';
-  }
-
-  h+='<div class="card"><h2>导入审计 <small>import_logs · 争议追溯依据</small></h2>';
-  if(!S.importLogs||!S.importLogs.length){
-    h+='<div class="hint">暂无导入记录。执行一次导入后，这里会留下来源 / 时间 / 操作人 / 变更汇总 / 明细。</div>';
-  }else{
-    h+='<table><thead><tr><th>时间</th><th>来源</th><th>操作人</th><th>变更汇总</th><th>明细</th><th>状态</th></tr></thead><tbody>';
-    S.importLogs.forEach(function(l){
-      h+='<tr><td class="small">'+esc(l.ts)+'</td><td><span class="tag b">'+esc(l.source==='excel'?'Excel 导入':l.source)+'</span></td><td>'+esc(l.operator)+'</td>'+
-         '<td class="small">🟢 新增 '+l.summary.insert+'　🟡 更新 '+l.summary.update+'　⚪ 跳过 '+l.summary.skip+'　🔴 冲突 '+l.summary.conflict+'</td>'+
-         '<td class="small muted">'+esc((l.detail||[]).map(function(d){return importActName(d.act)+' '+d.no;}).join('、')||'—')+'</td>'+
-         '<td><span class="tag ok">'+esc(l.status==='success'?'成功':l.status)+'</span></td></tr>';
-    });
-    h+='</tbody></table>';
   }
   h+='</div>';
+  return h;
+}
+/* 与 xrFld 同形，但本页字段不依赖渲染序列，独立一份避免耦合 */
+function xrFldRaw(label,ctrl){
+  return '<span style="display:inline-flex;align-items:center;gap:6px">'+
+    '<span class="small muted" style="white-space:nowrap">'+esc(label)+'</span>'+ctrl+'</span>';
+}
+/* ---------- 向导 ---------- */
+function impWizardHtml(){
+  var steps=['选择文件','确认列映射','校验与变更预览','确认入库'];
+  var bar=steps.map(function(s,i){
+    var n=i+1,on=(IMP.step===n),done=(IMP.step>n);
+    return (i?'<span class="muted"> → </span>':'')+
+      '<span class="tag'+(on?' b':'')+'"'+(done?' style="cursor:pointer" onclick="impGoStep('+n+')"':'')+'>'+
+      (done?'✓ ':'')+n+' '+esc(s)+'</span>';
+  }).join('');
+  var h='<div class="card"><div class="row" style="justify-content:space-between">'+
+    '<h2 style="margin:0">'+esc(impKindName())+' <small>'+(IMP.step===5?'已完成':('第 '+IMP.step+' / 4 步'))+'</small></h2>'+
+    '<button class="btn sm" onclick="impWizardClose()">← 返回任务列表</button></div>'+
+    '<div class="row tight" style="margin-top:10px">'+bar+'</div></div>';
+  if(IMP.error)h+='<div class="card" style="border-left:3px solid #a32d2d"><b style="color:#a32d2d">无法继续</b> <span class="small">'+esc(IMP.error)+'</span></div>';
+  if(IMP.lastResult){
+    var r=IMP.lastResult;
+    h+='<div class="card" style="border-left:3px solid #2f6b0f"><b>导入成功</b> <span class="small">已写入 teams 并生成导入任务记录：</span>'+
+      '<div class="row tight" style="margin-top:6px"><span class="tag ok">🟢 新增 '+r.insert+'</span><span class="tag warn">🟡 更新 '+r.update+'</span>'+
+      '<span class="tag">⚪ 跳过 '+r.skip+'</span><span class="tag err">🔴 冲突 '+r.conflict+'</span>'+
+      (r.affected?('<span class="tag warn">涉及已有成绩 '+r.affected+' 支</span>'):'')+'</div></div>';
+  }
+  if(IMP.step===5){
+    h+='<div class="card"><h2>导入完成 <small>已生成任务记录，可随时撤回</small></h2>'+
+      '<div class="hint">这次写入采用了<b>合并式</b>：只 upsert 勾选的行，没有删除任何队伍。要撤销就回任务列表，点该条任务的「撤回」——它有回滚快照。</div>'+
+      '<div class="row" style="margin-top:12px">'+
+        '<button class="btn primary" onclick="impWizardClose()">返回任务列表</button>'+
+        '<button class="btn" onclick="impWizardOpen(\''+IMP.kind+'\')">再导入一批</button>'+
+      '</div></div>';
+    return h;
+  }
+  if(IMP.step===1)h+=impStep1();
+  else if(IMP.step===2)h+=impStep2();
+  else if(IMP.step===3)h+=impStep3();
+  else h+=impStep4();
+  return h;
+}
+function impStep1(){
+  var h='<div class="card"><h2>① 选择文件 <small>'+(impIsBulk()?'批量导入 Excel —— 通用队伍表：编号 / 名称 / 组别 / 学校 / 教练 / 成员':'主通道 = 直接导入 WRC 官网导出的 Excel')+'</small></h2>'+
+    '<label class="drop" for="impFile" ondragover="event.preventDefault()" ondrop="impDrop(event)">'+
+      '<b>'+(IMP.busy?'正在解析 Excel…':'点击选择 Excel 文件，或拖拽到此处')+'</b>'+
+      '<span>'+(impIsBulk()?'支持 .xlsx / .csv；表里不带「赛项」列，整批写入第 2 步选定的赛项':'支持 .xlsx（WRC 官网导出）与 .csv')+'；.xls 旧格式请先在 Excel 中另存为 .xlsx</span>'+
+    '</label>'+
+    '<input type="file" id="impFile" accept=".xlsx,.csv" style="display:none" onchange="impFilePicked(this)">'+
+    (IMP.fileName?'<div class="small muted" style="margin-top:8px">已选择：'+esc(IMP.fileName)+(IMP.fromExcel?' <span class="tag ok">已解析 Excel</span>':'')+'</div>':'')+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="impTogglePaste()">'+(IMP.showPaste?'收起':(impIsBulk()?'没有 Excel？用内置样例试跑':'其它方式（粘贴 CSV / 载入样例）'))+'</button>'+
+    '</div>';
+  if(IMP.showPaste){
+    h+='<div id="impPaste" style="margin-top:10px">'+
+      '<div class="row" style="margin-bottom:8px"><button class="btn sm" onclick="impLoadSample()">载入内置样例</button>'+
+      '<span class="small muted">样例里含重复编号，导入后可看到新增 / 更新 / 跳过 / 冲突四种结果</span></div>'+
+      '<div class="fld"><label>'+(impIsBulk()?'样例数据（CSV，首行为表头）':'报名数据（CSV，首行为表头）')+'</label>'+
+      '<textarea id="impText" style="min-height:150px" oninput="IMP.text=this.value" placeholder="'+(impIsBulk()?'队伍编号,队伍名称,组别,学校 / 机构,指导教师,成员':'队伍编号,参赛队伍名称,学校名称,指导教师,参赛组别,赛项')+'">'+esc(IMP.text)+'</textarea></div>'+
+      '<button class="btn primary" onclick="impParse()">解析并继续</button>'+
+    '</div>';
+  }
+  h+='</div>';
+  return h;
+}
+/* bulk 通道不带「赛项」列：这一批全部写入哪个赛项，在这里定。
+   改选后若已有数据，就地重跑校验（不留「映射改了但没重算」的死路）。 */
+function impBulkTargetBox(){
+  var opts=(S.events||[]).map(function(e){
+    return '<option value="'+e.id+'" '+(IMP.bulkEvent===e.id?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
+  return '<div class="note" style="border-left-color:#1b63ab"><b>本批写入赛项</b>'+
+    '<select style="margin:0 8px;width:180px" onchange="impSetBulkEvent(this.value)">'+opts+'</select>'+
+    '<span class="small muted">批量导入 Excel 表里没有「赛项」列 —— 整批落到这里选的赛项。改选会立即重跑校验。</span></div>';
+}
+function impSetBulkEvent(id){
+  IMP.bulkEvent=id;
+  if(IMP.grid){IMP.step=3;ingestGrid(IMP.grid);}else{IMP.diff=null;render();}
+}
+function impStep2(){
+  var h='<div class="card"><h2>② 确认列映射 <small>确认「哪一列是哪个字段」—— 防导错列</small></h2>'+
+    (impIsBulk()?impBulkTargetBox():'')+
+    '<div class="grid g3">';
+  impFields().forEach(function(fe){
+    h+='<div class="fld"><label>'+fe.label+(fe.required?' <span style="color:#a32d2d">*必填</span>':'')+'</label>'+
+      '<select onchange="impSetMap(\''+fe.k+'\',this.value)">'+
+      '<option value="-1">（不导入）</option>'+
+      IMP.headers.map(function(hd,i){return '<option value="'+i+'" '+(IMP.mapping[fe.k]===i?'selected':'')+'>'+esc(hd)+'</option>';}).join('')+
+      '</select></div>';
+  });
+  h+='</div>';
+  var miss=impFields().filter(function(fe){return fe.required&&!(IMP.mapping[fe.k]>=0);}).map(function(fe){return fe.label;});
+  if(miss.length)h+='<div class="note" style="border-left-color:#a32d2d">必填字段还没映射：<b>'+esc(miss.join(' / '))+'</b> —— 不映射会导致这些行全部校验失败。</div>';
+  var g=IMP.grid||[];
+  h+='<hr class="sep"><h2 style="font-size:14px">来源列预览 <small>每列取前 3 行实际值，用来核对「映射对了没」</small></h2>'+
+    '<div style="overflow:auto"><table><thead><tr><th style="width:150px">来源列</th><th>映射到</th><th>第 1 行值</th><th>第 2 行值</th><th>第 3 行值</th></tr></thead><tbody>';
+  IMP.headers.forEach(function(hd,ci){
+    var to='<span class="muted">（不导入）</span>';
+    impFields().forEach(function(fe){if(IMP.mapping[fe.k]===ci)to='<span class="tag b">'+esc(fe.label)+'</span>';});
+    var v=function(ri){var r=g[ri+1];return (r&&r[ci]!=null&&String(r[ci]).trim()!=='')?esc(String(r[ci])):'<span class="muted">—</span>';};
+    h+='<tr><td class="small">'+esc(hd)+'</td><td class="small">'+to+'</td><td class="small">'+v(0)+'</td><td class="small">'+v(1)+'</td><td class="small">'+v(2)+'</td></tr>';
+  });
+  h+='</tbody></table></div>'+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="impGoStep(1)">← 上一步</button>'+
+      '<button class="btn primary" onclick="impConfirmMapping()">确认映射，开始校验 →</button>'+
+      '<span class="small muted">改映射不会重跑校验 —— 校验在下一步才执行</span>'+
+    '</div></div>';
+  return h;
+}
+function impStep3(){
+  var eff=impEffCounts(),c=eff,diff=IMP.diff||[];
+  var chips=[['all','全部',diff.length],['insert','🟢 新增',c.insert],['update','🟡 更新',c.update],
+    ['skip','⚪ 跳过',c.skip],['conflict','🔴 未裁决冲突',c.conflict]];
+  var h='<div class="card"><h2>③ 校验与变更预览 <small>与库内 '+S.teams.length+' 支队伍比对</small></h2>'+
+    '<div class="row tight" style="margin-bottom:10px">'+
+    chips.map(function(x){
+      var on=(IMP.f.st===x[0]);
+      return '<span class="tag'+(on?' b':'')+'" style="cursor:pointer" onclick="impFs(\''+x[0]+'\')">'+esc(x[1])+' '+x[2]+'</span>';
+    }).join('')+
+    '<span class="sp" style="flex:1"></span>'+
+    '<input style="width:150px" placeholder="搜编号 / 队名" value="'+esc(IMP.f.kw)+'" onchange="impFkw(this.value)" onkeydown="if(event.key===\'Enter\')impFkw(this.value)">'+
+    '<button class="btn sm" onclick="impToggleAll(true)">全选可应用项</button>'+
+    '<button class="btn sm" onclick="impToggleAll(false)">全不选</button>'+
+    (c.conflict?('<button class="btn sm" onclick="impSkipAllConflicts()">冲突全部跳过</button>'):'')+
+    '</div>';
+  var view=diff.filter(function(it){
+    if(IMP.f.st!=='all'&&impEff(it)!==IMP.f.st)return false;
+    if(IMP.f.kw){
+      var k=IMP.f.kw.toLowerCase();
+      if((String(it.o.team_number||'')+' '+String(it.o.team_name||'')).toLowerCase().indexOf(k)<0)return false;
+    }
+    return true;
+  });
+  h+='<div style="overflow:auto"><table><thead><tr><th style="width:34px"></th><th style="width:92px">状态</th><th style="width:46px">行</th>'+
+    '<th style="min-width:80px">编号</th><th style="min-width:120px">队伍名称</th><th style="min-width:130px">学校</th>'+
+    '<th style="min-width:80px">教练</th><th style="min-width:70px">组别</th><th style="min-width:90px">'+(impIsBulk()?'成员':'赛项')+'</th>'+
+    '<th style="min-width:240px">变更 / 问题</th><th style="min-width:210px">裁决</th></tr></thead><tbody>';
+  view.forEach(function(it){
+    var o=it.o,e=impEff(it),meta=DIFF_META[it.status];
+    var chg='';
+    if(it.changes&&it.changes.length)chg=it.changes.map(function(c2){return esc(c2.label)+' <span class="muted">'+esc(c2.old)+' → </span><b>'+esc(c2.new)+'</b>';}).join('；');
+    else if(it.errs&&it.errs.length)chg='<span style="color:#a32d2d">'+it.errs.map(esc).join('；')+'</span>';
+    else if(it.status==='skip')chg='<span class="muted">与库内完全一致，不写入</span>';
+    else chg='<span class="muted">库中不存在该编号，将新建</span>';
+    if(it.status==='conflict'&&e!=='conflict')chg+=' <span class="muted">→ 按裁决处理为「'+({update:'更新',skip:'跳过',insert:'新增'}[e]||e)+'」</span>';
+    var writable=(e==='insert'||e==='update');
+    var cb=writable?('<input type="checkbox" '+(it.checked?'checked':'')+' onchange="impToggle('+it.i+')">')
+      :('<input type="checkbox" disabled title="'+(e==='conflict'?'需先裁决':'该行无需写入')+'">');
+    var decide='<span class="muted">—</span>';
+    if(it.status==='conflict'){
+      decide='<select style="margin:0;width:132px" onchange="impDecide('+it.i+',this.value)">'+
+        '<option value="" '+(!IMP.decisions[it.i]?'selected':'')+'>未裁决</option>'+
+        '<option value="file" '+(!it.canFile?'disabled':'')+' '+(IMP.decisions[it.i]==='file'?'selected':'')+'>'+(it.canFile?'以文件为准（覆盖）':'以文件为准（不适用）')+'</option>'+
+        '<option value="db" '+(IMP.decisions[it.i]==='db'?'selected':'')+'>以库内为准（丢弃）</option>'+
+        '<option value="skip" '+(IMP.decisions[it.i]==='skip'?'selected':'')+'>跳过</option>'+
+        '</select>'+
+        '<input style="width:78px;display:inline-block;margin-left:4px" placeholder="改编号" value="" onchange="impRenum('+it.i+',this)">';
+    }
+    h+='<tr><td style="text-align:center">'+cb+'</td><td><span class="tag '+meta.cls+'">'+meta.t+'</span></td>'+
+      '<td class="muted">'+o._row+'</td><td>'+esc(o.team_number)+'</td><td>'+esc(o.team_name)+'</td>'+
+      '<td class="small">'+esc(o.school||'—')+'</td><td class="small">'+esc(o.coach||'—')+'</td>'+
+      '<td>'+esc(o.group_code||'—')+'</td><td class="small">'+esc((impIsBulk()?o.members:o.event_code)||'—')+'</td>'+
+      '<td class="small">'+chg+'</td><td class="small">'+decide+'</td></tr>';
+  });
+  h+='</tbody></table></div>'+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="impGoStep(2)">← 上一步</button>'+
+      '<button class="btn primary" onclick="impGoStep(4)">下一步：确认入库 →</button>'+
+      (c.conflict?('<span class="small" style="color:#a32d2d">还有 '+c.conflict+' 条冲突未裁决，必须逐条处理才能提交</span>'):'')+
+    '</div></div>';
+  return h;
+}
+function impStep4(){
+  var eff=impEffCounts(),affected=0;
+  (IMP.diff||[]).forEach(function(it){
+    var e=impEff(it);
+    if((e==='insert'||e==='update')&&it.checked&&it.team&&S.scores[it.team.id])affected++;
+  });
+  var conflicted=(IMP.diff||[]).filter(function(it){return it.status==='conflict';}).length;
+  var h='<div class="card"><h2>④ 确认入库 <small>写入前请核对影响面</small></h2>'+
+    '<div class="grid g4">'+
+      '<div class="kpi"><div class="lb">将新增</div><div class="nm">'+eff.insert+' 支</div><div class="ft">库中不存在该编号</div></div>'+
+      '<div class="kpi"><div class="lb">将更新</div><div class="nm">'+eff.update+' 支</div><div class="ft">编号相同、字段有变化</div></div>'+
+      '<div class="kpi"><div class="lb">跳过</div><div class="nm">'+eff.skip+' 行</div><div class="ft">无变化 / 已裁决为跳过</div></div>'+
+      '<div class="kpi"><div class="lb">未裁决冲突</div><div class="nm">'+eff.conflict+' 条</div><div class="ft">'+(eff.conflict?'必须处理后才能提交':'已全部处理')+'</div></div>'+
+    '</div>'+
+    '<div class="note">来源文件：<b>'+esc(IMP.fileName||'（粘贴 / 样例数据）')+'</b>'+
+      (impIsBulk()?('　写入赛项：<b>'+esc((find(IMP.bulkEvent)||{}).name||IMP.bulkEvent||'—')+'</b>'):'')+
+      '　操作人：<b>'+esc(currentUser().name)+'</b>'+
+      (conflicted?('　其中 <b>'+conflicted+'</b> 行原为冲突，将按你的裁决处理'):'')+
+      (affected?('　其中 <b>'+affected+'</b> 支已有成绩：<b>只改报名信息，不动成绩</b>'):'')+'</div>'+
+    '<div class="hint">写入是<b>合并式</b>：只 upsert 勾选的行，不删除任何队伍；退赛队伍请到「队伍管理」标记，不在导入里处理。提交后会生成一条导入任务记录（带回滚快照，可在任务列表撤回）。</div>'+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="impGoStep(3)">← 上一步</button>'+
+      '<button class="btn primary" '+(eff.conflict?'disabled':'')+' onclick="impCommit()">确认入库（写入 teams + 生成任务记录）</button>'+
+      '<span class="small muted">点下去还会再弹一次确认，列出影响面</span>'+
+    '</div></div>';
   return h;
 }
 
@@ -2303,7 +2976,7 @@ function viewTeams(){
     var signed=sc.signed?'<span class="tag ok">已签字</span>':'<span class="tag">未签字</span>';
     var has=sc.tasks?'<span class="tag b">有成绩</span>':'<span class="tag">待录入</span>';
     var st=t.status==='withdrawn'?'<span class="tag err">退赛</span>':'<span class="tag ok">在册</span>';
-    var src=t.source==='excel'?'<span class="tag b">WRC 导入</span>':(t.source==='manual'?'手动录入':esc(t.source||'—'));
+    var src=(t.source==='excel')?'<span class="tag b">WRC 导入</span>':((t.source==='excel_bulk')?'<span class="tag b">批量导入</span>':'<span class="tag">'+esc(impSourceName(t.source))+'</span>');
     var ev0=find(t.eventId)||{groups:['小学组','初中组']};
     var gOpts=(ev0.groups||['小学组','初中组']).map(function(g){return '<option '+(g===t.group?'selected':'')+'>'+esc(g)+'</option>';}).join('');
     return '<tr><td><b>'+esc(t.no||'—')+'</b></td>'+
@@ -2326,12 +2999,7 @@ function viewTeams(){
     '</div>'+
     '<div class="row"><button class="btn primary" onclick="addTeam()">添加到「'+esc(ev?ev.name:'')+'」</button>'+
       '<span class="sp" style="flex:1"></span>'+
-      '<button class="btn" onclick="toggleBulk()">批量导入（CSV）</button></div>'+
-    '<div id="bulkBox" style="display:none;margin-top:12px">'+
-      '<div class="fld"><label>每行一队：编号,队伍名称,组别,学校,教练,成员（编号与名称必填，其余可留空）</label>'+
-      '<textarea id="bulkText" placeholder="5001,星河队,小学组,杭州实验小学,张老师,张三/李四&#10;5002,追光队,小学组,杭州实验小学,李老师,王五/赵六"></textarea></div>'+
-      '<button class="btn primary" onclick="bulkImport()">导入</button>'+
-    '</div>'+
+      '<span class="small muted">批量导入已并入 <a href="javascript:gotoView(\'import\')" style="color:#1b63ab;text-decoration:none">队伍导入</a> —— 支持 WRC 报名表与批量导入 Excel，走变更预览 + 冲突裁决并留审计</span></div>'+
   '</div>'+
   '<div class="card"><h2>队伍列表 <small>按赛项筛选</small></h2>'+
     '<div class="row" style="margin-bottom:10px"><select style="max-width:220px" onchange="selTeamEvent(this.value)">'+opts+'</select>'+
@@ -2343,7 +3011,6 @@ function viewTeams(){
   seatPanel();
 }
 function selTeamEvent(id){CUR_EVENT=id;CUR_TEAM=null;render();}
-function toggleBulk(){var b=document.getElementById('bulkBox');if(b)b.style.display=b.style.display==='none'?'block':'none';}
 function addTeam(){
   var n=(document.getElementById('ntName')||{}).value||'';
   var no=((document.getElementById('ntNo')||{}).value||'').trim();
@@ -2357,21 +3024,6 @@ function addTeam(){
     members:((document.getElementById('ntMembers')||{}).value||'').trim(),
     status:'active',source:'manual'});
   save();render();
-}
-function bulkImport(){
-  var ta=document.getElementById('bulkText');if(!ta)return;
-  var lines=ta.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
-  var n=0,skip=0;
-  lines.forEach(function(l){
-    var p=l.split(/[,，]/);
-    var no=(p[0]||'').trim(),nm=(p[1]||'').trim();
-    if(!no||!nm){skip++;return;}
-    if(!/^\d+$/.test(no)||S.teams.some(function(t){return t.no===no;})){skip++;return;}
-    S.teams.push({id:uid('tm'),no:no,name:nm,group:(p[2]||'').trim(),school:(p[3]||'').trim(),
-      coach:(p[4]||'').trim(),members:(p[5]||'').trim(),eventId:CUR_EVENT,status:'active',source:'manual'});
-    n++;
-  });
-  save();alert('已导入 '+n+' 支队伍'+(skip?('，跳过 '+skip+' 行（编号缺失/重复/非数字）'):''));render();
 }
 function delTeam(id){
   var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===id){t=S.teams[i];break;}}
@@ -2994,6 +3646,8 @@ function scoreForm(ev){
       '</div>'+flds+'</div>';
   }).join('');
 
+  var tbInfo=timeBonusInfo(ev,rec);   /* 本队用时 → 奖励时间（= 总时间 − 用时） */
+
   var html=(SCORE_ENTRY_ROLE==='ops'
     ? '<div class="note" style="margin-bottom:10px"><b>工作人员代录</b>：本页为工作人员在后台代录 / 管理成绩，提交后成绩以「工作人员代录」身份留痕；现场裁判自录成绩请走平板评分端。</div>'
     : '')+
@@ -3002,11 +3656,17 @@ function scoreForm(ev){
     '<hr class="sep">'+
     '<div class="grid g3">'+
       '<div class="fld"><label>用时（秒）</label><input type="number" min="0" value="'+(rec.time||'')+'" oninput="setMeta(\'time\',this.value)"></div>'+
-      '<div class="fld"><label>黄牌数 <span class="muted" style="font-weight:400">（不计分）</span></label><input type="number" min="0" value="'+(rec.yellow||'')+'" oninput="setMeta(\'yellow\',this.value)"></div>'+
-      '<div class="fld"><label>红牌数 <span class="muted" style="font-weight:400">（不计分）</span></label><input type="number" min="0" value="'+(rec.red||'')+'" oninput="setMeta(\'red\',this.value)"></div>'+
+      (cardCounterOn(ev)?'<div class="fld"><label>黄牌数 <span class="muted" style="font-weight:400">（不计分）</span></label><input type="number" min="0" value="'+(rec.yellow||'')+'" oninput="setMeta(\'yellow\',this.value)"></div>':'')+
+      '<div class="fld"><label>红牌数 <span class="muted" style="font-weight:400">（不计分 · 记牌即取消该队比赛资格）</span></label><input type="number" min="0" value="'+(rec.red||'')+'" oninput="setMeta(\'red\',this.value)"></div>'+
     '</div>'+
-    '<div class="note" style="margin-bottom:12px">判罚记录：黄 / 红牌<b>不扣分</b>，只作记录、留痕与公示（总分 = 基础分 + 加分）；同一场次同一队伍累计 '+((ev.penaltyRule&&ev.penaltyRule.cardRules&&ev.penaltyRule.cardRules.redThreshold)||3)+' 张黄牌自动升级 1 张红牌；每张牌的<b>事由</b>由现场裁判在平板端从本赛项配置的事由清单中选择。</div>'+
-    '<div class="note" style="margin-bottom:12px">时间奖励：基准 '+REF_TIME+' 秒，越快加越多（每快 1 秒 +'+((ev.bonusRules||[]).filter(function(b){return b.template==='time_bonus';})[0]||{params:{}}).params.perSecond+' 分，封顶 '+(((ev.bonusRules||[]).filter(function(b){return b.template==='time_bonus';})[0]||{params:{}}).params.cap)+' 分）。</div>'+
+    '<div class="note" style="margin-bottom:12px">判罚记录：黄 / 红牌<b>不扣分</b>，只作记录、留痕与公示（总分 = 基础分 + 加分）。'+
+      (cardCounterOn(ev)
+        ? '同一场次同一队伍累计 <b>'+redThresholdOf(ev)+'</b> 张黄牌自动升级 1 张红牌；黄牌仅累计计数、不记事由。'
+        : '<b>本赛项已关闭黄牌计数器</b>：黄牌不累计、不升级红牌。')+
+      '<b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>，但不参与名次与奖项。'+
+      (allowDirectRedOf(ev)?'':'<b>本赛项不允许直接记红牌</b>，红牌只能由黄牌累计升级产生。')+
+      '红牌的<b>事由</b>由现场裁判在平板端从本赛项配置的事由清单中选择。</div>'+
+    '<div class="note" style="margin-bottom:12px">时间奖励：比赛总时间 <b>'+(tbInfo.has?mmss(tbInfo.total)+'（'+tbInfo.total+' 秒）':'—')+'</b> − 本队用时 <b>'+(tbInfo.used>0?mmss(tbInfo.used)+'（'+tbInfo.used+' 秒）':'未填')+'</b> = 奖励时间 <b>'+tbInfo.reward+' 秒</b>，每 1 秒 +'+(tbInfo.perSecond==null?'—':tbInfo.perSecond)+' 分'+(tbInfo.cap==null?'（不封顶）':'（封顶 '+tbInfo.cap+' 分）')+' → 本项 +'+tbInfo.score.toFixed(1)+' 分。</div>'+
     '<div class="row" style="justify-content:space-between">'+
       '<label class="row tight" style="cursor:pointer"><input type="checkbox" style="width:auto" '+(rec.signed?'checked':'')+' onchange="toggleSign(this.checked)"> <span class="small">选手代表已签字确认</span></label>'+
       '<span class="small">实时预估总分：<b id="preview" style="font-size:16px;color:#185FA5">'+computeTotal(ev,rec).total.toFixed(1)+'</b></span>'+
@@ -3120,12 +3780,16 @@ function viewRank(){
   var opts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===RANK_EVENT?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
   var ev=find(RANK_EVENT)||S.events[0];
   var rows=ev?standings(ev.id):[];
+  /* 赛中视图的判据：本场队伍是否已全部提交。
+     注意用 complete（任务全录入）而不是「有没有成绩」—— 录了一半的队既不是
+     「没开始」也不是「已完成」，现场恰恰最需要看到这种中间态。 */
+  var doneN=rows.filter(function(r){return r.complete;}).length;
+  var allDone=rows.length>0&&doneN===rows.length;
   var body=rows.map(function(r){
     return '<tr>'+
-      '<td class="num"><b>'+r.rank+'</b>'+(r.tie?' <span class="tag warn">并列</span>':'')+'</td>'+
+      '<td class="num">'+(r.dq?'<span class="tag err">取消资格</span>':'<b>'+r.rank+'</b>'+(r.tie?' <span class="tag warn">并列</span>':''))+'</td>'+
       '<td><b>'+esc(r.team.name)+'</b><div class="small muted">'+esc(r.team.group)+'</div></td>'+
-      '<td class="num">'+r.base.toFixed(1)+'</td>'+
-      '<td class="num">'+r.bonus.toFixed(1)+'</td>'+
+      '<td class="small">'+maskMembers(r.team.members)+'</td>'+
       '<td class="num">'+((r.yellow||r.red)?('黄 '+(r.yellow||0)+(r.red?(' · 红 '+r.red):'')):'—')+'</td>'+
       '<td class="num"><b style="font-size:14px">'+r.total.toFixed(1)+'</b></td>'+
       '<td class="num">'+(r.time||'—')+'</td>'+
@@ -3134,31 +3798,44 @@ function viewRank(){
   }).join('');
   return '<div class="card"><div class="row">'+
       '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selRankEvent(this.value)">'+opts+'</select>'+
-      '<button class="btn" onclick="exportStandings()">导出榜单 CSV</button>'+
+      '<button class="btn" onclick="exportStandings()">导出榜单 Excel</button>'+
       '<span class="sp" style="flex:1"></span>'+
       '<span class="small muted">计分模板：'+esc(tplName(ev&&ev.scoreRule&&ev.scoreRule.template))+' · 同分裁决：'+esc(tieName((ev&&ev.rankRule&&ev.rankRule.tieBreak)||[]))+'</span>'+
     '</div></div>'+
-  '<div class="card"><h2>实时榜单 <small>两轮取优 → 加权计分 → 加分 → 判罚记录（不计分）→ 排名</small></h2>'+
-    '<table><thead><tr><th class="num">名次</th><th>队伍</th><th class="num">基础分</th><th class="num">加分</th><th class="num">判罚（不计分）</th><th class="num">总分</th><th class="num">用时(s)</th><th>完成度</th></tr></thead>'+
-    '<tbody>'+(body||'<tr><td colspan="8" class="muted">该赛项暂无队伍或成绩</td></tr>')+'</tbody></table>'+
+  '<div class="card"><h2>实时榜单 <small>赛中视图 · 两轮取优 → 加权计分 → 加分 → 判罚记录（不计分）→ 排名</small></h2>'+
+    /* 无队伍时不显示进度条（否则会说成「0 / 0 队已完成」）；
+     有队伍且全提交 → 引导去公示；否则 → 赛中视图。 */
+    (rows.length===0
+      ? ''
+      : allDone
+        ? '<div class="note" style="border-left-color:#38a169;margin-bottom:10px"><b>本场 '+doneN+' / '+rows.length+' 队已全部提交</b> —— 赛中的进度核对到此为止。对外正式成绩请走「公示与导出」（发布前完整性校验 → 生成对外公示表，本页不出对外产物）。 '+
+        '<button class="btn sm" style="margin-left:6px" onclick="gotoPub(\''+ev.id+'\')">去公示与导出</button></div>'
+        : '<div class="note" style="margin-bottom:10px"><b>赛中视图：'+doneN+' / '+rows.length+' 队已完成</b> —— 本页把<b>尚未提交</b>的队伍也列出来（0 分 / 待完成），用于现场核对进度、判罚与用时；'+
+        '全部提交后这里会引导去「公示与导出」，<b>对外成绩以公示页为准</b>。</div>')+
+'<div style="overflow:auto">'+
+
+    '<table><thead><tr><th class="num">名次</th><th>队伍</th><th>队员（脱敏）</th><th class="num">判罚（不计分）</th><th class="num">总分</th><th class="num">用时(s)</th><th>完成度</th></tr></thead>'+
+
+    '<tbody>'+(body||'<tr><td colspan="7" class="muted">该赛项暂无队伍或成绩</td></tr>')+'</tbody></table></div>'+
   '</div>'+
   '<div class="card"><h2>计分明细校验 <small>用于裁判复核</small></h2><div class="note">'+
     '基础分 = Σ(各任务得分)；加分 = 时间奖励 + 计数奖励；<b>总分 = max(0, 基础分 + 加分)</b>。<br>'+
-    '<b>黄 / 红牌不扣分</b>：判罚只作记录与留痕（当前判罚模板：'+penName(ev&&ev.penaltyRule&&ev.penaltyRule.template)+'），不参与任何算分；'+
-    '红牌 = 比赛结束、<b>成绩保留</b>；取消比赛资格 = <b>成绩作废</b>，属独立档位，二者不可混为一谈。'+
-    '与名次有关的唯一影响是并列时"黄牌少者优先"（归排名规则）。'+
+    '<b>黄 / 红牌不扣分</b>：判罚只作记录与留痕（当前判罚模板：'+penName(ev&&ev.penaltyRule&&ev.penaltyRule.template)+'），不参与任何算分。<br>'+
+    '<b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>（分数照算、留痕可查），但<b>不参与名次与奖项</b>，榜上标注「取消资格」。'+
+    '这与裁定台的「取消资格（<b>成绩作废</b>、不进榜单）」是两回事：前者保留成绩只取消名次。<br>'+
+    (ev&&!cardCounterOn(ev)?'<b>本赛项已关闭黄牌计数器</b>：黄牌不累计、不升级红牌；红牌仍可直接记录。<br>':'')+
+    '与名次有关的另一处影响是并列时"黄牌少者优先"（归排名规则）。'+
   '</div></div>';
 }
 function selRankEvent(id){RANK_EVENT=id;render();}
 function exportStandings(){
   var ev=find(RANK_EVENT);if(!ev)return;
   var rows=standings(ev.id);
-  var csv='排名,队伍,组别,基础分,加分,黄牌,红牌,总分,用时(秒),完成度\n';
-  rows.forEach(function(r){
-    csv+=[r.rank,r.team.name,r.team.group,r.base.toFixed(1),r.bonus.toFixed(1),r.yellow||0,r.red||0,r.total.toFixed(1),r.time||'',r.complete?'完成':'待完成'].join(',')+'\n';
-  });
-  download('榜单_'+contestName(CUR_CONTEST)+'_'+ev.name+'_'+nowStr().replace(/[: ]/g,'')+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
+  var head=['排名','队伍','组别','黄牌','红牌','总分','用时(秒)','完成度'];
+  var data=rows.map(function(r){return [r.rank,r.team.name,r.team.group,r.yellow||0,r.red||0,r.total.toFixed(1),r.time||'',r.complete?'完成':'待完成'];});
+  download('榜单_'+contestName(CUR_CONTEST)+'_'+ev.name+'_'+nowStr().replace(/[: ]/g,'')+'.xlsx', buildXlsx([head].concat(data)), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
+
 
 /* ---------- 视图 7：公示与导出 ---------- */
 /* 赛事级重发待办：与平板端 P11「常驻重发提示」同源 —— 覆盖所有赛项，不只是当前选中赛项 */
@@ -3206,7 +3883,7 @@ function viewPublish(){
       '<label class="row tight small" style="cursor:pointer"><input type="checkbox" style="width:auto" '+(PUB_ANON?'checked':'')+' onchange="toggleAnon(this.checked)"> 匿名公示（仅显示参赛队序号）</label>'+
       '<span class="sp" style="flex:1"></span>'+
       (pub?(dirty?'<button class="btn primary" onclick="doPublish()">重新发布（覆盖公示榜）</button>':'<button class="btn" onclick="doPublish()">重新发布</button>'):((hf&&hf.status==='待发布')?'<button class="btn primary" onclick="doPublish()">发布公示（裁判长已移交）</button>':'<button class="btn primary" onclick="doPublish()">发布公示</button>'))+
-      '<button class="btn" onclick="exportPublishCsv()">导出公示 CSV</button>'+'<button class="btn" onclick="exportPublishXlsx()">导出公示 Excel</button>'+
+      '<button class="btn" onclick="exportPublishXlsx()">导出公示</button>'+
     '</div>'+
     '<div class="hint" style="margin-top:10px">按赛事决策：现场大屏与实时直播不做，<b>公示页为对外唯一出口</b>；内部实时排名不外投。'+
       '<br><b>发布后不可撤销</b>：成绩再变更时<b>不提供「下架榜单」</b>，而是用本页的<b>待重发</b>提示驱动<b>覆盖式重新发布</b>——对外始终有一版有效成绩，不留空窗。发布键在本页（工作人员后台），裁判长端只做发布前确认。</div>'+
@@ -3306,13 +3983,7 @@ function doPublish(){if(!perm('publish'))return;
     dirty?('成绩已变更 → 覆盖式重新发布（变更：'+dirty.why+'）'):'发布成绩公示');
   save();render();
 }
-function exportPublishCsv(){
-  var ev=find(PUB_EVENT);if(!ev)return;
-  var rows=standings(ev.id);
-  var csv='名次,队伍,总分\n';
-  rows.forEach(function(r){csv+=[r.rank,(PUB_ANON?'参赛队 '+r.rank:r.team.name),r.total.toFixed(1)].join(',')+'\n';});
-  download('公示_'+contestName(CUR_CONTEST)+'_'+ev.name+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
-}
+
 function exportPublishXlsx(){
   var ev=find(PUB_EVENT);if(!ev)return;
   var rows=standings(ev.id);
@@ -3546,7 +4217,8 @@ function maskPerson(n){
   n=String(n==null?'':n).trim();
   if(!n)return '';
   if(n.length<=1)return n;
-  return n.charAt(0)+new Array(Math.min(n.length-1,2)+1).join('*');
+  if(n.length===2)return n.charAt(0)+'x';
+  return n.charAt(0)+new Array(n.length-1).join('x')+n.charAt(n.length-1);
 }
 function maskMembers(m){
   var arr=String(m==null?'':m).split(/[\/、,，|]/).map(function(s){return s.trim();}).filter(Boolean);
@@ -3771,12 +4443,12 @@ function retryAllUpload(){
   save();render();
 }
 function exportEvidenceCsv(){
-  var csv='文件名,类型,赛项,组别,归属,产生端,生成时刻,同步状态,本地路径,云端路径,config_version,保留期\n';
-  (S.evidence||[]).forEach(function(e){
-    csv+=[e.file,e.type,(find(e.eventId)||{name:''}).name,e.group,e.owner,e.src,e.ts,e.sync,
-          evLocalPath(e),evCloudPath(e),e.configVersion,e.keep].join(',')+'\n';
+  var head=['文件名','类型','赛项','组别','归属','产生端','生成时刻','同步状态','本地路径','云端路径','config_version','保留期'];
+  var data=(S.evidence||[]).map(function(e){
+    return [e.file,e.type,(find(e.eventId)||{name:''}).name,e.group,e.owner,e.src,e.ts,e.sync,
+          evLocalPath(e),evCloudPath(e),e.configVersion,e.keep];
   });
-  download('留底证据清单_'+contestName(CUR_CONTEST)+'_'+nowStr().replace(/[: ]/g,'')+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
+  download('留底证据清单_'+contestName(CUR_CONTEST)+'_'+nowStr().replace(/[: ]/g,'')+'.xlsx', buildXlsx([head].concat(data)), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 function viewEvidence(){
   var all=S.evidence||[];
@@ -4192,7 +4864,7 @@ function viewAlerts(){
       '<span class="sp" style="flex:1"></span>'+
       '<select style="max-width:130px" onchange="selAlertType(this.value)">'+tOpts+'</select>'+
       '<select style="max-width:130px" onchange="selAlertStatus(this.value)">'+sOpts+'</select>'+
-      '<button class="btn sm" onclick="exportAlertCsv()">导出告警 CSV</button>'+
+      '<button class="btn sm" onclick="exportAlertCsv()">导出告警</button>'+
     '</div>'+
     '<div style="overflow:auto;margin-top:10px">'+
     '<table><thead><tr><th style="width:130px">时间</th><th style="width:90px">类型</th><th>触发对象</th><th>详情</th><th style="width:170px">原因 / 触发条件</th><th style="width:80px">来源人</th><th style="width:130px">推送对象</th><th style="width:110px">处理状态</th><th style="width:170px">操作</th></tr></thead>'+
@@ -4215,12 +4887,12 @@ function viewAlerts(){
   '</div>';
 }
 function exportAlertCsv(){
-  var csv='时间,类型,触发对象,详情,原因,来源人,推送对象,状态,处理人\n';
-  (S.alerts||[]).forEach(function(a){
-    csv+=[a.ts,a.type,a.target,(a.detail||'').replace(/,/g,'；'),(a.reason||'').replace(/,/g,'；'),
-          a.by,a.push,a.status,a.handledBy||''].join(',')+'\n';
+  var head=['时间','类型','触发对象','详情','原因','来源人','推送对象','状态','处理人'];
+  var data=(S.alerts||[]).map(function(a){
+    return [a.ts,a.type,a.target,(a.detail||'').replace(/,/g,'；'),(a.reason||'').replace(/,/g,'；'),
+          a.by,a.push,a.status,a.handledBy||''];
   });
-  download('告警记录_'+contestName(CUR_CONTEST)+'_'+nowStr().replace(/[: ]/g,'')+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
+  download('告警记录_'+contestName(CUR_CONTEST)+'_'+nowStr().replace(/[: ]/g,'')+'.xlsx', buildXlsx([head].concat(data)), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
 /* ---------- 视图（处理进度看板）：告警收件箱 + 改分/争议台账 的纯只读聚合 ----------
@@ -4385,7 +5057,7 @@ function viewAudit(){
   }).join('');
   var imp=(S.importLogs||[]).map(function(l){
     return '<tr><td class="small">'+esc(l.ts)+'</td><td>'+esc(l.operator)+'</td>'+
-      '<td><span class="tag">导入队伍</span></td><td>'+esc(l.source==='excel'?'Excel 导入':l.source)+'</td>'+
+      '<td><span class="tag">导入队伍</span></td><td>'+esc(impSourceName(l.source))+'</td>'+
       '<td class="small">🟢 新增 '+l.summary.insert+'　🟡 更新 '+l.summary.update+'　⚪ 跳过 '+l.summary.skip+'　🔴 冲突 '+l.summary.conflict+'</td>'+
       '<td class="small">'+esc((l.detail||[]).map(function(d){return importActName(d.act)+' '+d.no;}).join('、')||'—')+'</td>'+
       '<td class="small">'+esc(l.status)+'</td></tr>';
@@ -4395,7 +5067,7 @@ function viewAudit(){
       '<div class="hint" style="margin-top:10px">每条记录含：操作人 / 时间 / 操作对象 / <b>旧值 → 新值</b> / 原因。成绩提交后即进入终态，任何改动须走「裁定 P8 / 改分审批 P9」留痕链路（不提供直接解锁）。<b>每条留痕都带操作人的真实身份与角色</b>（工作人员），越权尝试同样会被记录（见「角色与权限」）。</div>'+
     '</div>'+
     '<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">操作日志 <small>共 '+logs.length+' 条</small></h2>'+
-      '<button class="btn sm" onclick="exportAudit()">导出审计 CSV</button></div>'+
+      '<button class="btn sm" onclick="exportAudit()">导出审计</button></div>'+
       '<table style="margin-top:10px"><thead><tr><th style="width:130px">时间</th><th style="width:90px">操作人</th><th style="width:92px">操作类型</th><th>操作对象</th><th style="width:120px">旧值</th><th style="width:140px">新值</th><th style="width:180px">原因</th></tr></thead>'+
       '<tbody>'+(rows||'<tr><td colspan="7" class="muted">暂无操作日志</td></tr>')+'</tbody></table>'+
     '</div>'+
@@ -4405,13 +5077,11 @@ function viewAudit(){
     '</div>';
 }
 function exportAudit(){
-  var csv='时间,操作人,操作类型,操作对象,旧值,新值,原因\n';
-  (S.auditLogs||[]).forEach(function(l){
-    csv+=[l.ts,l.operator,l.action,l.target,l.before,l.after,l.reason].map(function(x){
-      return '"'+String(x==null?'':x).replace(/"/g,'""')+'"';
-    }).join(',')+'\n';
+  var head=['时间','操作人','操作类型','操作对象','旧值','新值','原因'];
+  var data=(S.auditLogs||[]).map(function(l){
+    return [l.ts,l.operator,l.action,l.target,l.before,l.after,l.reason];
   });
-  download('操作审计_'+contestName(CUR_CONTEST)+'_'+nowStr().replace(/[: ]/g,'')+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');
+  download('操作审计_'+contestName(CUR_CONTEST)+'_'+nowStr().replace(/[: ]/g,'')+'.xlsx', buildXlsx([head].concat(data)), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
 /* ---------- 跨标签同步：别的标签改了赛事索引（新建 / 删除 / 改状态）时，本标签重读盘 ---------- */
