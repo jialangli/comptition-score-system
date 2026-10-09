@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // ============================================================================
 // 赛项与评分规则
@@ -151,25 +154,47 @@ type BonusRule struct {
 }
 
 // PenaltyTemplate 扣分模板。
+//
+// 口径（2026/10/09 产品定调）：判罚**只有「仅记录不扣分」一档** —— 黄 / 红牌
+// 只作记录、留痕与公示，不进总分。红牌的直接后果「取消比赛资格」是**赛制固定的
+// 处置**（保留成绩、只取消名次与奖项），不在这里配。
+//
+// 两个历史值保留但前端不再提供，仅用于读旧数据：
+//   - per_card 按牌扣分（已下线）：老赛事的黄/红牌扣分值可能非 0，算分分支继续
+//     保留，保证历史赛事复现出的分数与当初一致；
+//   - none 不扣分：与 record_only 效果相同，早期前端写入的值。
 type PenaltyTemplate string
 
 const (
-	PenaltyPerCard PenaltyTemplate = "per_card" // 按牌扣分：黄牌 / 红牌各按张数折算
-	PenaltyNone    PenaltyTemplate = "none"     // 不扣分
+	// PenaltyRecordOnly 仅记录不扣分 —— 当前唯一在用的判罚口径。
+	PenaltyRecordOnly PenaltyTemplate = "record_only"
+
+	PenaltyNone    PenaltyTemplate = "none"     // 历史值：不扣分（等价于 record_only）
+	PenaltyPerCard PenaltyTemplate = "per_card" // 历史值：按牌扣分（已下线，仅兼容旧数据）
 )
 
 // Valid 校验扣分模板是否合法。空值视为「未配置」，按不扣分处理。
+//
+// 历史值仍算合法 —— 老赛事必须能原样读回、原样复现；若判为非法，
+// 历史赛项一保存就会被拦下，那是数据事故而不是校验。
 func (t PenaltyTemplate) Valid() bool {
 	switch t {
-	case "", PenaltyPerCard, PenaltyNone:
+	case "", PenaltyRecordOnly, PenaltyNone, PenaltyPerCard:
 		return true
 	}
 	return false
 }
 
+// Deprecated 该模板是否已下线（前端不应再提供，仅用于读旧数据）。
+func (t PenaltyTemplate) Deprecated() bool {
+	return t == PenaltyPerCard
+}
+
 // Display 返回中文名称（界面与留痕文案用）。
 func (t PenaltyTemplate) Display() string {
 	switch t {
+	case PenaltyRecordOnly:
+		return "仅记录不扣分"
 	case PenaltyPerCard:
 		return "按牌扣分"
 	case PenaltyNone, "":
@@ -178,12 +203,100 @@ func (t PenaltyTemplate) Display() string {
 	return string(t)
 }
 
-// PenaltyRule 扣分规则。
+// CardReason 一条可判罚事由。
 //
-//	per_card : {"yellow": 5, "red": 15}
+// 黄牌自 2026/10 起改为「计分板常驻计数器」，点一下即记一张、不选事由，
+// 所以实际只有红牌用事由；Card 字段保留是为了兼容早期同时配黄 / 红事由的数据。
+type CardReason struct {
+	Code  string `json:"code"`            // 事由编号，如 R01
+	Card  string `json:"card"`            // yellow / red
+	Label string `json:"label,omitempty"` // 事由名称
+}
+
+// DefaultRedThreshold 累计升级阈值默认值：3 张黄牌 → 1 张红牌。
+const DefaultRedThreshold = 3
+
+// CardRules 牌面计数规则，对应后台「赛项与规则配置 → 判罚规则」。
+//
+// 与 PenaltyRule 的分工：
+//   - PenaltyRule 管「扣不扣分」（现在恒为「仅记录不扣分」）；
+//   - CardRules 管「黄牌计数器开不开、几张升级红牌、能不能直接记红牌、红牌有哪些事由」。
+//
+// 红牌的直接后果（当场取消比赛资格）由赛制固定、不在这份配置里 —— 可配的是
+// 「怎么记牌」，不配「记了会怎样」，避免现场把后果也改掉。
+//
+// 布尔字段用指针是为了区分「未配置」与「显式关闭」：历史数据没有这两个字段，
+// 读出来是 nil，必须按「开 / 允许」处理（与改制前行为一致），
+// 不能当成 false 静默停用黄牌计数器。
+type CardRules struct {
+	// Enabled 黄牌计数器总开关。关闭 = **整个黄牌体系停用**：
+	// 裁判端不显示计数器、黄牌不累计、也不再有「累计 N 张自动升级红牌」；
+	// 红牌仍可直接记录（红牌是独立入口，不受黄牌开关影响）。
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// RedThreshold 累计多少张黄牌自动升级为 1 张红牌。仅 Enabled 为真时生效。
+	RedThreshold int `json:"redThreshold,omitempty"`
+
+	// AllowDirectRed 是否允许裁判跳过黄牌累计、直接记红牌。默认允许。
+	AllowDirectRed *bool `json:"allowDirectRed,omitempty"`
+
+	// Reasons 可判罚事由（裁判端只读选择）。
+	Reasons []CardReason `json:"reasons,omitempty"`
+}
+
+// EnabledOrDefault 黄牌计数器是否启用。未配置时默认启用。
+func (c *CardRules) EnabledOrDefault() bool {
+	if c == nil || c.Enabled == nil {
+		return true
+	}
+	return *c.Enabled
+}
+
+// ThresholdOrDefault 累计升级阈值。未配置或非正数时取默认值。
+func (c *CardRules) ThresholdOrDefault() int {
+	if c == nil || c.RedThreshold <= 0 {
+		return DefaultRedThreshold
+	}
+	return c.RedThreshold
+}
+
+// AllowDirectRedOrDefault 是否允许直接记红牌。未配置时默认允许。
+func (c *CardRules) AllowDirectRedOrDefault() bool {
+	if c == nil || c.AllowDirectRed == nil {
+		return true
+	}
+	return *c.AllowDirectRed
+}
+
+// ReasonLabels 返回指定牌面的事由名称（保持配置顺序、跳过空条目）。
+func (c *CardRules) ReasonLabels(card string) []string {
+	if c == nil {
+		return nil
+	}
+	out := make([]string, 0, len(c.Reasons))
+	for _, r := range c.Reasons {
+		if r.Card != card {
+			continue
+		}
+		if label := strings.TrimSpace(r.Label); label != "" {
+			out = append(out, label)
+		}
+	}
+	return out
+}
+
+// PenaltyRule 判罚规则。
+//
+//	record_only : 仅记录不扣分（当前口径，params 留空）
+//	per_card    : {"yellow": 5, "red": 15}（已下线，仅读旧数据）
+//
+// ⚠️ CardRules 必须是**具名字段**，不能像早期前端那样塞进 Params["cardRules"]：
+// 塞进 Params 后 Go 侧没有类型可读；而作为本结构体的未知顶层字段又会被
+// encoding/json 直接丢弃 —— 存回库里就永久少一块配置，且全程零报错。
 type PenaltyRule struct {
-	Template PenaltyTemplate `json:"template"`
-	Params   map[string]any  `json:"params,omitempty"`
+	Template  PenaltyTemplate `json:"template"`
+	Params    map[string]any  `json:"params,omitempty"`
+	CardRules *CardRules      `json:"cardRules,omitempty"`
 }
 
 // RankRule 排名与奖项规则。

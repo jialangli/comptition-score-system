@@ -177,7 +177,40 @@ func TestValidateEvent(t *testing.T) {
 			wantWarns: 1, warnContain: []string{"每单位分为 0"},
 		},
 
-		{name: "扣分模板非法", mutate: func(e *model.Event) { e.PenaltyRule.Template = model.PenaltyTemplate("weird") }, wantErrs: 1, errContains: []string{"扣分模板"}},
+		{name: "判罚模板非法", mutate: func(e *model.Event) { e.PenaltyRule.Template = model.PenaltyTemplate("weird") }, wantErrs: 1, errContains: []string{"判罚模板"}},
+
+		// —— 判罚模板：「仅记录不扣分」是当前唯一口径；历史值仍须能通过校验 ——
+		{name: "判罚模板 record_only 合法", mutate: func(e *model.Event) { e.PenaltyRule.Template = model.PenaltyRecordOnly }},
+		{name: "判罚模板 none（历史值）仍合法", mutate: func(e *model.Event) { e.PenaltyRule.Template = model.PenaltyNone }},
+		{name: "判罚模板空值视为未配置", mutate: func(e *model.Event) { e.PenaltyRule.Template = "" }},
+
+		// —— 牌面计数规则（黄牌计数器开关 / 累计升级阈值）——
+		{
+			name: "累计升级阈值为负数报错",
+			mutate: func(e *model.Event) {
+				e.PenaltyRule.CardRules = &model.CardRules{RedThreshold: -1}
+			},
+			wantErrs: 1, errContains: []string{"累计升级阈值"},
+		},
+		{
+			name: "关掉黄牌计数器同时禁止直接记红牌仅提醒",
+			mutate: func(e *model.Event) {
+				e.PenaltyRule.CardRules = &model.CardRules{Enabled: boolPtr(false), AllowDirectRed: boolPtr(false)}
+			},
+			wantWarns: 1, warnContain: []string{"无法记录任何红牌"},
+		},
+		{
+			name: "关掉黄牌计数器但允许直接记红牌不提醒",
+			mutate: func(e *model.Event) {
+				e.PenaltyRule.CardRules = &model.CardRules{Enabled: boolPtr(false), AllowDirectRed: boolPtr(true)}
+			},
+		},
+		{
+			name: "牌面规则未配置不产生任何提示（历史数据）",
+			mutate: func(e *model.Event) {
+				e.PenaltyRule.CardRules = nil
+			},
+		},
 
 		{
 			name:      "按牌扣分但扣分值全为 0 仅提醒",
@@ -297,3 +330,7 @@ func containsSub(list []string, sub string) bool {
 	}
 	return false
 }
+
+// boolPtr 取布尔指针，用于构造「显式关闭」的牌面规则（nil 表示未配置）。
+func boolPtr(b bool) *bool { return &b }
+

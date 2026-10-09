@@ -18,12 +18,16 @@ import (
 	"github.com/jialangli/comptition-score-server/internal/model"
 )
 
-// DefaultRefTime 时间奖励的基准时长（秒）。
+// DefaultRefTime 时间奖励基准时长的**全局兜底**（秒）。
 //
-// 含义：完赛用时恰好等于该值时时间奖励为 0，每快 1 秒加 perSecond 分，
-// 慢于该值不计负分（截断到 0）。该值属于赛制参数而非赛项级配置，
-// 可由 ev.scoreRule.params.refTime 覆盖，未配置时回退到本默认值
-// （与前端原型的 REF_TIME 常量对齐）。
+// 语义（2026-10-09 与前端对齐）：时间奖励的基准就是**赛项总时间** ——
+// 整场比赛给队伍的总时长（裁判端 appbar 的「/ 总 03:45」），取自
+// ev.scoreRule.params.refTime（前端「赛项与规则配置」里的「赛项总时间」；
+// 多阶段赛项由 Σ 阶段时长镜像进这个字段）。
+//
+// 计算口径：奖励时间 = 基准 − 实际用时（例：总 60 秒、用时 50 秒 → 奖励时间 10 秒），
+// 每快 1 秒加 perSecond 分，慢于该值截断到 0（不计负分）。
+// 本常量只在赛项没配总时间时兜底（与前端原型的 REF_TIME 常量对齐）。
 const DefaultRefTime = 120.0
 
 // RefTimeFor 取某赛项的时间奖励基准时长。

@@ -98,6 +98,9 @@ func Rank(in RankInput, opts RankOptions) []model.StandingRow {
 			Team:   t,
 			Result: best.Result,
 			Rounds: RoundNumbers(recs),
+			// 红牌 = 当场取消比赛资格：成绩保留（Result 照常算出），
+			// 但不排名次、不参评奖项。
+			Disqualified: DisqualifiedByCards(recs, ev.PenaltyRule.CardRules),
 		}
 		if has && best.Record != nil {
 			row.Duration = finiteOr0(best.Record.DurationSec)
@@ -108,9 +111,20 @@ func Rank(in RankInput, opts RankOptions) []model.StandingRow {
 
 	sortRows(rows, ev.RankRule.TieBreak, opts.NameLess)
 
+	// 名次只发给「有资格」的队伍：被取消比赛资格的不占名次序号，
+	// 否则第 3 名被取消后留出一个空洞、后面的队伍全部少一名。
+	// 它们仍留在 rows 里（成绩与判罚要可查、公示要能说明），只是 Rank = 0。
+	rank := 0
 	for i := range rows {
-		rows[i].Rank = i + 1
-		rows[i].Tie = i > 0 && rows[i-1].Result.Total == rows[i].Result.Total
+		if rows[i].Disqualified {
+			rows[i].Rank = 0
+			rows[i].Award = ""
+			rows[i].Tie = false
+			continue
+		}
+		rank++
+		rows[i].Rank = rank
+		rows[i].Tie = rank > 1 && rows[i-1].Result.Total == rows[i].Result.Total
 	}
 
 	assignAwards(rows, ev.RankRule.AwardTiers, opts.AwardOnlyComplete)
@@ -184,6 +198,11 @@ func sortRows(rows []model.StandingRow, tieBreak []string, nameLess func(a, b st
 	}
 	sort.SliceStable(rows, func(i, j int) bool {
 		a, b := rows[i], rows[j]
+		// 被取消比赛资格的排在最后：他们不参与名次，挨在一起也便于页面
+		// 用一段「已取消资格」的说明统一交代，而不是散在榜单中间。
+		if a.Disqualified != b.Disqualified {
+			return !a.Disqualified
+		}
 		if a.Result.Total != b.Result.Total {
 			return a.Result.Total > b.Result.Total
 		}
@@ -275,6 +294,10 @@ func assignAwards(rows []model.StandingRow, tiers map[string]float64, onlyComple
 		}
 		given := 0
 		for idx < n && given < cnt {
+			if rows[idx].Disqualified {
+				idx++ // 已取消比赛资格：名次与奖项都不参与，名额顺延给下一名
+				continue
+			}
 			if onlyComplete && !rows[idx].Result.Complete {
 				idx++ // 名次保留，但不出现在获奖名单里
 				continue

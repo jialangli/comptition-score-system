@@ -40,14 +40,23 @@ type ScoreResult struct {
 
 // StandingRow 榜单行。
 type StandingRow struct {
-	Rank      int         `json:"rank"`
-	Team      Team        `json:"team"`
-	Result    ScoreResult `json:"result"`
-	Duration  float64     `json:"time"`            // 取优轮的用时（并列裁决用）
-	Rounds    []int       `json:"rounds"`          // 有记录的轮次（升序）
-	BestRound int         `json:"bestRound"`       // 取优采用的那一轮；0 表示尚无记录
-	Award     string      `json:"award,omitempty"` // 一等奖 / 亚军 …
-	Tie       bool        `json:"tie,omitempty"`   // 与上一名同分
+	Rank     int         `json:"rank"`
+	Team     Team        `json:"team"`
+	Result   ScoreResult `json:"result"`
+	Duration float64     `json:"time"`            // 取优轮的用时（并列裁决用）
+	Rounds   []int       `json:"rounds"`          // 有记录的轮次（升序）
+	BestRound int        `json:"bestRound"`       // 取优采用的那一轮；0 表示尚无记录
+	Award    string      `json:"award,omitempty"` // 一等奖 / 亚军 …
+
+	// Disqualified 因红牌被取消比赛资格（当场生效）。
+	//
+	// 语义（2026/10/09 产品定调）：**成绩保留、只取消名次与奖项** ——
+	// Result 里分数照常给出（留痕可查），但不参与名次（Rank = 0）
+	// 也不参与奖项分配。与「弃赛」（队伍主动退赛）和裁定台的
+	// 「取消资格（成绩作废）」是三条不同路径。
+	Disqualified bool `json:"disqualified,omitempty"`
+
+	Tie bool `json:"tie,omitempty"` // 与上一名同分
 }
 
 // GroupStandings 一个组别的榜单。

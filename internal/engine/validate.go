@@ -200,14 +200,34 @@ func ValidateEvent(ev *model.Event) ValidationResult {
 		}
 	}
 
-	// —— 扣分规则 ——
+	// —— 判罚规则 ——
+	//
+	// 模板现在只有「仅记录不扣分」一档（2026/10/09 口径：黄 / 红牌只作记录、
+	// 留痕与公示，不进总分）。历史值 per_card / none 仍是合法值 —— 老赛事要能
+	// 原样保存、原样复现，判为非法会让历史赛项一提交就被拦下。
+	// 这里刻意**不给历史值发警告**：前端原型（demo validateEvent）不校验判罚段，
+	// 单方面加警告会让两端校验结果的数量对不上（golden 基准会立刻挂）。
 	if !ev.PenaltyRule.Template.Valid() {
-		fail("penaltyRule.template", "扣分模板「%s」不是有效值（可选：按牌扣分 / 不扣分）", string(ev.PenaltyRule.Template))
+		fail("penaltyRule.template", "判罚模板「%s」不是有效值（可选：仅记录不扣分）", string(ev.PenaltyRule.Template))
 	}
 	if ev.PenaltyRule.Template == model.PenaltyPerCard {
 		y, r := numOr0(ev.PenaltyRule.Params["yellow"]), numOr0(ev.PenaltyRule.Params["red"])
 		if y == 0 && r == 0 {
 			warn("penaltyRule.params", "已启用按牌扣分，但黄牌与红牌的扣分值均为 0")
+		}
+	}
+
+	// —— 牌面计数规则（黄牌计数器开关 / 累计升级阈值 / 红牌入口）——
+	//
+	// 关闭开关 = 整个黄牌体系停用（不显示、不累计、也不升级红牌），
+	// 因此「关了黄牌计数器 + 又禁止直接记红牌」= 该赛项再也产生不了红牌，
+	// 这是一条现场一定会踩的配置矛盾，必须提示（但不拦，留给人判断）。
+	if cr := ev.PenaltyRule.CardRules; cr != nil {
+		if cr.RedThreshold < 0 {
+			fail("penaltyRule.cardRules.redThreshold", "黄牌累计升级阈值不能为负数（收到 %d）", cr.RedThreshold)
+		}
+		if !cr.EnabledOrDefault() && !cr.AllowDirectRedOrDefault() {
+			warn("penaltyRule.cardRules", "黄牌计数器已关闭、同时禁止直接记红牌，该赛项将无法记录任何红牌")
 		}
 	}
 
