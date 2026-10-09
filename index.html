@@ -60,6 +60,8 @@ tbody tr:hover{background:#fbfcfe}
 .btn.sm{padding:3px 9px;font-size:12px;border-radius:7px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 input,select,textarea{font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff;color:var(--txt)}
+/* 只读值：长得像输入框，但不给点、也不给改 —— 用于「本赛制只有一种」的配置项 */
+.ro{font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:8px;width:100%;background:#f4f6f8;color:var(--muted)}
 input:focus,select:focus,textarea:focus{outline:2px solid #cfe2f6;border-color:var(--brand)}
 textarea{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
 input[type=range]{padding:0;border:none;background:transparent}
@@ -256,9 +258,9 @@ function seedData(){
           {id:'focus',name:'专注力任务',type:'numeric',maxScore:100,weight:0.5,control:'slider'},
           {id:'build',name:'搭建任务',type:'numeric',maxScore:100,weight:0.5,control:'slider'}
         ],
-        scoreRule:{template:'weighted_sum',params:{}},
+        scoreRule:{template:'sum',params:{}},
         bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
-        penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,allowDirectRed:true,reasons:[
+        penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,reasons:[
           {code:'R01',card:'red',label:'顶撞裁判'},
           {code:'R02',card:'red',label:'恶意撞击能源轨道'},
           {code:'R03',card:'red',label:'故意破坏场地器材'},
@@ -269,13 +271,13 @@ function seedData(){
         tasks:[
           {id:'base',name:'救援主任务',type:'numeric',maxScore:100,weight:1.0,control:'slider'}
         ],
-        scoreRule:{template:'weighted_sum',params:{}},
+        scoreRule:{template:'sum',params:{}},
         bonusRules:[
           {template:'count_bonus',params:{taskId:'energy',perUnit:5,cap:null}},
           {template:'count_bonus',params:{taskId:'bridge',perUnit:5,cap:null}},
           {template:'time_bonus',params:{perSecond:0.5,cap:10}}
         ],
-        penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,allowDirectRed:true,reasons:[
+        penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,reasons:[
           {code:'R01',card:'red',label:'顶撞裁判'},
           {code:'R02',card:'red',label:'恶意撞击能源轨道'},
           {code:'R03',card:'red',label:'故意破坏场地器材'},
@@ -287,9 +289,9 @@ function seedData(){
           {id:'task_a',name:'任务A（待补）',type:'numeric',maxScore:100,weight:0.6,control:'slider'},
           {id:'task_b',name:'任务B（待补）',type:'numeric',maxScore:100,weight:0.4,control:'slider'}
         ],
-        scoreRule:{template:'weighted_sum',params:{}},
+        scoreRule:{template:'sum',params:{}},
         bonusRules:[{template:'time_bonus',params:{perSecond:0.5,cap:10}}],
-        penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,allowDirectRed:true,reasons:[
+        penaltyRule:{template:'record_only',params:{},cardRules:{enabled:true,redThreshold:3,reasons:[
           {code:'R01',card:'red',label:'顶撞裁判'},
           {code:'R02',card:'red',label:'恶意撞击能源轨道'},
           {code:'R03',card:'red',label:'故意破坏场地器材'},
@@ -356,7 +358,9 @@ function taskRawScore(t,val){
 function computeTotal(ev,rec){
   rec=rec||{};
   var st=rec.tasks||{};
-  var tpl=(ev.scoreRule&&ev.scoreRule.template)||'weighted_sum';
+  /* 兜底用「直接求和」：本赛制只用这一种。历史上兜底是 weighted_sum，而它会把满分
+     口径整个改掉（数值项先归一化到 100 分制、再按权重加），兜错时**不报错只静默算错分**。 */
+  var tpl=(ev.scoreRule&&ev.scoreRule.template)||'sum';
   var tasks=ev.tasks||[];
   var base=0,scored=0;
   if(tpl==='weighted_sum'){
@@ -402,11 +406,14 @@ function computeTotal(ev,rec){
      红牌 —— 当场取消比赛资格：成绩保留（照常算分、照常留痕），但不排名次、不参评奖项。
      开关 —— 黄牌计数器关闭 = 整个黄牌体系停用（不显示、不累计、不升级红牌）；
              红牌是独立入口，仍可直接记录。 */
-function penName(t){return {record_only:'仅记录不扣分',per_card:'按牌扣分（已下线）',none:'不扣分'}[t]||t||'仅记录不扣分';}
+/* 判罚模板恒显示「仅记录不扣分」—— 本赛制只有这一种（与 tplName 恒显示「直接求和」对称）。
+   存量数据里若还是历史值（per_card / none），加载时已由 migrate 归一；后端则由迁移 0013 归一。
+   所以这里不再按值区分 —— 否则界面会显示出一个赛制里根本不存在的模板名。
+   签名保留参数是为了调用点读起来自然。 */
+function penName(t){return '仅记录不扣分';}
 function cardRulesOf(ev){return (ev&&ev.penaltyRule&&ev.penaltyRule.cardRules)||null;}
 function cardCounterOn(ev){var c=cardRulesOf(ev);return !(c&&c.enabled===false);}
 function redThresholdOf(ev){var c=cardRulesOf(ev);var n=Number(c&&c.redThreshold);return (n>0?n:3);}
-function allowDirectRedOf(ev){var c=cardRulesOf(ev);return !(c&&c.allowDirectRed===false);}
 function redReasonsOf(ev){
   var c=cardRulesOf(ev);
   return ((c&&c.reasons)||[]).filter(function(r){return (r.card==='red'?'red':'yellow')==='red';});
@@ -573,7 +580,7 @@ function viewDash(){
       kpi('待公示赛事',notPub,'大屏与公示页同源同步')+
     '</div>'+
   '<div class="card" style="margin-top:16px"><h2>赛项状态总览 <small>配置 → 报名 → 打分 → 公示</small></h2>'+
-    '<table><thead><tr><th>赛项</th><th>组别</th><th>计分项</th><th>计分模板</th><th class="num">队伍</th><th class="num">已签字</th><th>配置校验</th><th>公示</th></tr></thead>'+
+    '<table><thead><tr><th>赛项</th><th>组别</th><th>计分项</th><th>计分规则</th><th class="num">队伍</th><th class="num">已签字</th><th>配置校验</th><th>公示</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table>'+
   '</div>'+
   '<div class="card"><h2>设计说明 <small>这套后台的设计取舍</small></h2>'+
@@ -593,7 +600,11 @@ var CONTROL_NAMES={slider:'滑块（0–满分）',number:'数字输入',counter
 var BONUS_NAMES={time_bonus:'时间奖励（越快加分）',count_bonus:'计数奖励（按数量加分）',none:'无奖励'};
 var TIE_NAMES={score:'得分高者优先',time:'用时少者优先'};
 var IMPORT_ACT={insert:'新增',update:'更新',skip:'跳过',conflict:'冲突'};
-function tplName(t){return {weighted_sum:'加权求和',sum:'直接求和',average:'取平均值'}[t]||t||'—';}
+/* 本赛制只有「直接求和」一种计分规则 —— 界面上恒显示它，不再出现其它模板名。
+   前后端引擎仍保留其它模板的算分分支（历史数据要能逐位复现），但界面已无切换入口，
+   所以「显示」与「实际算法」不会分叉。签名保留参数是为了调用点读起来自然。 */
+function tplName(t){return '直接求和';}
+function tplText(ev){return tplName();}
 function taskTypeName(t){return TASK_TYPES[t]||t||'—';}
 function bonusName(t){return BONUS_NAMES[t]||t||'—';}
 function tieName(arr){return (arr||[]).map(function(k){return TIE_NAMES[k]||k;}).join(' → ')||'—';}
@@ -668,7 +679,6 @@ function eventForm(ev){
   var pen=ev.penaltyRule&&ev.penaltyRule.params||{};
   var crOn=cardCounterOn(ev);              /* 未配置 = 开（与后端 EnabledOrDefault 同口径） */
   var crThresh=redThresholdOf(ev);
-  var crDirect=allowDirectRedOf(ev);
   var redReasons=redReasonsOf(ev);
   var redReasonRows=redReasons.map(function(r,gi){
     return '<tr>'+
@@ -710,9 +720,7 @@ function eventForm(ev){
     '<div class="hint">数值评分 = 得分 ÷ 满分 × 权重；计数得分 = 数量 × 每单位分；是否完成 = 完成记满分、未完成记 0 分。</div>'+
     '<hr class="sep">'+
     '<div class="grid g2">'+
-      '<div class="fld"><label>计分模板</label><select onchange="updEventTpl(this.value)">'+
-        ['weighted_sum','sum','average'].map(function(x){return '<option value="'+x+'" '+((ev.scoreRule&&ev.scoreRule.template)===x?'selected':'')+'>'+tplName(x)+'</option>';}).join('')+
-      '</select></div>'+
+      '<div class="fld"><label>计分规则</label><div class="ro">'+esc(tplText(ev))+'</div></div>'+
       '<div class="fld"><label>同分时的裁决规则</label><select onchange="updTieBreakPreset(this.value)">'+
         '<option value="score,time" '+(tb==='score,time'?'selected':'')+'>按用时少者优先</option>'+
         '<option value="score" '+(tb==='score'?'selected':'')+'>并列（不额外裁决）</option>'+
@@ -738,19 +746,21 @@ function eventForm(ev){
       (crOn
         ? '<span class="small muted" style="margin-left:18px">升级阈值</span>'+
           '<input type="number" min="1" style="width:70px" value="'+crThresh+'" oninput="updRedThreshold(this.value)">'+
-          '<span class="small muted">张黄牌 → 1 张红牌</span>'+
-          '<span class="small muted" style="margin-left:18px">直接记红牌</span>'+
-          '<select style="width:86px" onchange="updAllowDirectRed(this.value)">'+
-            '<option value="1" '+(crDirect?'selected':'')+'>允许</option>'+
-            '<option value="0" '+(!crDirect?'selected':'')+'>禁止</option>'+
-          '</select>'
-        : '<span class="small muted" style="margin-left:18px"><b>黄牌体系已停用</b>：不显示计数器、不累计、不升级红牌；红牌仍可直接记录</span>')+
+          '<span class="small muted">张黄牌 → 1 张红牌</span>'
+        : '<span class="small muted" style="margin-left:18px">升级阈值</span>'+
+          '<span class="small muted">已停用（黄牌不累计、不升级红牌）</span>')+
     '</div>'+
     '<div class="row" style="justify-content:space-between;margin-top:12px"><label class="small muted"><b style="color:#c53030">红牌</b> 事由（'+redReasons.length+' 条）</label>'+
       '<button class="btn sm" onclick="addRedReason()">+ 添加红牌事由</button></div>'+
     '<table style="margin-top:6px"><thead><tr><th style="width:56px" class="num">序号</th><th>事由名称</th><th style="width:70px"></th></tr></thead>'+
       '<tbody>'+(redReasonRows||'<tr><td colspan="3" class="muted">暂无红牌事由</td></tr>')+'</tbody></table>'+
-    '<div class="hint" style="margin-top:6px">红牌事由按赛项配置（不同赛项可判罚行为不同），由工作人员按当季规则填写，裁判端只读选择、不能自造。<b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>，但不参与名次与奖项（赛制固定后果、不在此配置）。</div>'+
+    '<div class="hint" style="margin-top:6px">红牌事由按赛项配置（不同赛项可判罚行为不同），由工作人员按当季规则填写，裁判端只读选择、不能自造。<b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>，但不参与名次与奖项（赛制固定后果、不在此配置）。'+
+    /* 红牌事由为空 → 裁判端那个「记红牌」弹窗无从选择。
+       原判据是「某判罚开关为真 且 事由为空」，该开关已删除，故改为恒定检查。 */
+    (redReasons.length===0?
+      '<br><b style="color:#c53030">提醒</b>：<b>尚未配置红牌事由</b> —— 裁判端点「记红牌」时将无从选择。'
+      :'')+
+    '</div>'+
     '<div class="row" style="margin-top:6px">'+
       '<button class="btn primary" onclick="doValidate()">校验配置</button>'+
       '<button class="btn" onclick="exportEvent()">导出该赛项 JSON</button>'+
@@ -760,6 +770,9 @@ function eventForm(ev){
 }
 function updEvent(k,v){var ev=find(CUR_EVENT);if(!ev)return;ev[k]=v;save();}
 function updEventGroups(v){var ev=find(CUR_EVENT);if(!ev)return;ev.groups=v.split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean);save();}
+/* ⚠️ 界面已不再提供入口（计分规则只读展示，见 tplText）。
+   保留此函数是为了：① 历史/外部调用；② 以后赛制若改口要用别的模板，接回下拉即可 ——
+   它负责的「切模板时保留 params.refTime」逻辑仍然是有用的参考。 */
 function updEventTpl(v){
   var ev=find(CUR_EVENT);if(!ev)return;
   var before=(ev.scoreRule&&ev.scoreRule.template)||'—';
@@ -767,7 +780,7 @@ function updEventTpl(v){
   ev.scoreRule={template:v,params:{}};
   /* 切模板不该把「赛项总时间」抹掉 —— 它是时间奖励的基准，后端引擎也读这个字段 */
   if(_keepRef!=null)ev.scoreRule.params.refTime=_keepRef;
-  logAudit('改配置',ev.name+' · 计分模板',before,v,'赛项规则调整');
+  logAudit('改配置',ev.name+' · 计分规则',before,v,'赛项规则调整');
   save();
 }
 function updTieBreak(v){var ev=find(CUR_EVENT);if(!ev)return;ev.rankRule.tieBreak=v.split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean);save();}
@@ -785,12 +798,11 @@ function ensureCardRules(){
   var ev=find(CUR_EVENT);if(!ev)return null;
   if(!ev.penaltyRule)ev.penaltyRule={template:'record_only',params:{}};
   if(!ev.penaltyRule.params)ev.penaltyRule.params={};
-  if(!ev.penaltyRule.cardRules)ev.penaltyRule.cardRules={enabled:true,redThreshold:3,allowDirectRed:true,reasons:[]};
+  if(!ev.penaltyRule.cardRules)ev.penaltyRule.cardRules={enabled:true,redThreshold:3,reasons:[]};
   var cr=ev.penaltyRule.cardRules;
   if(!cr.reasons)cr.reasons=[];
   if(cr.enabled==null)cr.enabled=true;      /* 未配置 = 开：旧数据没这个字段，不能当成关 */
   if(cr.redThreshold==null)cr.redThreshold=3;
-  if(cr.allowDirectRed==null)cr.allowDirectRed=true;
   if(!ev.penaltyRule.template)ev.penaltyRule.template='record_only';
   return cr;
 }
@@ -805,7 +817,6 @@ function updCardCounter(on){
   save();render();
 }
 function updRedThreshold(v){var cr=ensureCardRules();if(!cr)return;cr.redThreshold=Number(v)||3;save();}
-function updAllowDirectRed(v){var cr=ensureCardRules();if(!cr)return;cr.allowDirectRed=(v==='1');save();}
 /* 红牌事由的下标映射：redReasonsOf() 是 filter 出来的子集，其序号不等于
    cardRules.reasons 里的下标（历史数据可能混有黄牌事由），所以必须回查真实下标，
    否则会改错条目 —— 这类「看起来对、改在别条上」的缺陷在界面上很难被发现。 */
@@ -1941,7 +1952,7 @@ function viewRank(){
       '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selRankEvent(this.value)">'+opts+'</select>'+
       '<button class="btn" onclick="exportStandings()">导出榜单 CSV</button>'+
       '<span class="sp" style="flex:1"></span>'+
-      '<span class="small muted">计分模板：'+esc(tplName(ev&&ev.scoreRule&&ev.scoreRule.template))+' · 同分裁决：'+esc(tieName((ev&&ev.rankRule&&ev.rankRule.tieBreak)||[]))+'</span>'+
+      '<span class="small muted">计分规则：'+esc(tplName(ev&&ev.scoreRule&&ev.scoreRule.template))+' · 同分裁决：'+esc(tieName((ev&&ev.rankRule&&ev.rankRule.tieBreak)||[]))+'</span>'+
     '</div></div>'+
   '<div class="card"><h2>实时榜单 <small>两轮取优 → 加权计分 → 加分 → 判罚记录（不计分）→ 排名 → 按比例分配奖项</small></h2>'+
     '<div class="note" style="margin:8px 12px">黄 / 红牌<b>不扣分</b>，只作记录与留痕（当前判罚模板：'+penName(ev&&ev.penaltyRule&&ev.penaltyRule.template)+'）。<b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>（分数照算），但不参与名次与奖项，榜上标注「取消资格」——与裁定台的「取消资格（成绩作废、不进榜单）」是两回事。'+(ev&&!cardCounterOn(ev)?'<b>本赛项已关闭黄牌计数器</b>：黄牌不累计、不升级红牌；红牌仍可直接记录。':'')+'</div>'+

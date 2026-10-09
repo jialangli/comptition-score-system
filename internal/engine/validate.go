@@ -15,13 +15,13 @@ import (
 // 分两级结论，语义明确、不混用：
 //
 //	LevelError   阻断 —— 配置不合法，保存接口必须返回 400，不允许进入打分环节。
-//	             典型：任务 id 重复、等级任务缺映射表、引用了不存在的计分模板。
+//	             典型：任务 id 重复、等级任务缺映射表、引用了不存在的计分规则。
 //	LevelWarning 提醒 —— 可以保存，但很可能不是运营的本意，界面上需要黄条提示。
 //	             典型：权重之和不等于 1、奖项占比之和超过 1。
 //
 // 与前端 validateEvent 的差异（三处，均为修正而非放宽）：
 //
-//  1. 无效计分模板：前端仅在校验里不检查，而 computeTotal 会静默落入
+//  1. 无效计分规则：前端仅在校验里不检查，而 computeTotal 会静默落入
 //     average 分支算出错误成绩 → 这里作为 error 阻断。
 //  2. count_bonus 引用不存在任务：前端写了一个恒真的判断（some 遍历奖励规则
 //     时必然包含自身），该 error 永远不会触发 → 这里改为 warning，
@@ -111,9 +111,9 @@ func ValidateEvent(ev *model.Event) ValidationResult {
 		seenGroup[g] = true
 	}
 
-	// —— 计分模板 ——
+	// —— 计分规则 ——
 	if !ev.ScoreRule.Template.Valid() {
-		fail("scoreRule.template", "计分模板「%s」不是有效值（可选：加权求和 / 直接求和 / 取平均值）", string(ev.ScoreRule.Template))
+		fail("scoreRule.template", "计分规则「%s」不是有效值（本赛制只用「直接求和」）", string(ev.ScoreRule.Template))
 	}
 
 	// —— 任务项 ——
@@ -164,6 +164,7 @@ func ValidateEvent(ev *model.Event) ValidationResult {
 			}
 		}
 	}
+	// 界面已不再提供「加权求和」；这条校验只为历史赛项的配置健康度保留。
 	if ev.ScoreRule.Template == model.TplWeightedSum && math.Abs(weightSum-1) > 0.001 {
 		warn("tasks", "数值任务权重之和 = %.2f，加权求和模板下建议等于 1.0", weightSum)
 	}
@@ -217,17 +218,14 @@ func ValidateEvent(ev *model.Event) ValidationResult {
 		}
 	}
 
-	// —— 牌面计数规则（黄牌计数器开关 / 累计升级阈值 / 红牌入口）——
+	// —— 牌面计数规则（黄牌计数器开关 / 累计升级阈值）——
 	//
-	// 关闭开关 = 整个黄牌体系停用（不显示、不累计、也不升级红牌），
-	// 因此「关了黄牌计数器 + 又禁止直接记红牌」= 该赛项再也产生不了红牌，
-	// 这是一条现场一定会踩的配置矛盾，必须提示（但不拦，留给人判断）。
+	// 关闭开关 = 整个黄牌体系停用（不显示、不累计、也不升级红牌）；红牌是独立入口，
+	// 仍可直接记录，所以「关了黄牌计数器」本身**不构成矛盾、不产生警告**。
+	//（原来还有一条「关了计数器 + 禁止直接记红牌」的警告，随该开关一并删除。）
 	if cr := ev.PenaltyRule.CardRules; cr != nil {
 		if cr.RedThreshold < 0 {
 			fail("penaltyRule.cardRules.redThreshold", "黄牌累计升级阈值不能为负数（收到 %d）", cr.RedThreshold)
-		}
-		if !cr.EnabledOrDefault() && !cr.AllowDirectRedOrDefault() {
-			warn("penaltyRule.cardRules", "黄牌计数器已关闭、同时禁止直接记红牌，该赛项将无法记录任何红牌")
 		}
 	}
 

@@ -217,7 +217,7 @@ func taskRawScore(t *model.Task, val any) *float64 {
 // 计算链路（与前端 computeTotal 逐位一致，运算顺序刻意保持相同，
 // 以保证浮点结果完全一致）：
 //
-//	基础分 base    按计分模板聚合各任务得分
+//	基础分 base    按计分规则聚合各任务得分
 //	  weighted_sum  Σ(归一化分 × 权重)，数值项按满分归一化到 100 分制
 //	  sum           Σ(原始分)
 //	  average       已录入项的算术平均
@@ -245,7 +245,11 @@ func Score(ev *model.Event, rec model.ScoreRecord, refTime float64) model.ScoreR
 
 	tpl := ev.ScoreRule.Template
 	if tpl == "" {
-		tpl = model.TplWeightedSum
+		// 兜底用「直接求和」：本赛制只用这一种。
+		// 历史上这里兜底的是 weighted_sum —— 它把满分口径整个改掉（数值项先归一化到
+		// 100 分制、再按权重加），且**不会报错**，只会在成绩上静默算错分，所以兜底
+		// 必须与赛制一致。
+		tpl = model.TplSum
 	}
 
 	var scored int

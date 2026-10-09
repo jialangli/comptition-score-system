@@ -66,12 +66,19 @@ func TestScoreFallbackBranches(t *testing.T) {
 		}
 	})
 
-	t.Run("计分模板为空时按加权求和处理", func(t *testing.T) {
-		ev := newEvent(numTask("t", 100, 1.0))
+	// ⚠️ 必须用**两个权重不同的任务**才能测出兜底口径：单任务时
+	// 「直接求和」与「加权求和」结果相同（都等于原始分），测了等于没测。
+	// 两个满分 100、权重各 0.5 的任务得 100 / 50：
+	//   直接求和 = 100 + 50 = 150；加权求和 = 100×0.5 + 50×0.5 = 75。
+	t.Run("计分规则为空时兜底为直接求和（不是加权求和）", func(t *testing.T) {
+		ev := newEvent(numTask("a", 100, 0.5), numTask("b", 100, 0.5))
 		ev.ScoreRule.Template = ""
-		got := Score(ev, rec(map[string]any{"t": 80.0}, 0, 0, 0), DefaultRefTime)
-		if got.Base != 80 || !got.Complete {
-			t.Errorf("Base = %v / Complete = %v，期望 80 / true", got.Base, got.Complete)
+		got := Score(ev, rec(map[string]any{"a": 100.0, "b": 50.0}, 0, 0, 0), DefaultRefTime)
+		if got.Base != 150 {
+			t.Errorf("Base = %v，期望 150（空模板应兜底为「直接求和」；若得到 75 说明跑的是加权求和）", got.Base)
+		}
+		if !got.Complete {
+			t.Error("两个任务都录了，Complete 应为 true")
 		}
 	})
 

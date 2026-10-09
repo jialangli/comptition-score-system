@@ -19,7 +19,8 @@ const (
 //
 // 一场赛事 = 一次具体举办（如「2026 WRC 中国区总决赛 · 杭州」）。
 // ⚠️ 与「赛项 Event」不是一个层级：赛事是容器，赛项是容器里的比赛项目。
-//    前端术语口径见仓库文档；后端落地为 events.contest_id 引用本表。
+//
+//	前端术语口径见仓库文档；后端落地为 events.contest_id 引用本表。
 type Contest struct {
 	ID         string        `json:"id"`
 	Name       string        `json:"name"`

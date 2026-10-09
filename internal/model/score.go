@@ -40,13 +40,13 @@ type ScoreResult struct {
 
 // StandingRow 榜单行。
 type StandingRow struct {
-	Rank     int         `json:"rank"`
-	Team     Team        `json:"team"`
-	Result   ScoreResult `json:"result"`
-	Duration float64     `json:"time"`            // 取优轮的用时（并列裁决用）
-	Rounds   []int       `json:"rounds"`          // 有记录的轮次（升序）
-	BestRound int        `json:"bestRound"`       // 取优采用的那一轮；0 表示尚无记录
-	Award    string      `json:"award,omitempty"` // 一等奖 / 亚军 …
+	Rank      int         `json:"rank"`
+	Team      Team        `json:"team"`
+	Result    ScoreResult `json:"result"`
+	Duration  float64     `json:"time"`            // 取优轮的用时（并列裁决用）
+	Rounds    []int       `json:"rounds"`          // 有记录的轮次（升序）
+	BestRound int         `json:"bestRound"`       // 取优采用的那一轮；0 表示尚无记录
+	Award     string      `json:"award,omitempty"` // 一等奖 / 亚军 …
 
 	// Disqualified 因红牌被取消比赛资格（当场生效）。
 	//

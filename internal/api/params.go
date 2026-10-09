@@ -105,12 +105,12 @@ type updateTeamBody struct {
 // Rows 由解析层（前端或 P6 的 xlsx 解析）按列映射归一后提供；
 // 本层只负责把它转交给 service。
 type importPreviewReq struct {
-	EventID       string          `json:"eventId"`
-	Rows          []importRowJSON `json:"rows"`
-	SelectedLines []int           `json:"selectedLines,omitempty"` // 仅提交时使用
-	Overrides     []importOverrideJSON `json:"overrides,omitempty"` // 仅提交时使用：冲突行的人工裁决
-	Note          string          `json:"note,omitempty"`
-	Source        string          `json:"source,omitempty"`
+	EventID       string               `json:"eventId"`
+	Rows          []importRowJSON      `json:"rows"`
+	SelectedLines []int                `json:"selectedLines,omitempty"` // 仅提交时使用
+	Overrides     []importOverrideJSON `json:"overrides,omitempty"`     // 仅提交时使用：冲突行的人工裁决
+	Note          string               `json:"note,omitempty"`
+	Source        string               `json:"source,omitempty"`
 }
 
 // importOverrideJSON 冲突行的人工裁决。

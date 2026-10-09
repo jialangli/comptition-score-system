@@ -296,7 +296,7 @@ func TestScore(t *testing.T) {
 			want: model.ScoreResult{Base: 15, Penalty: 50, Total: 0, Complete: true},
 		},
 		{
-			name: "未知计分模板不静默降级（由校验层报错阻断）",
+			name: "未知计分规则不静默降级（由校验层报错阻断）",
 			build: func() (*model.Event, model.ScoreRecord) {
 				ev := newEvent(numTask("t", 100, 1.0))
 				ev.ScoreRule.Template = model.ScoreTemplate("weird_template")

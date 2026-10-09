@@ -31,7 +31,8 @@ const (
 // TeamNo 在「赛事 + 赛项」内唯一（0004 后的复合唯一索引
 // uq_teams_contest_event_no），落实「一号一队」。
 // ⚠️ 是**赛事内**唯一，不是全局唯一：同一编号在不同赛事里可以重复，
-//   跨赛事汇总时靠「队名 + 学校」近似归并（严格身份另需 team_uid）。
+//
+//	跨赛事汇总时靠「队名 + 学校」近似归并（严格身份另需 team_uid）。
 type Team struct {
 	ID        int64      `json:"id"`
 	ContestID string     `json:"contestId"` // 所属赛事（0004 多赛事维度）

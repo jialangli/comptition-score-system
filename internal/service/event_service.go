@@ -258,7 +258,7 @@ func diffEvent(old, new *model.Event) eventDiff {
 
 	add("名称", old.Name, new.Name)
 	add("组别", strings.Join(old.Groups, "/"), strings.Join(new.Groups, "/"))
-	add("计分模板", old.ScoreRule.Template.Display(), new.ScoreRule.Template.Display())
+	add("计分规则", old.ScoreRule.Template.Display(), new.ScoreRule.Template.Display())
 	add("奖励规则", describeBonuses(old), describeBonuses(new))
 	add("扣分规则", old.PenaltyRule.Template.Display(), new.PenaltyRule.Template.Display())
 	add("同分裁决", describeTieBreak(old), describeTieBreak(new))
@@ -279,7 +279,7 @@ func describeEvent(ev *model.Event) string {
 	if ev == nil {
 		return ""
 	}
-	return fmt.Sprintf("名称=%s；组别=%s；计分模板=%s；任务项=%s",
+	return fmt.Sprintf("名称=%s；组别=%s；计分规则=%s；任务项=%s",
 		ev.Name, strings.Join(ev.Groups, "/"),
 		ev.ScoreRule.Template.Display(), describeTasks(ev))
 }

@@ -74,16 +74,19 @@ type Task struct {
 	SortOrder int                `json:"sortOrder"`
 }
 
-// ScoreTemplate 计分模板。
+// ScoreTemplate 计分规则。
 type ScoreTemplate string
 
+// 本赛制只用 TplSum（直接求和）。另两种**引擎继续支持**（历史赛事要逐位复现，
+// 与 per_card 的处理一致），但界面已不再提供 —— 现场人员误选它的可能性
+// 远大于真的需要它，而一旦误选，分制会变且不报错。
 const (
-	TplWeightedSum ScoreTemplate = "weighted_sum" // Σ(归一化分 × 权重)
-	TplSum         ScoreTemplate = "sum"          // Σ(原始分)
-	TplAverage     ScoreTemplate = "average"      // 取平均
+	TplWeightedSum ScoreTemplate = "weighted_sum" // Σ(归一化分 × 权重)；界面已下线，仅历史数据
+	TplSum         ScoreTemplate = "sum"          // Σ(原始分) —— 本赛制唯一在用的模板
+	TplAverage     ScoreTemplate = "average"      // 取平均；界面已下线，仅历史数据
 )
 
-// Valid 校验计分模板是否合法。
+// Valid 校验计分规则是否合法。
 func (t ScoreTemplate) Valid() bool {
 	switch t {
 	case TplWeightedSum, TplSum, TplAverage:
@@ -220,14 +223,17 @@ const DefaultRedThreshold = 3
 //
 // 与 PenaltyRule 的分工：
 //   - PenaltyRule 管「扣不扣分」（现在恒为「仅记录不扣分」）；
-//   - CardRules 管「黄牌计数器开不开、几张升级红牌、能不能直接记红牌、红牌有哪些事由」。
+//   - CardRules 管「黄牌计数器开不开、几张升级红牌、红牌有哪些事由」。
 //
 // 红牌的直接后果（当场取消比赛资格）由赛制固定、不在这份配置里 —— 可配的是
 // 「怎么记牌」，不配「记了会怎样」，避免现场把后果也改掉。
 //
-// 布尔字段用指针是为了区分「未配置」与「显式关闭」：历史数据没有这两个字段，
-// 读出来是 nil，必须按「开 / 允许」处理（与改制前行为一致），
+// Enabled 用指针是为了区分「未配置」与「显式关闭」：历史数据没有这个字段，
+// 读出来是 nil，必须按「开」处理（与改制前行为一致），
 // 不能当成 false 静默停用黄牌计数器。
+//
+// 注：2026/10/09 去掉了一个从来没起过作用的开关 —— 红牌本就有两条来路
+// （裁判直接记 + 黄牌累计升级），事由表也只服务于前者，所以不必再配「要不要允许」。
 type CardRules struct {
 	// Enabled 黄牌计数器总开关。关闭 = **整个黄牌体系停用**：
 	// 裁判端不显示计数器、黄牌不累计、也不再有「累计 N 张自动升级红牌」；
@@ -236,9 +242,6 @@ type CardRules struct {
 
 	// RedThreshold 累计多少张黄牌自动升级为 1 张红牌。仅 Enabled 为真时生效。
 	RedThreshold int `json:"redThreshold,omitempty"`
-
-	// AllowDirectRed 是否允许裁判跳过黄牌累计、直接记红牌。默认允许。
-	AllowDirectRed *bool `json:"allowDirectRed,omitempty"`
 
 	// Reasons 可判罚事由（裁判端只读选择）。
 	Reasons []CardReason `json:"reasons,omitempty"`
@@ -258,14 +261,6 @@ func (c *CardRules) ThresholdOrDefault() int {
 		return DefaultRedThreshold
 	}
 	return c.RedThreshold
-}
-
-// AllowDirectRedOrDefault 是否允许直接记红牌。未配置时默认允许。
-func (c *CardRules) AllowDirectRedOrDefault() bool {
-	if c == nil || c.AllowDirectRed == nil {
-		return true
-	}
-	return *c.AllowDirectRed
 }
 
 // ReasonLabels 返回指定牌面的事由名称（保持配置顺序、跳过空条目）。

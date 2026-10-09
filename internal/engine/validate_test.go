@@ -137,7 +137,7 @@ func TestValidateEvent(t *testing.T) {
 
 		{name: "权重之和不等于 1 仅提醒", mutate: func(e *model.Event) { e.Tasks[1].Weight = 0.5 }, wantWarns: 1, warnContain: []string{"权重之和"}},
 
-		{name: "计分模板非法", mutate: func(e *model.Event) { e.ScoreRule.Template = model.ScoreTemplate("weird") }, wantErrs: 1, errContains: []string{"计分模板"}},
+		{name: "计分规则非法", mutate: func(e *model.Event) { e.ScoreRule.Template = model.ScoreTemplate("weird") }, wantErrs: 1, errContains: []string{"计分规则"}},
 
 		{name: "奖励模板非法", mutate: func(e *model.Event) { e.BonusRules[0].Template = model.BonusTemplate("weird") }, wantErrs: 1, errContains: []string{"不是有效值"}},
 
@@ -193,16 +193,11 @@ func TestValidateEvent(t *testing.T) {
 			wantErrs: 1, errContains: []string{"累计升级阈值"},
 		},
 		{
-			name: "关掉黄牌计数器同时禁止直接记红牌仅提醒",
+			// 关掉黄牌计数器本身不是矛盾：红牌是独立入口，仍可直接记录。
+			//（原来这里还有一条「关了计数器 + 禁止直接记红牌」的警告，随该开关一起删除。）
+			name: "关掉黄牌计数器不产生警告",
 			mutate: func(e *model.Event) {
-				e.PenaltyRule.CardRules = &model.CardRules{Enabled: boolPtr(false), AllowDirectRed: boolPtr(false)}
-			},
-			wantWarns: 1, warnContain: []string{"无法记录任何红牌"},
-		},
-		{
-			name: "关掉黄牌计数器但允许直接记红牌不提醒",
-			mutate: func(e *model.Event) {
-				e.PenaltyRule.CardRules = &model.CardRules{Enabled: boolPtr(false), AllowDirectRed: boolPtr(true)}
+				e.PenaltyRule.CardRules = &model.CardRules{Enabled: boolPtr(false)}
 			},
 		},
 		{
@@ -333,4 +328,3 @@ func containsSub(list []string, sub string) bool {
 
 // boolPtr 取布尔指针，用于构造「显式关闭」的牌面规则（nil 表示未配置）。
 func boolPtr(b bool) *bool { return &b }
-

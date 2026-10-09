@@ -14,18 +14,17 @@ import (
 //	开关 —— 黄牌计数器关闭 = 整个黄牌体系停用（不显示、不累计、不升级）。
 // ============================================================================
 
-func cardRules(enabled bool, threshold int, allowDirect bool) *model.CardRules {
+func cardRules(enabled bool, threshold int) *model.CardRules {
 	return &model.CardRules{
-		Enabled:        &enabled,
-		RedThreshold:   threshold,
-		AllowDirectRed: &allowDirect,
+		Enabled:      &enabled,
+		RedThreshold: threshold,
 	}
 }
 
 // ---------------------------------------------------------------- 牌面归一
 
 func TestResolveCardsYellowUpgrade(t *testing.T) {
-	rules := cardRules(true, 3, true)
+	rules := cardRules(true, 3)
 	cases := []struct {
 		yellow, red, wantRed, wantUpgraded int
 	}{
@@ -48,7 +47,7 @@ func TestResolveCardsYellowUpgrade(t *testing.T) {
 
 func TestResolveCardsThresholdVariants(t *testing.T) {
 	// 阈值可配：2 张升 1 张时，2 黄即产生红牌
-	rules := cardRules(true, 2, true)
+	rules := cardRules(true, 2)
 	if got := ResolveCards(model.ScoreRecord{Yellow: 2}, rules); got.Red != 1 {
 		t.Errorf("阈值 2 时 2 张黄牌应升级 1 张红牌，得到 %d", got.Red)
 	}
@@ -64,7 +63,7 @@ func TestResolveCardsThresholdVariants(t *testing.T) {
 
 func TestResolveCardsCounterDisabled(t *testing.T) {
 	// 关掉黄牌计数器 = 整个黄牌体系停用：黄牌不累计、也不升级红牌
-	rules := cardRules(false, 3, true)
+	rules := cardRules(false, 3)
 	got := ResolveCards(model.ScoreRecord{Yellow: 9}, rules)
 	if got.Red != 0 || got.UpgradedRed != 0 {
 		t.Errorf("计数器关闭时不应升级红牌，得到 red=%d upgraded=%d", got.Red, got.UpgradedRed)
@@ -77,7 +76,7 @@ func TestResolveCardsCounterDisabled(t *testing.T) {
 }
 
 func TestResolveCardsDirectRedAddsUp(t *testing.T) {
-	rules := cardRules(true, 3, true)
+	rules := cardRules(true, 3)
 	got := ResolveCards(model.ScoreRecord{Yellow: 3, Red: 1}, rules)
 	if got.Red != 2 {
 		t.Errorf("直接红牌 1 + 黄牌升级 1 = 2，得到 %d", got.Red)
@@ -85,7 +84,7 @@ func TestResolveCardsDirectRedAddsUp(t *testing.T) {
 }
 
 func TestResolveCardsNegativeDefense(t *testing.T) {
-	rules := cardRules(true, 3, true)
+	rules := cardRules(true, 3)
 	got := ResolveCards(model.ScoreRecord{Yellow: -5, Red: -2}, rules)
 	if got.Yellow != 0 || got.Red != 0 {
 		t.Errorf("负数应归零，得到 yellow=%d red=%d", got.Yellow, got.Red)
@@ -95,7 +94,7 @@ func TestResolveCardsNegativeDefense(t *testing.T) {
 // ---------------------------------------------------------------- 开关默认值
 
 func TestCardRulesDefaults(t *testing.T) {
-	// 历史数据没有 cardRules 字段 → 指针为 nil，必须按「开 / 3 张 / 允许」处理，
+	// 历史数据没有 cardRules 字段 → 指针为 nil，必须按「开 / 3 张」处理，
 	// 否则改制前存下的赛项会静默停用黄牌计数器。
 	var nilRules *model.CardRules
 	if !nilRules.EnabledOrDefault() {
@@ -104,26 +103,20 @@ func TestCardRulesDefaults(t *testing.T) {
 	if got := nilRules.ThresholdOrDefault(); got != model.DefaultRedThreshold {
 		t.Errorf("nil 时阈值应取默认 %d，得到 %d", model.DefaultRedThreshold, got)
 	}
-	if !nilRules.AllowDirectRedOrDefault() {
-		t.Error("cardRules 为 nil 时应默认允许直接记红牌")
-	}
 
 	// 空结构体（前端写了 {}）同样按默认处理
 	empty := &model.CardRules{}
-	if !empty.EnabledOrDefault() || empty.ThresholdOrDefault() != model.DefaultRedThreshold || !empty.AllowDirectRedOrDefault() {
+	if !empty.EnabledOrDefault() || empty.ThresholdOrDefault() != model.DefaultRedThreshold {
 		t.Error("空 cardRules 应全部取默认值")
 	}
 
 	// 显式关闭必须被尊重
-	off := cardRules(false, 5, false)
+	off := cardRules(false, 5)
 	if off.EnabledOrDefault() {
 		t.Error("显式 enabled=false 不应被默认值覆盖")
 	}
 	if off.ThresholdOrDefault() != 5 {
 		t.Error("显式阈值应生效")
-	}
-	if off.AllowDirectRedOrDefault() {
-		t.Error("显式 allowDirectRed=false 不应被默认值覆盖")
 	}
 }
 
@@ -146,7 +139,7 @@ func TestReasonLabels(t *testing.T) {
 // ---------------------------------------------------------------- 红牌后果
 
 func TestDisqualifiedByCardsUsesAnyRound(t *testing.T) {
-	rules := cardRules(true, 3, true)
+	rules := cardRules(true, 3)
 	recs := []model.ScoreRecord{
 		{Yellow: 0, Red: 0},
 		{Yellow: 0, Red: 1}, // 任一轮命中即取消资格
@@ -203,7 +196,7 @@ func TestRankDisqualifiedFromUpgradedYellow(t *testing.T) {
 	f := newRankFixture()
 	f.Event.PenaltyRule = model.PenaltyRule{
 		Template:  model.PenaltyRecordOnly,
-		CardRules: cardRules(true, 3, true),
+		CardRules: cardRules(true, 3),
 	}
 	// 甲队 3 张黄牌 → 升级 1 张红牌 → 取消资格
 	f.Score[1] = []model.ScoreRecord{rec(map[string]any{"t": 90.0}, 100, 3, 0)}
@@ -217,7 +210,7 @@ func TestRankDisqualifiedFromUpgradedYellow(t *testing.T) {
 	f2 := newRankFixture()
 	f2.Event.PenaltyRule = model.PenaltyRule{
 		Template:  model.PenaltyRecordOnly,
-		CardRules: cardRules(false, 3, true),
+		CardRules: cardRules(false, 3),
 	}
 	f2.Score[1] = []model.ScoreRecord{rec(map[string]any{"t": 90.0}, 100, 3, 0)}
 	rows2 := Rank(f2.input(), RankOptions{})
@@ -246,7 +239,7 @@ func TestRankDisqualifyAppliesEvenWithoutCardRules(t *testing.T) {
 // TestRankDisqualifiedRowStillCountsRounds 取消资格不抹掉轮次信息（留痕要完整）。
 func TestRankDisqualifiedRowStillCountsRounds(t *testing.T) {
 	f := newRankFixture()
-	f.Event.PenaltyRule = model.PenaltyRule{CardRules: cardRules(true, 3, true)}
+	f.Event.PenaltyRule = model.PenaltyRule{CardRules: cardRules(true, 3)}
 	f.Score[1] = []model.ScoreRecord{
 		{RoundNo: 1, TaskValues: map[string]any{"t": 90.0}, DurationSec: 100, Red: 0},
 		{RoundNo: 2, TaskValues: map[string]any{"t": 95.0}, DurationSec: 80, Red: 1},

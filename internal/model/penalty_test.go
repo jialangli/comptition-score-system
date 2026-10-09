@@ -19,13 +19,11 @@ import (
 
 func TestPenaltyRuleCardRulesRoundTrip(t *testing.T) {
 	off := false
-	allow := true
 	orig := PenaltyRule{
 		Template: PenaltyRecordOnly,
 		CardRules: &CardRules{
-			Enabled:        &off,
-			RedThreshold:   5,
-			AllowDirectRed: &allow,
+			Enabled:      &off,
+			RedThreshold: 5,
 			Reasons: []CardReason{
 				{Code: "R01", Card: "red", Label: "顶撞裁判"},
 				{Code: "R02", Card: "red", Label: "恶意撞击能源轨道"},
@@ -68,9 +66,6 @@ func TestPenaltyRuleCardRulesRoundTrip(t *testing.T) {
 	if back.CardRules.ThresholdOrDefault() != 5 {
 		t.Errorf("阈值往返后应仍为 5，得到 %d", back.CardRules.ThresholdOrDefault())
 	}
-	if !back.CardRules.AllowDirectRedOrDefault() {
-		t.Error("allowDirectRed 往返后应仍为 true")
-	}
 	if got := back.CardRules.ReasonLabels("red"); len(got) != 2 {
 		t.Errorf("红牌事由往返后应仍为 2 条，得到 %v", got)
 	}
@@ -99,9 +94,8 @@ func TestPenaltyRuleWithoutCardRules(t *testing.T) {
 		t.Error("旧数据里没有 cardRules，应解析为 nil")
 	}
 	var nilRules *CardRules = back.CardRules
-	if !nilRules.EnabledOrDefault() || !nilRules.AllowDirectRedOrDefault() ||
-		nilRules.ThresholdOrDefault() != DefaultRedThreshold {
-		t.Error("nil 规则应全部取默认值（开 / 允许 / 3 张）")
+	if !nilRules.EnabledOrDefault() || nilRules.ThresholdOrDefault() != DefaultRedThreshold {
+		t.Error("nil 规则应全部取默认值（开 / 3 张）")
 	}
 }
 
