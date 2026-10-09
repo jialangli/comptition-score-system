@@ -27,6 +27,11 @@ func enumTask(id string, m map[string]float64, weight float64) model.Task {
 	return model.Task{ID: id, Name: id, Type: model.TaskEnum, EnumMap: m, Weight: weight, Control: model.CtrlSelect}
 }
 
+// toggleTask 是否完成任务；max 传 nil 表示未设满分。
+func toggleTask(id string, max *float64) model.Task {
+	return model.Task{ID: id, Name: id, Type: model.TaskToggle, MaxScore: max, Weight: 1, Control: model.CtrlToggle}
+}
+
 func newEvent(tasks ...model.Task) *model.Event {
 	return &model.Event{
 		ID: "t", Name: "测试赛项", Groups: []string{"小学组"},
@@ -164,6 +169,42 @@ func TestScore(t *testing.T) {
 			build: func() (*model.Event, model.ScoreRecord) {
 				return newEvent(enumTask("level", map[string]float64{"优秀": 100}, 1.0)),
 					rec(map[string]any{"level": "待定"}, 0, 0, 0)
+			},
+			want: model.ScoreResult{Base: 0, Total: 0, Complete: true},
+		},
+		{
+			name: "是否完成·完成记满分",
+			build: func() (*model.Event, model.ScoreRecord) {
+				ev := newEvent(toggleTask("tower", f64ptr(500)))
+				ev.ScoreRule.Template = model.TplSum
+				return ev, rec(map[string]any{"tower": true}, 0, 0, 0)
+			},
+			want: model.ScoreResult{Base: 500, Total: 500, Complete: true},
+		},
+		{
+			name: "是否完成·未完成记 0 分且算已录入（关键三态）",
+			build: func() (*model.Event, model.ScoreRecord) {
+				ev := newEvent(toggleTask("tower", f64ptr(500)))
+				ev.ScoreRule.Template = model.TplSum
+				return ev, rec(map[string]any{"tower": false}, 0, 0, 0)
+			},
+			want: model.ScoreResult{Base: 0, Total: 0, Complete: true},
+		},
+		{
+			name: "是否完成·未录入则 complete=false",
+			build: func() (*model.Event, model.ScoreRecord) {
+				ev := newEvent(toggleTask("tower", f64ptr(500)))
+				ev.ScoreRule.Template = model.TplSum
+				return ev, rec(map[string]any{}, 0, 0, 0)
+			},
+			want: model.ScoreResult{Base: 0, Total: 0, Complete: false},
+		},
+		{
+			name: "是否完成·未设满分时完成也得 0",
+			build: func() (*model.Event, model.ScoreRecord) {
+				ev := newEvent(toggleTask("tower", nil))
+				ev.ScoreRule.Template = model.TplSum
+				return ev, rec(map[string]any{"tower": true}, 0, 0, 0)
 			},
 			want: model.ScoreResult{Base: 0, Total: 0, Complete: true},
 		},

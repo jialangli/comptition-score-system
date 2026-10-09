@@ -108,8 +108,18 @@ type importPreviewReq struct {
 	EventID       string          `json:"eventId"`
 	Rows          []importRowJSON `json:"rows"`
 	SelectedLines []int           `json:"selectedLines,omitempty"` // 仅提交时使用
+	Overrides     []importOverrideJSON `json:"overrides,omitempty"` // 仅提交时使用：冲突行的人工裁决
 	Note          string          `json:"note,omitempty"`
 	Source        string          `json:"source,omitempty"`
+}
+
+// importOverrideJSON 冲突行的人工裁决。
+//
+// mode 取 file（以文件为准，强制覆盖）/ db（以库内为准，丢弃）/ skip（跳过）。
+// 服务端不会"猜"该怎么裁 —— 必须逐行点名，未点名的冲突行一律让整批入库失败。
+type importOverrideJSON struct {
+	Line int    `json:"line"`
+	Mode string `json:"mode"`
 }
 
 // importRowJSON 一行报名数据（字段名与前端列映射结果一致）。

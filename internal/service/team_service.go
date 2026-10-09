@@ -235,6 +235,39 @@ type ImportRow struct {
 	LineNo  int    `json:"lineNo,omitempty"` // 原始行号，便于运营定位到具体哪一行
 }
 
+// ImportOverrideMode 冲突行的人工裁决方式。
+//
+// 「以文件为准」是**唯一**能绕开「冲突行不得入库」的途径，且必须**逐行显式声明** ——
+// 这样它不会变成一个默默生效的开关：调用方要在 overrides 里点名第几行、怎么裁。
+type ImportOverrideMode string
+
+const (
+	// OverrideFile 以文件为准：即使服务端判定冲突，也按文件值强制写入库内。
+	OverrideFile ImportOverrideMode = "file"
+	// OverrideDB 以库内为准：丢弃文件值（等同不写入，但显式记一笔，便于追溯"这行被人工判过"）。
+	OverrideDB ImportOverrideMode = "db"
+	// OverrideSkip 跳过：不写入。
+	OverrideSkip ImportOverrideMode = "skip"
+)
+
+// Valid 校验裁决取值是否合法。
+func (m ImportOverrideMode) Valid() bool {
+	switch m {
+	case OverrideFile, OverrideDB, OverrideSkip:
+		return true
+	}
+	return false
+}
+
+// ImportOverride 一行的人工裁决（行号 → 方式）。
+//
+// 用行号而不是队伍编号定位：同一份文件里可能出现两条同编号的行，
+// 那正是「编号重复」这类冲突本身，用编号根本区分不开裁的是哪一条。
+type ImportOverride struct {
+	Line int
+	Mode ImportOverrideMode
+}
+
 // ImportStatus 单行变更类型（界面上的四色）。
 type ImportStatus string
 
@@ -265,6 +298,12 @@ type ImportDiffRow struct {
 	Conflicts     []string      `json:"conflicts,omitempty"`
 	FirstSeenLine int           `json:"firstSeenLine,omitempty"` // 编号重复时指向首次出现的行
 	Selectable    bool          `json:"selectable"`              // 是否可勾选入库
+	// CanOverride 该冲突能否由人工裁决「以文件为准」强制覆盖。
+	//
+	// 只对**结构性变更**开放：库内已有成绩的队伍改组别 —— 这是"现场确实要改"的场景，
+	// 需要一个明确的出口。而「编号为空 / 组别不属于赛项」这类是数据本身的错误，
+	// 覆盖只会把脏数据写进库，所以恒为 false。
+	CanOverride bool `json:"canOverride"`
 }
 
 // ImportPreview 预览结果。
@@ -294,6 +333,17 @@ func (s *Service) PreviewImport(ctx context.Context, eventID string, rows []Impo
 	byNo := make(map[string]model.Team, len(existing))
 	for _, t := range existing {
 		byNo[t.TeamNo] = t
+	}
+	// 一次性取本赛项全部成绩，用于判「这支队是否已有成绩」（避免逐队查询）
+	scoreMap, err := s.ro().Scores.ListByEvent(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	hasScore := make(map[int64]bool, len(scoreMap))
+	for teamID, recs := range scoreMap {
+		if len(recs) > 0 {
+			hasScore[teamID] = true
+		}
 	}
 
 	out := &ImportPreview{EventID: eventID, Rows: make([]ImportDiffRow, 0, len(rows))}
@@ -351,6 +401,20 @@ func (s *Service) PreviewImport(ctx context.Context, eventID string, rows []Impo
 
 		item.ExistingID = old.ID
 		item.Changes = diffTeam(old, r)
+		// 结构性变更 + 该队已有成绩：直接写会破坏成绩与队伍的归属，判为冲突。
+		// 但它与"数据本身有错"不同 —— 现场确实可能要求改组别，
+		// 所以标 CanOverride，留一个人工裁决「以文件为准」的出口。
+		if hasScore[old.ID] && strings.TrimSpace(old.GroupCode) != r.Group {
+			item.Status = ImportConflict
+			item.Selectable = false
+			item.CanOverride = true
+			item.Conflicts = append(item.Conflicts, fmt.Sprintf(
+				"该队已有成绩，变更组别（%s → %s）会影响成绩归属；确需变更请人工裁决「以文件为准」",
+				old.GroupCode, r.Group))
+			out.Summary.Conflict++
+			out.Rows = append(out.Rows, item)
+			continue
+		}
 		if len(item.Changes) == 0 {
 			item.Status = ImportSkip
 			item.Selectable = false // 没有变化就不用写，勾了也没意义
@@ -375,8 +439,11 @@ func (s *Service) PreviewImport(ctx context.Context, eventID string, rows []Impo
 //  2. **用「行号」而不是「队伍编号」定位勾选项**。
 //     同一份文件里可能出现两条同编号的行（正是「编号重复」这种冲突），
 //     用编号定位根本无法区分它们到底勾了哪一条。
+//  3. **冲突行默认拒绝整批入库**。只有同时满足两条才放行：
+//     ① overrides 里显式声明「以文件为准」；② 该行 CanOverride（结构性变更，非数据错误）。
+//     放行会在明细里标 forced=true，并在操作审计里写明强制覆盖了几行。
 func (s *Service) CommitImport(ctx context.Context, eventID string, rows []ImportRow,
-	selectedLines []int, note string) (*model.ImportLog, error) {
+	selectedLines []int, overrides []ImportOverride, note string) (*model.ImportLog, error) {
 
 	if len(selectedLines) == 0 {
 		return nil, ErrNothingSelected
@@ -389,6 +456,12 @@ func (s *Service) CommitImport(ctx context.Context, eventID string, rows []Impor
 	selected := make(map[int]bool, len(selectedLines))
 	for _, ln := range selectedLines {
 		selected[ln] = true
+	}
+
+	// 人工裁决：行号 → 方式。未声明的行一律按默认处理（冲突即拒绝）。
+	ovr := make(map[int]ImportOverrideMode, len(overrides))
+	for _, o := range overrides {
+		ovr[o.Line] = o.Mode
 	}
 
 	logEntry := &model.ImportLog{
@@ -420,8 +493,26 @@ func (s *Service) CommitImport(ctx context.Context, eventID string, rows []Impor
 				"no": item.Row.TeamNo, "reason": "库内数据无变化",
 			})
 		case ImportConflict:
-			return nil, fmt.Errorf("%w：第 %d 行 编号 %s（%s）",
-				ErrConflictRows, item.Line, item.Row.TeamNo, strings.Join(item.Conflicts, "；"))
+			if ovr[item.Line] != OverrideFile {
+				return nil, fmt.Errorf("%w：第 %d 行 编号 %s（%s）",
+					ErrConflictRows, item.Line, item.Row.TeamNo, strings.Join(item.Conflicts, "；"))
+			}
+			if !item.CanOverride {
+				return nil, fmt.Errorf("%w：第 %d 行 编号 %s 的冲突不允许「以文件为准」覆盖（%s）—— 这是数据本身的错误，请改文件后重导",
+					ErrConflictRows, item.Line, item.Row.TeamNo, strings.Join(item.Conflicts, "；"))
+			}
+			// 显式声明「以文件为准」：明细标明是强制覆盖。
+			// act 先占位，写入后按**实际 Upsert 结果**回填 ——
+			// 校验类冲突在查库之前就返回了，这里拿不到「库内是否已有该编号」。
+			detail = append(detail, map[string]any{
+				"line":    item.Line,
+				"act":     string(ImportUpdate),
+				"no":      item.Row.TeamNo,
+				"name":    item.Row.Name,
+				"changes": item.Changes,
+				"forced":  true,
+				"reason":  "服务端判定为冲突，已按人工裁决「以文件为准」覆盖库内：" + strings.Join(item.Conflicts, "；"),
+			})
 		}
 	}
 
@@ -436,14 +527,20 @@ func (s *Service) CommitImport(ctx context.Context, eventID string, rows []Impor
 	}
 
 	err = s.tx(ctx, func(r store.Repos) error {
-		created, updated := 0, 0
+		created, updated, forcedCount := 0, 0, 0
+		forcedActs := make(map[int]string, 4) // 行号 → 覆盖行的实际写入动作
 		for i := range preview.Rows {
 			item := &preview.Rows[i]
 			if !selected[item.Line] {
 				continue
 			}
-			if item.Status != ImportInsert && item.Status != ImportUpdate {
+			// 冲突行只有被显式裁决为「以文件为准」时才写入（前面已挡掉其它情况）
+			forced := item.Status == ImportConflict && ovr[item.Line] == OverrideFile
+			if !forced && item.Status != ImportInsert && item.Status != ImportUpdate {
 				continue
+			}
+			if forced {
+				forcedCount++
 			}
 			t := &model.Team{
 				EventID: eventID, TeamNo: item.Row.TeamNo, Name: item.Row.Name,
@@ -457,8 +554,30 @@ func (s *Service) CommitImport(ctx context.Context, eventID string, rows []Impor
 			}
 			if isNew {
 				created++
+				if forced {
+					forcedActs[item.Line] = string(ImportInsert)
+				}
 			} else {
 				updated++
+				if forced {
+					forcedActs[item.Line] = string(ImportUpdate)
+				}
+			}
+		}
+
+		// 覆盖行的动作按实际写入结果回填（见上：预览阶段判不出 insert/update）
+		for _, d := range detail {
+			m, ok := d.(map[string]any)
+			if !ok {
+				continue
+			}
+			if f, _ := m["forced"].(bool); !f {
+				continue
+			}
+			if ln, ok := m["line"].(int); ok {
+				if act, hit := forcedActs[ln]; hit {
+					m["act"] = act
+				}
 			}
 		}
 
@@ -469,12 +588,16 @@ func (s *Service) CommitImport(ctx context.Context, eventID string, rows []Impor
 		if err := r.Audits.AppendImport(ctx, logEntry); err != nil {
 			return err
 		}
+		after := fmt.Sprintf("实际写入：新增 %d 支 / 更新 %d 支", created, updated)
+		if forcedCount > 0 {
+			after += fmt.Sprintf("（其中 %d 行为人工裁决「以文件为准」，强制覆盖库内）", forcedCount)
+		}
 		return log(ctx, r, model.ActImport,
 			fmt.Sprintf("赛项 %s 队伍导入", eventID),
 			fmt.Sprintf("导出文件 %d 行（新增%d 更新%d 无变化%d 冲突%d）",
 				len(preview.Rows), preview.Summary.Insert, preview.Summary.Update,
 				preview.Summary.Skip, preview.Summary.Conflict),
-			fmt.Sprintf("实际写入：新增 %d 支 / 更新 %d 支", created, updated),
+			after,
 			note)
 	})
 	if err != nil {

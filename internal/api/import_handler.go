@@ -1,7 +1,9 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/jialangli/comptition-score-server/internal/service"
 )
@@ -45,13 +47,41 @@ func (s *Server) handleImportCommit(w http.ResponseWriter, r *http.Request) {
 		Fail(w, r, err)
 		return
 	}
+	overrides, err := toImportOverrides(body.Overrides)
+	if err != nil {
+		Fail(w, r, err)
+		return
+	}
 	logEntry, err := s.svc.CommitImport(r.Context(), body.EventID,
-		toImportRows(body.Rows), body.SelectedLines, body.Note)
+		toImportRows(body.Rows), body.SelectedLines, overrides, body.Note)
 	if err != nil {
 		Fail(w, r, err)
 		return
 	}
 	Created(w, logEntry)
+}
+
+// toImportOverrides 把请求体的裁决转成 service 入参，并校验取值。
+//
+// 非法 mode 一律 400：宁可让调用方改，也不静默当成「跳过」——
+// 静默降级会让一次"我明明点了以文件为准"的覆盖变成没写进去，而且事后查不出来。
+func toImportOverrides(in []importOverrideJSON) ([]service.ImportOverride, error) {
+	if len(in) == 0 {
+		return nil, nil
+	}
+	out := make([]service.ImportOverride, 0, len(in))
+	for _, o := range in {
+		if o.Line <= 0 {
+			return nil, NewBadRequest("裁决的 line 必须是正整数")
+		}
+		mode := service.ImportOverrideMode(strings.TrimSpace(o.Mode))
+		if !mode.Valid() {
+			return nil, NewBadRequest(fmt.Sprintf(
+				"裁决 mode「%s」不是有效值（可选：file 以文件为准 / db 以库内为准 / skip 跳过）", o.Mode))
+		}
+		out = append(out, service.ImportOverride{Line: o.Line, Mode: mode})
+	}
+	return out, nil
 }
 
 // toImportRows 把请求体的行转成 service 入参。

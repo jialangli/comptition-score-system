@@ -101,6 +101,32 @@ func TestValidateEvent(t *testing.T) {
 		},
 
 		{
+			name: "是否完成任务合法（评分方式三类之一，不报错）",
+			mutate: func(e *model.Event) {
+				e.Tasks[1] = toggleTask("build", f64ptr(500))
+				e.ScoreRule.Template = model.TplSum // 避免同时触发权重和提醒，隔离单一结论
+			},
+		},
+
+		{
+			name: "是否完成任务未设满分仅提醒",
+			mutate: func(e *model.Event) {
+				e.Tasks[1] = toggleTask("build", nil)
+				e.ScoreRule.Template = model.TplSum
+			},
+			wantWarns: 1, warnContain: []string{"完成也不会得分"},
+		},
+
+		{
+			name: "是否完成任务满分为 0 仅提醒",
+			mutate: func(e *model.Event) {
+				e.Tasks[1] = toggleTask("build", f64ptr(0))
+				e.ScoreRule.Template = model.TplSum
+			},
+			wantWarns: 1, warnContain: []string{"完成也不会得分"},
+		},
+
+		{
 			name: "计数任务单价为 0 仅提醒",
 			mutate: func(e *model.Event) {
 				e.Tasks[1] = countTask("build", 0)

@@ -137,7 +137,7 @@ func ValidateEvent(ev *model.Event) ValidationResult {
 			fail(field+".name", "任务「%s」未命名", t.ID)
 		}
 		if !t.Type.Valid() {
-			fail(field+".type", "任务「%s」的评分方式「%s」不是有效值（可选：数值评分 / 计数得分 / 等级评分）", t.Name, string(t.Type))
+			fail(field+".type", "任务「%s」的评分方式「%s」不是有效值（可选：数值评分 / 计数得分 / 是否完成）", t.Name, string(t.Type))
 			continue
 		}
 
@@ -149,6 +149,10 @@ func ValidateEvent(ev *model.Event) ValidationResult {
 				warn(field+".maxScore", "数值任务「%s」未设满分，将按原始分直接计入（不做归一化），与其他任务不同量级", t.Name)
 			case numOr0(*t.MaxScore) <= 0:
 				warn(field+".maxScore", "数值任务「%s」的满分应大于 0", t.Name)
+			}
+		case model.TaskToggle:
+			if t.MaxScore == nil || numOr0(*t.MaxScore) <= 0 {
+				warn(field+".maxScore", "是否完成任务「%s」未设满分（或满分为 0），完成也不会得分", t.Name)
 			}
 		case model.TaskEnum:
 			if len(t.EnumMap) == 0 {

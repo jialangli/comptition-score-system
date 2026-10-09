@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -74,6 +75,10 @@ func LogRequests(next http.Handler) http.Handler {
 
 // CORS 仅在开发模式放开跨域（前端单独起 dev server 时用）。
 // 生产为同源部署（Go 直接 serve 前端），不需要放开。
+//
+// Allow-Headers 必须把 X-Operator / X-Contest 一并列上：它们是**非简单头**，
+// 浏览器会先发预检，预检响应没列出的头会被直接拒掉 —— 也就是说，
+// 漏了这两个名字时，前端请求会连后端都到不了（表现为 CORS 报错，而不是 4xx）。
 func CORS(dev bool) Middleware {
 	return func(next http.Handler) http.Handler {
 		if !dev {
@@ -82,7 +87,8 @@ func CORS(dev bool) Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Headers",
+				"Content-Type, "+OperatorHeader+", "+ContestHeader)
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return
@@ -109,13 +115,38 @@ const OperatorHeader = "X-Operator"
 // 审计里全是默认值，但没有任何报错。
 func CurrentUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		name := strings.TrimSpace(r.Header.Get(OperatorHeader))
+		name := decodeHeaderText(r.Header.Get(OperatorHeader))
 		if name == "" {
 			name = defaultOperator
 		}
 		ctx := service.WithUser(r.Context(), name)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// decodeHeaderText 还原请求头里的文本。
+//
+// 为什么需要：HTTP 头值只能是 ByteString（0x00–0xFF），中文名字**没法直接放进头里** ——
+// 浏览器在 fetch 处就会抛 "value is not a valid ByteString"，请求根本发不出去。
+// 所以前端发的是 percent-encoding（见 web/index.html 的 backendFetch 里的 encodeURIComponent），
+// 服务端在这里还原一次。
+//
+// 用 PathUnescape 而不是 QueryUnescape：后者会把 '+' 当空格，而人名/工号里出现 '+'
+// 应该就是它自己。
+//
+// 兼容性：老写法（curl -H 'X-Operator: 张伟' 直接给原生 UTF-8 字节）里没有 '%'，
+// 解码后原样返回 —— 联调用 curl 手敲不受影响。
+// 解码失败（畸形的 % 序列）时按原文保留，不报错：审计里出现一个带 % 的名字，
+// 也比整个请求 400 掉要好。
+func decodeHeaderText(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" || !strings.Contains(s, "%") {
+		return s
+	}
+	if dec, err := url.PathUnescape(s); err == nil {
+		return strings.TrimSpace(dec)
+	}
+	return s
 }
 
 // defaultOperator 未声明操作者时的兜底。

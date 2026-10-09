@@ -14,13 +14,17 @@ type TaskType string
 const (
 	TaskNumeric TaskType = "numeric" // 数值评分：裁判给 0–满分 的连续分
 	TaskCount   TaskType = "count"   // 计数得分：数量 × 每单位分
-	TaskEnum    TaskType = "enum"    // 等级评分：按等级映射取值
+	TaskToggle  TaskType = "toggle"  // 是否完成：完成记满分、未完成记 0
+	TaskEnum    TaskType = "enum"    // 等级评分：按等级映射取值（已下线，仅保留兼容历史数据）
 )
 
 // Valid 校验评分方式是否合法。
+//
+// 可选值为 numeric / count / toggle 三类（2026/10/08 口径：评分方式只有三类）；
+// enum 保留在白名单里只为让**历史数据**仍能通过校验，前端已不可选。
 func (t TaskType) Valid() bool {
 	switch t {
-	case TaskNumeric, TaskCount, TaskEnum:
+	case TaskNumeric, TaskCount, TaskToggle, TaskEnum:
 		return true
 	}
 	return false
@@ -36,6 +40,8 @@ func (t TaskType) Display() string {
 		return "数值评分"
 	case TaskCount:
 		return "计数得分"
+	case TaskToggle:
+		return "是否完成"
 	case TaskEnum:
 		return "等级评分"
 	}
@@ -50,6 +56,7 @@ const (
 	CtrlNumber  Control = "number"
 	CtrlCounter Control = "counter"
 	CtrlSelect  Control = "select"
+	CtrlToggle  Control = "toggle" // 开关（是/否），配合 TaskToggle 使用
 )
 
 // Task 任务项，是计分的最小单元。

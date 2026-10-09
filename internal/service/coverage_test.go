@@ -667,7 +667,7 @@ func TestImportEdgeCases(t *testing.T) {
 	if len(empty.Rows) != 0 || empty.Summary.Insert != 0 {
 		t.Errorf("空文件应产出空结果：%+v", empty)
 	}
-	if _, err := svc.CommitImport(ctx, ev.ID, nil, []int{1}, "空提交"); err != nil {
+	if _, err := svc.CommitImport(ctx, ev.ID, nil, []int{1}, nil, "空提交"); err != nil {
 		t.Fatalf("空文件提交不应报错: %v", err)
 	}
 
@@ -688,12 +688,12 @@ func TestImportEdgeCases(t *testing.T) {
 	if preview.Rows[0].Line != 1 || preview.Rows[1].Line != 2 {
 		t.Errorf("缺省行号应按序号 1、2 兜底，实际 %d、%d", preview.Rows[0].Line, preview.Rows[1].Line)
 	}
-	if _, err := svc.CommitImport(ctx, ev.ID, rows, []int{1, 2}, "首次导入"); err != nil {
+	if _, err := svc.CommitImport(ctx, ev.ID, rows, []int{1, 2}, nil, "首次导入"); err != nil {
 		t.Fatalf("提交失败: %v", err)
 	}
 
 	// 勾选「无变化」的行：不报错，但记录为 ignored，且不重复写库
-	logEntry, err := svc.CommitImport(ctx, ev.ID, rows, []int{1}, "重复提交")
+	logEntry, err := svc.CommitImport(ctx, ev.ID, rows, []int{1}, nil, "重复提交")
 	if err != nil {
 		t.Fatalf("提交失败: %v", err)
 	}

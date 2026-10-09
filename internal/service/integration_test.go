@@ -202,16 +202,16 @@ func TestEndToEndMainFlow(t *testing.T) {
 		t.Errorf("重复编号应指向首次出现的行号 4，实际 %d", preview.Rows[3].FirstSeenLine)
 	}
 	// 服务端重算：即使客户端把冲突行也勾上（第 6 行 = 组别不属于本赛项），也必须拒绝
-	if _, err := svc.CommitImport(ctx, ev.ID, rows, []int{2, 6}, "试图越权导入冲突行"); !errors.Is(err, service.ErrConflictRows) {
+	if _, err := svc.CommitImport(ctx, ev.ID, rows, []int{2, 6}, nil, "试图越权导入冲突行"); !errors.Is(err, service.ErrConflictRows) {
 		t.Fatalf("勾选冲突行应返回 ErrConflictRows，实际 %v", err)
 	}
 	// 未勾选任何行 = 明确报错，而不是静默什么都不做
-	if _, err := svc.CommitImport(ctx, ev.ID, rows, nil, "什么都没选"); err == nil {
+	if _, err := svc.CommitImport(ctx, ev.ID, rows, nil, nil, "什么都没选"); err == nil {
 		t.Error("未勾选任何行时应返回错误")
 	}
 
 	// 只勾前三行（第 2/3/4 行），第 5 行的重复编号自然被排除
-	importLog, err := svc.CommitImport(ctx, ev.ID, rows, []int{2, 3, 4}, "首次导入")
+	importLog, err := svc.CommitImport(ctx, ev.ID, rows, []int{2, 3, 4}, nil, "首次导入")
 	if err != nil {
 		t.Fatalf("导入入库失败: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestEndToEndMainFlow(t *testing.T) {
 	if len(preview2.Rows[1].Changes) != 1 || preview2.Rows[1].Changes[0].Field != "school" {
 		t.Errorf("更新行应给出字段级变化，实际 %+v", preview2.Rows[1].Changes)
 	}
-	if _, err := svc.CommitImport(ctx, ev.ID, rows2, []int{3}, "学校更名"); err != nil {
+	if _, err := svc.CommitImport(ctx, ev.ID, rows2, []int{3}, nil, "学校更名"); err != nil {
 		t.Fatalf("二次导入失败: %v", err)
 	}
 	t1002, err := svc.GetTeam(ctx, teams[1].ID)
@@ -414,13 +414,78 @@ func TestEndToEndMainFlow(t *testing.T) {
 	} else if len(importLogs) != 2 {
 		t.Errorf("导入日志应有 2 条（两次导入），实际 %d 条", len(importLogs))
 	}
+
+	// —— ④b 显式裁决「以文件为准」：结构性冲突的显式出口 ——
+	// 放在测试末尾：它会改动 1001 的组别，若插在中途会改掉前面「榜单组别数」等期望值。
+	//
+	// 星河队（1001）已录过成绩；把它的组别从「小学组」改成「初中组」属于结构性变更，
+	// 服务端判为冲突，但标 CanOverride —— 这类是"现场确实要改"的场景，需要一个明确出口。
+	rows3 := []service.ImportRow{
+		{TeamNo: "1001", Name: "星河队", School: "杭州实验小学", Coach: "张老师", Group: "初中组", Members: "张一 / 李二", LineNo: 2},
+	}
+	pre3, err := svc.PreviewImport(ctx, ev.ID, rows3)
+	if err != nil {
+		t.Fatalf("预览失败: %v", err)
+	}
+	if pre3.Rows[0].Status != service.ImportConflict || !pre3.Rows[0].CanOverride {
+		t.Fatalf("已有成绩的队改组别应判为「可覆盖的冲突」，实际 status=%s canOverride=%v",
+			pre3.Rows[0].Status, pre3.Rows[0].CanOverride)
+	}
+	// 不声明裁决 → 拒绝整批
+	if _, err := svc.CommitImport(ctx, ev.ID, rows3, []int{2}, nil, "未裁决"); !errors.Is(err, service.ErrConflictRows) {
+		t.Fatalf("未声明裁决的冲突行应被拒绝，实际 %v", err)
+	}
+	// 裁决为「以库内为准 / 跳过」→ 语义上就是不写入，仍不放行
+	for _, mode := range []service.ImportOverrideMode{service.OverrideDB, service.OverrideSkip} {
+		if _, err := svc.CommitImport(ctx, ev.ID, rows3, []int{2},
+			[]service.ImportOverride{{Line: 2, Mode: mode}}, "非覆盖裁决"); !errors.Is(err, service.ErrConflictRows) {
+			t.Fatalf("裁决 %q 不应放行冲突行写入，实际 %v", mode, err)
+		}
+	}
+	// 裁决为「以文件为准」→ 放行，明细标 forced，组别确实落库
+	log3, err := svc.CommitImport(ctx, ev.ID, rows3, []int{2},
+		[]service.ImportOverride{{Line: 2, Mode: service.OverrideFile}}, "人工裁决覆盖")
+	if err != nil {
+		t.Fatalf("显式裁决「以文件为准」应放行，实际 %v", err)
+	}
+	if !hasForcedDetail(log3.Detail) {
+		t.Errorf("强制覆盖的明细里应标 forced=true，实际 %+v", log3.Detail)
+	}
+	if act := firstForcedAct(log3.Detail); act != "update" {
+		t.Errorf("覆盖已有队伍时明细动作应为 update，实际 %q", act)
+	}
+	afterCover, err := svc.ListTeams(ctx, ev.ID, true)
+	if err != nil {
+		t.Fatalf("查队伍失败: %v", err)
+	}
+	covered := false
+	for _, tm := range afterCover {
+		if tm.TeamNo == "1001" && tm.GroupCode == "初中组" {
+			covered = true
+		}
+	}
+	if !covered {
+		t.Error("强制覆盖未落库（1001 的组别应已改为初中组）")
+	}
+
+	// 反向：**数据本身的错误不允许覆盖** —— 「组别不属于赛项」覆盖只会把脏数据写进库
+	rowsBad := []service.ImportRow{
+		{TeamNo: "1009", Name: "脏数据队", School: "某学校", Coach: "钱老师", Group: "高中组", LineNo: 2},
+	}
+	preBad, err := svc.PreviewImport(ctx, ev.ID, rowsBad)
+	if err != nil {
+		t.Fatalf("预览失败: %v", err)
+	}
+	if preBad.Rows[0].CanOverride {
+		t.Error("「组别不属于赛项」这类数据错误不应允许覆盖")
+	}
+	if _, err := svc.CommitImport(ctx, ev.ID, rowsBad, []int{2},
+		[]service.ImportOverride{{Line: 2, Mode: service.OverrideFile}}, "试图覆盖脏数据"); !errors.Is(err, service.ErrConflictRows) {
+		t.Fatalf("数据错误即使声明覆盖也应被拒绝，实际 %v", err)
+	}
+
 }
 
-// TestAuditFailureRollsBackBusiness 证明「审计写失败 → 业务改动一起回滚」。
-//
-// 这是整套留痕机制的核心不变式：只要审计与业务不在同一事务里，就会出现
-// 「数据改了但查不到是谁改的」。用一个注定失败的审计仓储把它构造出来，
-// 是唯一能真实验证这条不变式的办法 —— 也正是 service 依赖 store 接口
 // （而不是直接依赖 pgx）的价值所在。
 func TestAuditFailureRollsBackBusiness(t *testing.T) {
 	svc, _ := newSvc(t)
@@ -516,4 +581,30 @@ func round2Record(t *testing.T, svc *service.Service, teamID int64) *model.Score
 		t.Fatalf("查第 2 轮成绩失败: %v", err)
 	}
 	return r
+}
+
+// hasForcedDetail 判断导入明细里是否含「强制覆盖」标记。
+func hasForcedDetail(detail []any) bool {
+	for _, d := range detail {
+		if m, ok := d.(map[string]any); ok {
+			if f, _ := m["forced"].(bool); f {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// firstForcedAct 取第一条强制覆盖明细的动作（insert / update）。
+func firstForcedAct(detail []any) string {
+	for _, d := range detail {
+		if m, ok := d.(map[string]any); ok {
+			if f, _ := m["forced"].(bool); f {
+				if s, _ := m["act"].(string); s != "" {
+					return s
+				}
+			}
+		}
+	}
+	return ""
 }

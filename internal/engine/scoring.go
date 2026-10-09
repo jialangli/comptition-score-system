@@ -163,6 +163,7 @@ func f64ptr(f float64) *float64 { return &f }
 // 与前端 taskRawScore 逐位一致：
 //
 //	nil / 空字符串 → nil（未录入）
+//	toggle         → 完成（true）记满分，未完成（false）记 0；两者都是「已录入」
 //	enum           → 命中等级映射则取映射值，未命中记 0
 //	count          → 数量 × 每单位分（任务 weight 即单价）
 //	其余（numeric） → 原样作为数值，0 是合法得分
@@ -177,6 +178,18 @@ func taskRawScore(t *model.Task, val any) *float64 {
 		return nil
 	}
 	switch t.Type {
+	case model.TaskToggle:
+		// 是否完成：完成记满分、未完成记 0。
+		// 关键在**三态语义**：false 属「已录入且 0 分」，不能返回 nil，
+		// 否则裁判勾过又取消的项会被算成"未录入"、complete 判定随之出错。
+		// 前端 toggle 控件恒发布尔值，故此处只认 bool；其他类型一律按未完成处理。
+		if on, ok := val.(bool); ok && on {
+			if t.MaxScore == nil {
+				return f64ptr(0)
+			}
+			return f64ptr(finiteOr0(*t.MaxScore))
+		}
+		return f64ptr(0)
 	case model.TaskEnum:
 		if key, ok := jsKey(val); ok {
 			if mapped, hit := t.EnumMap[key]; hit {
