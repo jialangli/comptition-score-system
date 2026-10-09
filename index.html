@@ -22,6 +22,10 @@ body{margin:0;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",system-u
 .ni{display:block;padding:9px 12px;border-radius:8px;color:#c7d3e3;cursor:pointer;margin-bottom:3px;font-size:13.5px;user-select:none}
 .ni:hover{background:#182a42;color:#fff}
 .ni.on{background:#1b63ab;color:#fff;font-weight:500}
+/* 本期暂不做的入口：置灰不可点（.ni.off 必须同时覆盖 :hover，否则鼠标划过仍会变亮） */
+.ni.off{color:#5b6b7e;cursor:not-allowed}
+.ni.off:hover{background:transparent;color:#5b6b7e}
+.nib{float:right;margin-top:2px;font-size:10px;line-height:14px;color:#7b8ea3;border:1px solid #2b3f57;border-radius:4px;padding:0 5px}
 .side .foot{margin-top:18px;padding:10px 12px;border-radius:8px;background:#132339;font-size:11.5px;color:#7d8ea6;line-height:1.7}
 .main{flex:1;min-width:0;display:flex;flex-direction:column}
 .top{background:#fff;border-bottom:1px solid var(--line);padding:12px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:8;flex-wrap:wrap}
@@ -488,6 +492,10 @@ function render(){
       '</div>'+
     '</div>';
 }
+/* 本期暂不做的入口：置灰、不可点、行尾带「本期不做」小标。
+   渲染（sidebar）与点击（nav）都读这里 —— 否则会出现"视觉灰了但仍能被调起"。
+   下期启用大屏：把对象清空成 {} 即可，不必改渲染代码。 */
+var NAV_OFF={screen:'本期不做'};
 function sidebar(){
   var groups=[
     ['运营管理',[['dash','总览'],['events','赛项与规则'],['seats','赛台与赛程'],['teams','队伍管理'],['import','队伍导入']]],
@@ -496,7 +504,10 @@ function sidebar(){
   ];
   var nav=groups.map(function(g){
     return '<div class="ngroup">'+g[0]+'</div>'+g[1].map(function(it){
-      return '<div class="ni'+(VIEW===it[0]?' on':'')+'" onclick="nav(\''+it[0]+'\')">'+it[1]+'</div>';
+      var off=NAV_OFF[it[0]];
+      return '<div class="ni'+(VIEW===it[0]?' on':'')+(off?' off':'')+'"'+
+             (off?' title="本期暂不做"':' onclick="nav(\''+it[0]+'\')"')+'>'+
+             it[1]+(off?'<span class="nib">'+off+'</span>':'')+'</div>';
     }).join('');
   }).join('');
   return '<aside class="side">'+
@@ -529,7 +540,7 @@ function viewHtml(){
   if(VIEW==='audit')return viewAudit();
   return '';
 }
-function nav(v){VIEW=v;render();}
+function nav(v){if(NAV_OFF[v])return;VIEW=v;render();}
 
 /* ---------- 视图 1：总览 ---------- */
 function viewDash(){
