@@ -9,6 +9,8 @@
 #   bash scripts/test_db.sh          # 重建并跑迁移
 #   PG_DIR=/path/to/pgsql bash scripts/test_db.sh
 #
+# 端口默认 15432（**不是** 5432）：本机沙箱会拦 127.0.0.1:5432 的库连接。
+# 详见 scripts/env.sh 里的同名注释。
 # 测试侧通过 TEST_DATABASE_URL 连接；未设置时使用默认值（见 integration_test.go）。
 # ============================================================================
 set -euo pipefail
@@ -17,7 +19,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$HERE")"
 PG_DIR="${PG_DIR:-D:/Desktop/workbuddy/pgsql}"
 HOST="${PG_HOST:-127.0.0.1}"
-PORT="${PG_PORT:-5432}"
+PORT="${PG_PORT:-15432}"
 USER="${PG_USER:-postgres}"
 
 # 两个库，不是一个。

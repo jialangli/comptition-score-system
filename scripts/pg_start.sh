@@ -9,13 +9,17 @@
 #   bash scripts/pg_start.sh
 #   PG_DIR=/path/to/pgsql bash scripts/pg_start.sh
 #
+# 端口默认 15432（**不是** 5432）：本机沙箱会拦 127.0.0.1:5432 的库连接，
+# 起在 5432 谁也连不上。详见 scripts/env.sh 里的同名注释。
+# 确需换端口：PG_PORT=5432 bash scripts/pg_start.sh
+#
 # 幂等：已在跑时不会重复启动，也不会报错。
 # ============================================================================
 set -euo pipefail
 
 PG_DIR="${PG_DIR:-D:/Desktop/workbuddy/pgsql}"
 HOST="${PG_HOST:-127.0.0.1}"
-PORT="${PG_PORT:-5432}"
+PORT="${PG_PORT:-15432}"
 PGDATA="${PGDATA:-$(dirname "$PG_DIR")/pgdata}"
 
 if [ ! -f "$PG_DIR/bin/pg_ctl.exe" ]; then

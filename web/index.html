@@ -137,6 +137,23 @@ var PUB_EVENT='brain_planet';     // 公示页当前赛项
 var PUB_ANON=false;
 var SCORE_ENTRY_ROLE='ops';       // 后台录入身份：ops=运营代录 / sync=现场回传（平板）
 
+/* ---------- 身份与赛事维度（每次请求都声明）----------
+   后端 internal/api/middleware.go 用两个请求头定位一次请求的归属：
+     · X-Operator —— 审计留痕里的「操作人」；不带则记成「运营（未声明）」，
+                     于是导入记录 / 队伍变更的操作人全是一片「未声明」，留痕失去意义。
+     · X-Contest  —— 本次读写落到哪一场赛事的数据分区；不带则回落到默认分区 ct_default，
+                     多赛事上线后会出现「在 A 场操作、写进了默认分区」这种静默错位。
+
+   ⚠️ 两者都**不是安全边界**（任何人都能填任意值）：真正的隔离要等后端接上登录态。
+      这里只是让联调与演示阶段的归属是对的；后端接鉴权后，把这两个头换成会话推导即可。
+
+   CUR_CONTEST 留空 = 不发送该头 —— 单赛事期的行为与改动前完全一致。
+   取值口径与单文件 demo 保持一致（sessionStorage 键 brainco_contests_cur_tab），
+   等前端补上多赛事切换时，只需给这个变量赋值，不用再动 backendFetch。 */
+var CUR_CONTEST='';
+function loadCurContest(){try{CUR_CONTEST=sessionStorage.getItem('brainco_contests_cur_tab')||'';}catch(e){CUR_CONTEST='';}}
+loadCurContest();
+
 /* ---------- 后端连接配置 ---------- */
 var BACKEND_URL='/api/v1';        // 同域部署时相对路径即可；独立部署可改为 http://localhost:8080/api/v1
 var BACKEND_KEY='brainco_backend_v1';
@@ -278,6 +295,17 @@ function backendFetch(path,opts){
   opts=opts||{};
   var url=BACKEND_URL+path;
   var init={method:opts.method||'GET',headers:{'Accept':'application/json'}};
+  /* 身份与赛事维度（详见文件上方「身份与赛事维度」注释，后端见 api/middleware.go）：
+     X-Operator 让审计里的操作人是真实的人，X-Contest 让数据落进当前赛事分区。
+     补这两行之前，实测后果是——导入记录的操作人显示「运营（未声明）」、
+     队伍与导入记录落 contestId: ct_default。
+
+     ⚠️ 操作人必须 encodeURIComponent：HTTP 头值只能是 ByteString（0x00–0xFF），
+        直接塞中文名，浏览器会在 fetch 处直接抛
+        TypeError: ... value is not a valid ByteString —— 整条请求都发不出去。
+        后端读到后会做一次 PathUnescape 还原（见 api/middleware.go CurrentUser）。 */
+  init.headers['X-Operator']=encodeURIComponent(currentUser().name);
+  if(CUR_CONTEST)init.headers['X-Contest']=CUR_CONTEST;
   if(opts.body){
     init.headers['Content-Type']='application/json';
     init.body=JSON.stringify(opts.body);
@@ -513,6 +541,7 @@ function getInputItems(ev){
 }
 function taskRawScore(t,val){
   if(val===''||val==null)return null;
+  if(t.type==='toggle')return val?Number(t.maxScore)||0:0;
   if(t.type==='enum'){var m=t.enumMap||{};return Object.prototype.hasOwnProperty.call(m,val)?Number(m[val]):0;}
   if(t.type==='count')return (Number(val)||0)*(Number(t.weight)||0);
   return Number(val)||0;
@@ -624,7 +653,7 @@ function render(){
 }
 function sidebar(){
   var groups=[
-    ['运营管理',[['dash','总览'],['events','赛项与规则'],['seats','赛台与赛程'],['teams','队伍管理'],['import','WRC 报名导入']]],
+    ['运营管理',[['dash','总览'],['events','赛项与规则'],['seats','赛台与赛程'],['teams','队伍管理'],['import','队伍导入']]],
     ['现场执行',[['score','裁判打分'],['rank','实时榜单'],['screen','大屏展示']]],
     ['结果与合规',[['publish','公示与导出'],['audit','操作审计']]]
   ];
@@ -640,7 +669,7 @@ function sidebar(){
   '</aside>';
 }
 function topbar(){
-  var titles={dash:'赛事总览',events:'赛项与规则配置',seats:'赛台与赛程编排',import:'WRC 报名导入',teams:'队伍管理',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',publish:'公示与导出',audit:'全操作审计'};
+  var titles={dash:'赛事总览',events:'赛项与规则配置',seats:'赛台与赛程编排',import:'队伍导入',teams:'队伍管理',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',publish:'公示与导出',audit:'全操作审计'};
   var localPill='<span class="pill"><i></i>离线可用 · 本地已保存</span>';
   var backendToggle='<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;margin-left:8px">'+
     '<input type="checkbox" '+(backendMode?'checked':'')+' onchange="toggleBackendMode()" style="width:auto">'+
@@ -710,7 +739,7 @@ function viewDash(){
   '<div class="card"><h2>设计说明 <small>这套后台的设计取舍</small></h2>'+
     '<div class="note">'+
       '<b>① 规则自由配</b>：赛项、任务、得分、奖项全部写在配置里 —— 换赛项只需换配置，打分引擎不用改。<br>'+
-      '<b>② 评分方式就三类</b>：数值评分、计数得分、等级评分 —— 任何赛项的评分项都能用这三类描述。<br>'+
+      '<b>② 评分方式就三类</b>：数值评分、计数得分、是否完成 —— 任何赛项的评分项都能用这三类描述。<br>'+
       '<b>③ 配置可留档回滚</b>：改配置前先存快照，出问题一键回滚。<br>'+
       '<b>④ 报名统一从 WRC 来</b>：官网导出 → 变更比对 → 合并入库；已有成绩的队伍不会被冲掉，退赛只标记不删除。<br>'+
       '<b>⑤ 成绩算法可解释</b>：基础分 + 加分 − 扣分，同分按用时裁决，规则全在赛项配置里，随时可查。'+
@@ -718,9 +747,9 @@ function viewDash(){
   '</div>';
 }
 /* 中文映射层：界面只出现中文，英文键仅用于内部存储与导出 JSON */
-var TASK_TYPES={numeric:'数值评分',count:'计数得分',enum:'等级评分'};
-var TASK_TYPE_HINT={numeric:'裁判给 0–满分 的连续分',count:'按数量 × 每单位分',enum:'选等级，按等级取分'};
-var CONTROL_NAMES={slider:'滑块（0–满分）',number:'数字输入',counter:'计数器（增减）',select:'下拉选择'};
+var TASK_TYPES={numeric:'数值评分',count:'计数得分',toggle:'是否完成',enum:'等级评分'};   /* enum 界面已不可选，仅保留给历史数据只读显示 */
+var TASK_TYPE_HINT={numeric:'裁判给 0–满分 的连续分',count:'按数量 × 每单位分',toggle:'完成 = 满分，未完成 = 0',enum:'选等级，按等级取分'};
+var CONTROL_NAMES={slider:'滑块（0–满分）',number:'数字输入',counter:'计数器（增减）',select:'下拉选择',toggle:'开关（是/否）'};
 var BONUS_NAMES={time_bonus:'时间奖励（越快加分）',count_bonus:'计数奖励（按数量加分）',none:'无奖励'};
 var TIE_NAMES={score:'得分高者优先',time:'用时少者优先'};
 var IMPORT_ACT={insert:'新增',update:'更新',skip:'跳过',conflict:'冲突'};
@@ -730,7 +759,7 @@ function bonusName(t){return BONUS_NAMES[t]||t||'—';}
 function tieName(arr){return (arr||[]).map(function(k){return TIE_NAMES[k]||k;}).join(' → ')||'—';}
 function importActName(a){return IMPORT_ACT[a]||a;}
 function controlOptions(cur){
-  var keys=['slider','number','counter','select'];
+  var keys=['slider','number','counter','select','toggle'];
   var html=keys.map(function(x){return '<option value="'+x+'" '+(cur===x?'selected':'')+'>'+CONTROL_NAMES[x]+'</option>';}).join('');
   if(cur&&keys.indexOf(cur)<0)html='<option value="'+esc(cur)+'" selected>'+esc(cur)+'</option>'+html;
   return html;
@@ -770,7 +799,7 @@ function eventForm(ev){
     return '<tr>'+
       '<td><input value="'+esc(t.name)+'" oninput="updTask('+i+',\'name\',this.value)"></td>'+
       '<td><select onchange="updTask('+i+',\'type\',this.value)">'+
-        ['numeric','count','enum'].map(function(x){return '<option value="'+x+'" '+(t.type===x?'selected':'')+'>'+taskTypeName(x)+'</option>';}).join('')+
+        ['numeric','count','toggle'].map(function(x){return '<option value="'+x+'" '+(t.type===x?'selected':'')+'>'+taskTypeName(x)+'</option>';}).join('')+
       '</select><div class="small muted">'+esc(TASK_TYPE_HINT[t.type]||'')+'</div></td>'+
       '<td><input type="number" value="'+(t.maxScore==null?'':t.maxScore)+'" oninput="updTask('+i+',\'maxScore\',this.value)"></td>'+
       '<td><input type="number" step="0.05" value="'+(t.weight==null?'':t.weight)+'" oninput="updTask('+i+',\'weight\',this.value)"></td>'+
@@ -811,7 +840,7 @@ function eventForm(ev){
       '<button class="btn sm" onclick="addTask()">+ 添加任务</button></div>'+
     '<table style="margin-top:8px"><thead><tr><th>任务名</th><th>评分方式</th><th>满分</th><th>权重 / 每单位分</th><th>裁判录入控件</th><th></th></tr></thead>'+
       '<tbody>'+(taskRows||'<tr><td colspan="6" class="muted">暂无任务</td></tr>')+'</tbody></table>'+
-    '<div class="hint">数值评分 = 得分 ÷ 满分 × 权重；计数得分 = 数量 × 每单位分；等级评分 = 按等级对应分值取分。</div>'+
+    '<div class="hint">数值评分 = 得分 ÷ 满分 × 权重；计数得分 = 数量 × 每单位分；是否完成 = 完成记满分、未完成记 0 分。</div>'+
     '<hr class="sep">'+
     '<div class="grid g2">'+
       '<div class="fld"><label>计分模板</label><select onchange="updEventTpl(this.value)">'+
@@ -896,8 +925,71 @@ function doValidate(){
 }
 function find(id){return S.events.find(function(e){return e.id===id;});}
 
-/* ---------- 视图 3：WRC 报名导入 ---------- */
-var IMP={text:'',headers:null,mapping:{},diff:null,error:'',lastResult:null,fileName:'',busy:false,showPaste:false,fromExcel:false};
+function xlsxEscapeXml(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');}
+function xlsxColName(idx){var s='';idx++;while(idx>0){s=String.fromCharCode(65+((idx-1)%26))+s;idx=Math.floor((idx-1)/26);}return s;}
+function xlsxCrc32(buf){var c=~0>>>0;for(var i=0;i<buf.length;i++){c^=buf[i];for(var k=0;k<8;k++)c=(c>>>1)^(0xEDB88320&-(c&1));}return (~c)>>>0;}
+function xlsxZipStore(files){
+  var enc=new TextEncoder();var parts=[];var central=[];var off=0;
+  files.forEach(function(f){
+    var data=enc.encode(f.data);var nb=enc.encode(f.name);var crc=xlsxCrc32(data);
+    var lh=new Uint8Array(30+nb.length);var dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true);dv.setUint16(4,20,true);dv.setUint16(6,0,true);dv.setUint16(8,0,true);
+    dv.setUint16(10,0,true);dv.setUint16(12,0,true);dv.setUint32(14,crc,true);dv.setUint32(18,data.length,true);dv.setUint32(22,data.length,true);
+    dv.setUint16(26,nb.length,true);dv.setUint16(28,0,true);lh.set(nb,30);
+    parts.push(lh);parts.push(data);
+    var ch=new Uint8Array(46+nb.length);var cv=new DataView(ch.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0,true);cv.setUint16(10,0,true);cv.setUint16(12,0,true);
+    cv.setUint32(16,crc,true);cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);
+    cv.setUint16(28,nb.length,true);cv.setUint16(30,0,true);cv.setUint16(32,0,true);cv.setUint16(34,0,true);cv.setUint16(36,0,true);cv.setUint32(38,0,true);cv.setUint32(42,off,true);
+    ch.set(nb,46);central.push(ch);off+=lh.length+data.length;
+  });
+  var cdSize=0;central.forEach(function(c){cdSize+=c.length;});var cdOff=off;
+  var eo=new Uint8Array(22);var ev=new DataView(eo.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);
+  ev.setUint32(12,cdSize,true);ev.setUint32(16,cdOff,true);ev.setUint16(20,0,true);
+  var total=off+cdSize+22;var out=new Uint8Array(total);var pos=0;
+  parts.forEach(function(pp){out.set(pp,pos);pos+=pp.length;});
+  central.forEach(function(c){out.set(c,pos);pos+=c.length;});
+  out.set(eo,pos);return out;
+}
+function buildXlsx(rows){
+  var sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+  rows.forEach(function(row,ri){
+    var r=ri+1,cells='';
+    row.forEach(function(cell,ci){
+      var ref=xlsxColName(ci)+r;
+      if(typeof cell==='number'&&isFinite(cell)){cells+='<c r="'+ref+'"><v>'+cell+'</v></c>';}
+      else{cells+='<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+xlsxEscapeXml(cell==null?'':cell)+'</t></is></c>';}
+    });
+    sheet+='<row r="'+r+'">'+cells+'</row>';
+  });
+  sheet+='</sheetData></worksheet>';
+  var wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>';
+  var ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>';
+  var rr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  var wr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>';
+  return xlsxZipStore([{name:'[Content_Types].xml',data:ct},{name:'_rels/.rels',data:rr},{name:'xl/workbook.xml',data:wb},{name:'xl/_rels/workbook.xml.rels',data:wr},{name:'xl/worksheets/sheet1.xml',data:sheet}]);
+}
+
+
+/* ---------- 导入页在本仓的依赖补齐 ----------
+   原单文件 demo 已有这两件，后端这套前端此前没有这套导入页，故一并补齐：
+   · currentUser   —— 导入审计的操作人取自这里（本仓目前是单一身份，接登录后替换此处即可）
+   · readonlyGuard —— 归档只读闸门；本仓暂无归档态，保留同名钩子以便日后接上 */
+function currentUser(){return {id:'u1',name:'工作人员',role:'staff'};}
+function readonlyGuard(){return false;}
+
+
+/* ---------- 视图 3：队伍导入（WRC 报名表 / 批量导入 Excel） ---------- */
+var IMP={text:'',headers:null,mapping:{},diff:null,error:'',lastResult:null,fileName:'',busy:false,showPaste:false,fromExcel:false,
+  mode:'',step:1,grid:null,parsed:false,decisions:{},f:{st:'all',kw:''},openTask:'',kind:'wrc',bulkEvent:''};
+var IMQ={st:'all',src:'all',from:'',to:'',kw:''};
+var IMQA={st:'all',src:'all',from:'',to:'',kw:''};
 var WRC_FIELDS=[
   {k:'team_number',label:'队伍编号',required:true},
   {k:'team_name',label:'参赛队伍名称',required:true},
@@ -906,6 +998,32 @@ var WRC_FIELDS=[
   {k:'group_code',label:'参赛组别',required:true},
   {k:'event_code',label:'赛项',required:true}
 ];
+/* 批量导入 Excel 的字段集（通用队伍表）。
+   与 WRC 官网报名表的差别：**不带「赛项」列**（整批落到第 2 步选定的赛项）、**多「成员」列**。
+   必填只有编号与名称 —— 现场补录常缺组别 / 学校，不能因为缺这些就整行拒绝。 */
+var BULK_FIELDS=[
+  {k:'team_number',label:'队伍编号',required:true},
+  {k:'team_name',label:'队伍名称',required:true},
+  {k:'group_code',label:'组别',required:false},
+  {k:'school',label:'学校 / 机构',required:false},
+  {k:'coach',label:'指导教师',required:false},
+  {k:'members',label:'成员',required:false}
+];
+/* 两个通道共用同一套向导 / 校验 / 冲突裁决 / 任务记录 / 撤回 ——
+   差别只在「字段集」与「赛项从哪来」。这样批量导入不会绕过审计。 */
+function impFields(){return IMP.kind==='bulk'?BULK_FIELDS:WRC_FIELDS;}
+function impIsBulk(){return IMP.kind==='bulk';}
+function impKindName(){return impIsBulk()?'批量导入 Excel':'导入 WRC 报名表';}
+function impSourceName(s){
+  return s==='excel'?'WRC 报名表':(s==='excel_bulk'?'批量导入 Excel':(s==='manual'?'手动录入':String(s==null?'':s)||'—'));
+}
+var BULK_SAMPLE=[
+  '队伍编号,队伍名称,组别,学校 / 机构,指导教师,成员',
+  '5001,星河队,小学组,杭州实验小学,张老师,张三/李四',
+  '5002,追光队,小学组,杭州实验小学,李老师,王五/赵六',
+  '5003,晨曦队,初中组,东莞东城实验小学,王老师,陈一/周二十',
+  '5001,星河队,小学组,杭州实验小学,张老师,张三/李四'
+].join('\n');
 var EVENT_BY_NAME={'脑机星球':'brain_planet','火星救援':'mars_rescue','未来之城':'future_city'};
 var DIFF_META={
   insert:{t:'🟢 新增',cls:'ok'},
@@ -916,9 +1034,9 @@ var DIFF_META={
 var WRC_SAMPLE=[
   '队伍编号,参赛队伍名称,学校名称,指导教师,参赛组别,赛项',
   '1001,星河队,杭州实验小学,张老师,小学组,脑机星球',
-  '1002,追光队,杭州实验小学,李老师,小学组,脑机星球',
+  '1002,追光队,杭州实验小学,李老师,初中组,脑机星球',
   '1003,晨曦队,东莞东城实验小学,王老师,初中组,脑机星球',
-  '1004,极客队,杭州实验小学,周老师,高中组,脑机星球',
+  '1004,极客队,杭州实验小学,周老师,初中组,脑机星球',
   '2001,火星一号,青岛实验学校,赵老师,小学组,火星救援',
   '3001,新星队,成都教装展学校,陈老师,小学组,未来之城',
   '1003,晨曦队,东莞东城实验小学,王老师,初中组,脑机星球'
@@ -940,9 +1058,10 @@ function parseCSV(text){
     return out.map(function(s){return s.trim();});
   });
 }
-function autoMap(headers){
+function autoMap(headers,fields){
+  fields=fields||WRC_FIELDS;
   var m={};
-  WRC_FIELDS.forEach(function(f){
+  fields.forEach(function(f){
     var idx=-1;
     headers.forEach(function(h,i){
       if(idx>=0)return;
@@ -953,108 +1072,317 @@ function autoMap(headers){
       else if(f.k==='coach'&&(s.indexOf('教练')>=0||s.indexOf('指导')>=0||s.indexOf('教师')>=0))idx=i;
       else if(f.k==='group_code'&&(s.indexOf('组别')>=0||s.indexOf('年级')>=0||s.indexOf('学段')>=0))idx=i;
       else if(f.k==='event_code'&&(s.indexOf('赛项')>=0||s.indexOf('项目')>=0||s.indexOf('赛道')>=0))idx=i;
+      else if(f.k==='members'&&(s.indexOf('成员')>=0||s.indexOf('队员')>=0||s.indexOf('选手')>=0||s.indexOf('学生')>=0))idx=i;
     });
     m[f.k]=idx;
   });
   return m;
 }
-function impLoadSample(){IMP.text=WRC_SAMPLE;IMP.diff=null;IMP.headers=null;IMP.error='';IMP.lastResult=null;IMP.fileName='';IMP.busy=false;IMP.fromExcel=false;IMP.showPaste=true;render();}
-function impSetMap(k,v){IMP.mapping[k]=Number(v);buildImport();}
-function buildImport(){
+/* ================= 队伍导入 · 重设计（WRC 报名表 / 批量导入 Excel） =================
+   口径（2026/10/08）：
+   · 页面主体 = 「导入任务」列表，一次导入 = 一条任务记录（可筛选 / 可导出 / 可撤回）；
+   · 导入动作走 4 步向导，一次只做一件事；
+   · 【关键】第 2 步只读表头与样例值，改列映射**不重跑全量校验**；
+     第 3 步才做校验 + Diff，冲突逐行裁决（以文件为准 / 以库内为准 / 跳过 / 改编号）；
+   · 第 4 步给影响面摘要 + 二次确认，写入后生成任务记录（带回滚快照）。 */
+function impTaskList(){
+  if(backendMode){
+    /* 后端模式：任务列表以服务端 import_logs 为权威（只读）。
+       服务端没有撤回接口 → 标 legacy 让界面不显示「撤回」，而不是给一个点了会失败的按钮。 */
+    return (S.importLogs||[]).map(function(l,i){
+      return {id:'it_be_'+i,ts:l.ts,operator:l.operator,source:l.source,fileName:'（服务端记录）',
+        summary:l.summary||{insert:0,update:0,skip:0,conflict:0},
+        status:(l.status==='success'?'done':'partial'),detail:l.detail||[],
+        affectedScores:0,snapshot:null,legacy:true};
+    });
+  }
+  if(!S.importTasks){
+    S.importTasks=(S.importLogs||[]).map(function(l,i){
+      return {id:'it_legacy_'+i,ts:l.ts,operator:l.operator,source:l.source,
+        fileName:'（升级前的历史记录）',summary:l.summary||{insert:0,update:0,skip:0,conflict:0},
+        status:(l.status==='success'?'done':'partial'),detail:l.detail||[],
+        affectedScores:0,snapshot:null,legacy:true};
+    });
+    S.importLogs=[];
+  }
+  return S.importTasks;
+}
+function impDay(ts){return String(ts||'').slice(0,10).replace(/\//g,'-');}
+function imqSet(k,v){IMQ[k]=v;}
+function imqSearch(){IMQA={st:IMQ.st,src:IMQ.src,from:IMQ.from,to:IMQ.to,kw:IMQ.kw};IMP.openTask='';render();}
+function imqReset(){IMQ={st:'all',src:'all',from:'',to:'',kw:''};IMQA={st:'all',src:'all',from:'',to:'',kw:''};IMP.openTask='';render();}
+function impTaskRows(){
+  var q=IMQA;
+  return impTaskList().filter(function(t){
+    if(q.st!=='all'&&t.status!==q.st)return false;
+    if(q.src!=='all'&&t.source!==q.src)return false;
+    if(q.from&&impDay(t.ts)<q.from)return false;
+    if(q.to&&impDay(t.ts)>q.to)return false;
+    if(q.kw){
+      var k=q.kw.toLowerCase();
+      if((String(t.fileName||'')+' '+String(t.operator||'')).toLowerCase().indexOf(k)<0)return false;
+    }
+    return true;
+  });
+}
+function impOpenDetail(id){IMP.openTask=(IMP.openTask===id?'':id);render();}
+function impExportTasks(){
+  var stName={done:'已入库',partial:'部分成功',revoked:'已撤回',pending:'待确认'};
+  var head=['时间','来源','文件','操作人','新增','更新','跳过','冲突','影响已有成绩','状态'];
+  var data=impTaskRows().map(function(t){
+    return [t.ts,impSourceName(t.source),t.fileName||'—',t.operator||'—',
+      t.summary.insert,t.summary.update,t.summary.skip,t.summary.conflict,
+      (t.affectedScores||0),stName[t.status]||t.status];
+  });
+  download('导入任务_'+nowStr().replace(/[: ]/g,'')+'.xlsx',buildXlsx([head].concat(data)),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+/* ---------- 向导：步骤 ---------- */
+/* kind: 'wrc' = WRC 官网报名表（主通道，含赛项列）
+        'bulk'= 批量导入 Excel（通用队伍表，无赛项列，整批写入指定赛项） */
+function impWizardOpen(kind){
+  IMP.kind=(kind==='bulk')?'bulk':'wrc';
+  IMP.bulkEvent=CUR_EVENT;   /* bulk 的默认目标赛项 = 当前赛项 */
+  IMP.mode='wizard';IMP.step=1;IMP.error='';IMP.diff=null;IMP.grid=null;IMP.headers=null;IMP.mapping={};
+  IMP.parsed=false;IMP.decisions={};IMP.text='';IMP.fileName='';IMP.fromExcel=false;IMP.showPaste=false;
+  IMP.busy=false;IMP.lastResult=null;IMP.f={st:'all',kw:''};
+  render();
+}
+function impWizardClose(){
+  IMP.mode='';IMP.step=1;IMP.error='';IMP.diff=null;IMP.grid=null;IMP.headers=null;IMP.decisions={};IMP.lastResult=null;
+  render();
+}
+function impGoStep(n){
+  if(n<1||n>4)return;
+  if(n>1&&!IMP.headers)return;   /* 还没读到表头 */
+  if(n>2&&!IMP.diff)return;      /* 还没确认列映射 */
+  IMP.step=n;render();
+}
+function impLoadSample(){IMP.text=(impIsBulk()?BULK_SAMPLE:WRC_SAMPLE);IMP.showPaste=true;IMP.error='';render();}
+function impAdoptGrid(grid){
+  IMP.busy=false;
+  if(!grid||grid.length<2){IMP.error='数据不足：至少需要「表头 + 1 行数据」。';render();return;}
+  IMP.grid=grid;
+  IMP.headers=grid[0].map(function(s){return String(s==null?'':s).trim();}).map(function(s,i){return s||('列'+(i+1));});
+  IMP.mapping=autoMap(IMP.headers,impFields());IMP.diff=null;IMP.decisions={};IMP.error='';IMP.parsed=true;IMP.step=2;
+  render();
+}
+/* 第 1 步 → 第 2 步：只读表头 + 原始网格（不做校验，改映射不必重跑） */
+function impParse(){
   var t=(IMP.text||'').trim();
-  if(!t){IMP.error='请先选择 WRC 报名 Excel 文件，或展开「粘贴 CSV」兜底通道';IMP.diff=null;render();return;}
+  if(!t){IMP.error='请先选择 Excel 文件（.xlsx / .csv）'+(impIsBulk()?'。':'，或用「其它方式」粘贴 CSV。');render();return;}
   IMP.fromExcel=false;
-  ingestGrid(parseCSV(t));
+  impAdoptGrid(parseCSV(t));
+}
+function impSetMap(k,v){IMP.mapping[k]=Number(v);render();}
+function impConfirmMapping(){
+  if(!IMP.headers||!IMP.grid)return;
+  IMP.step=3;
+  /* 先本地解析：得到规范化的行对象（o / 行号 / 选中态都以此为基准）；
+     后端模式下紧接着让服务端重算比对并覆盖状态 —— 界面结构一致，权威结果来自服务端。 */
+  ingestGrid(IMP.grid);
+  if(backendMode)impBackendPreview();
+}
+/* 第 3 步的行筛选（状态 chip + 关键词；关键词用 onchange 以免打字时焦点丢失） */
+function impFs(v){IMP.f.st=(IMP.f.st===v?'all':v);render();}
+function impFkw(v){IMP.f.kw=String(v==null?'':v);render();}
+/* ---------- 单行判定（批量与单行重算共用） ---------- */
+function impRowCounts(items){
+  var c={};
+  items.forEach(function(it){var n=it.o.team_number;if(n)c[n]=(c[n]||0)+1;});
+  return c;
+}
+function impDiffRow(o,counts){
+  var errs=[];
+  impFields().forEach(function(f){if(f.required&&!o[f.k])errs.push('缺少「'+f.label+'」');});
+  if(o.team_number&&!/^\d+$/.test(o.team_number))errs.push('队伍编号须为纯数字（当前「'+o.team_number+'」）');
+  /* bulk 通道不带「赛项」列 —— 整批落到第 2 步选定的赛项 */
+  var evId=impIsBulk()?IMP.bulkEvent:EVENT_BY_NAME[o.event_code];
+  if(!impIsBulk()&&o.event_code&&!evId)errs.push('未知赛项「'+o.event_code+'」');
+  if(impIsBulk()&&!evId)errs.push('未选定本批写入的赛项');
+  var ev=evId?find(evId):null;
+  if(ev&&o.group_code&&(ev.groups||[]).indexOf(o.group_code)<0)errs.push('组别「'+o.group_code+'」不属于赛项「'+ev.name+'」');
+  if(o.team_number&&counts&&counts[o.team_number]>1)errs.push('编号在文件中出现 '+counts[o.team_number]+' 次，需人工裁决');
+  if(errs.length)return {status:'conflict',errs:errs,changes:[],canFile:false,reason:'invalid'};
+  var mt=null;
+  for(var i=0;i<S.teams.length;i++){if(S.teams[i].no===o.team_number){mt=S.teams[i];break;}}
+  if(!mt)return {status:'insert',errs:[],changes:[],canFile:false};
+  var curEv=find(mt.eventId),changes=[];
+  var pairs=[['team_name','name','队伍名称'],['school','school','学校'],['coach','coach','教练'],['group_code','group','组别']];
+  if(impIsBulk())pairs.push(['members','members','成员']);   /* bulk 多一项成员名单 */
+  pairs.forEach(function(p){
+    var oldV=(mt[p[1]]||'');
+    var newV=o[p[0]]||'';
+    if(oldV!==newV)changes.push({label:p[2],old:oldV||'—',new:newV||'—',structural:(p[2]==='组别')});
+  });
+  /* 「赛项」不在文件里 —— 与「本批目标赛项」比 id（比名字更稳，赛项改名不会误报变更） */
+  if(evId&&mt.eventId!==evId){
+    changes.push({label:'赛项',old:((curEv&&curEv.name)||'—'),new:((ev&&ev.name)||'—'),structural:true});
+  }
+  var hasScore=!!S.scores[mt.id];
+  if(hasScore&&changes.some(function(c){return c.structural;})){
+    return {status:'conflict',errs:['该队已有成绩，变更组别 / 赛项会破坏成绩归属'],changes:changes,canFile:true,team:mt,reason:'structural'};
+  }
+  if(changes.length)return {status:'update',errs:[],changes:changes,canFile:false,team:mt};
+  return {status:'skip',errs:[],changes:[],canFile:false,team:mt};
+}
+function impApplyRow(it,counts){
+  var d=impDiffRow(it.o,counts);
+  it.status=d.status;it.errs=d.errs;it.changes=d.changes;it.canFile=d.canFile;it.team=d.team;it.reason=d.reason;
+  it.checked=(it.status==='insert'||it.status==='update');
 }
 function ingestGrid(grid){
-  if(!grid||grid.length<2){IMP.error='数据不足：至少需要「表头 + 1 行数据」';IMP.diff=null;render();return;}
+  if(!grid||grid.length<2){IMP.error='数据不足：至少需要「表头 + 1 行数据」。';IMP.diff=null;render();return;}
   var headers=grid[0].map(function(s){return String(s==null?'':s).trim();}).map(function(s,i){return s||('列'+(i+1));});
   var dataRows=grid.slice(1).filter(function(r){return r&&r.some(function(c){return String(c==null?'':c).trim()!=='';});});
   if(!dataRows.length){IMP.error='未解析到有效数据行';IMP.diff=null;render();return;}
-  if(!IMP.headers||IMP.headers.join('|')!==headers.join('|')){
-    IMP.headers=headers;
-    IMP.mapping=autoMap(headers);
-  }
-  var items=[],firstIdx={};
-  dataRows.forEach(function(r,ri){
+  if(!IMP.headers||IMP.headers.join('|')!==headers.join('|')){IMP.headers=headers;IMP.mapping=autoMap(headers,impFields());}
+  var items=dataRows.map(function(r,ri){
     var o={_row:ri+2};
-    WRC_FIELDS.forEach(function(f){
-      var idx=IMP.mapping[f.k];
-      o[f.k]=(idx>=0&&idx!=null&&r[idx]!=null)?String(r[idx]):'';
+    impFields().forEach(function(fe){
+      var idx=IMP.mapping[fe.k];
+      o[fe.k]=(idx>=0&&idx!=null&&r[idx]!=null)?String(r[idx]):'';
     });
-    var errs=[];
-    WRC_FIELDS.forEach(function(f){ if(f.required&&!o[f.k])errs.push('缺少「'+f.label+'」'); });
-    if(o.team_number&&!/^\d+$/.test(o.team_number))errs.push('队伍编号须为纯数字（当前「'+o.team_number+'」）');
-    var evId=EVENT_BY_NAME[o.event_code];
-    if(o.event_code&&!evId)errs.push('未知赛项「'+o.event_code+'」');
-    var ev=evId?find(evId):null;
-    if(ev&&o.group_code&&(ev.groups||[]).indexOf(o.group_code)<0)errs.push('组别「'+o.group_code+'」不属于赛项「'+ev.name+'」');
-    var dup=false;
-    if(o.team_number){
-      if(firstIdx[o.team_number]==null)firstIdx[o.team_number]=ri+2;
-      else dup=true;
-    }
-    items.push({o:o,errs:errs,evId:evId,dup:dup,dupAt:firstIdx[o.team_number]});
+    return {i:ri,o:o,checked:false};
   });
-  items.forEach(function(it){
-    var o=it.o,status,changes=[];
-    if(it.dup)it.errs.push('编号在文件中重复（首次出现在第 '+it.dupAt+' 行），需人工裁决');
-    if(it.errs.length){ status='conflict'; }
-    else{
-      var mt=null;
-      for(var i=0;i<S.teams.length;i++){ if(S.teams[i].no===o.team_number){mt=S.teams[i];break;} }
-      if(!mt)status='insert';
-      else{
-        var curEv=find(mt.eventId);
-        var pairs=[['team_name','name','队伍名称'],['school','school','学校'],['coach','coach','教练'],['group_code','group','组别'],['event_code','evName','赛项']];
-        pairs.forEach(function(p){
-          var oldV=(p[1]==='evName')?((curEv&&curEv.name)||''):(mt[p[1]]||'');
-          var newV=o[p[0]]||'';
-          if(oldV!==newV)changes.push({label:p[2],old:oldV||'—',new:newV||'—'});
-        });
-        var hasScore=!!S.scores[mt.id];
-        var structural=changes.some(function(c){return c.label==='组别'||c.label==='赛项';});
-        if(hasScore&&structural){ status='conflict'; it.errs.push('该队已有成绩，不允许变更组别/赛项'); }
-        else if(changes.length){ status='update'; it.changes=changes; }
-        else status='skip';
-      }
-    }
-    it.status=status;
-    it.checked=(status==='insert'||status==='update');
-  });
-  IMP.diff=items;IMP.error='';IMP.lastResult=null;
+  var counts=impRowCounts(items);
+  items.forEach(function(it){impApplyRow(it,counts);});
+  IMP.diff=items;IMP.error='';IMP.decisions={};IMP.f={st:'all',kw:''};
   render();
 }
-function impToggle(i){ if(!IMP.diff||!IMP.diff[i])return; IMP.diff[i].checked=!IMP.diff[i].checked; render(); }
-function impToggleAll(v){ if(!IMP.diff)return; IMP.diff.forEach(function(it){ if(it.status==='insert'||it.status==='update')it.checked=!!v; }); render(); }
+/* ---------- 冲突裁决 / 有效状态 ----------
+   impEff = 裁决后这条行**实际会怎么处理**，表格计数与提交都以它为准。 */
+function impEff(it){
+  if(it.status!=='conflict')return it.status;
+  var d=IMP.decisions[it.i];
+  if(d==='file'&&it.canFile)return (it.changes&&it.changes.length)?'update':(it.team?'skip':'insert');
+  if(d==='db'||d==='skip')return 'skip';
+  return 'conflict';
+}
+function impEffCounts(){
+  var c={insert:0,update:0,skip:0,conflict:0};
+  (IMP.diff||[]).forEach(function(it){c[impEff(it)]++;});
+  return c;
+}
+function impDecide(i,v){
+  var it=IMP.diff&&IMP.diff[i];if(!it)return;
+  IMP.decisions[i]=v;
+  it.checked=(v==='file'&&it.canFile);
+  render();
+}
+function impSkipAllConflicts(){
+  (IMP.diff||[]).forEach(function(it){if(it.status==='conflict'&&!(it.i in IMP.decisions)){IMP.decisions[it.i]='skip';it.checked=false;}});
+  render();
+}
+function impToggle(i){
+  var it=IMP.diff&&IMP.diff[i];if(!it)return;
+  var e=impEff(it);
+  if(e!=='insert'&&e!=='update')return;
+  it.checked=!it.checked;render();
+}
+function impToggleAll(v){
+  (IMP.diff||[]).forEach(function(it){var e=impEff(it);if(e==='insert'||e==='update')it.checked=!!v;});
+  render();
+}
+/* 改编号：改完就地重算这一行（不是重跑全量） */
+function impRenum(i,el){
+  var it=IMP.diff&&IMP.diff[i];if(!it)return;
+  var nv=String(el&&el.value!=null?el.value:'').replace(/\s/g,'');
+  if(!nv)return;
+  it.o.team_number=nv;
+  delete IMP.decisions[i];
+  if(it.server){impBackendPreview();return;}   /* 后端模式：改了数据要服务端重算 */
+  impApplyRow(it,impRowCounts(IMP.diff));
+  render();
+}
+/* ---------- 提交 ---------- */
 function impCommit(){
   if(!IMP.diff)return;
-  var sum={insert:0,update:0,skip:0,conflict:0},detail=[];
+  /* 未裁决冲突的闸门放在模式分叉之前 —— 两种模式共用，后端模式不得绕过它 */
+  var eff=impEffCounts();
+  var undecided=(IMP.diff||[]).filter(function(it){return impEff(it)==='conflict';}).length;
+  if(undecided){
+    alert('还有 '+undecided+' 条冲突未裁决。\n请在第 3 步逐条选择'+
+      (backendMode?'（服务端不接受覆盖，只能「以库内为准 / 跳过」，或改编号后重算）':'「以文件为准 / 以库内为准 / 跳过」，或改编号后重算')+
+      '；也可点「冲突全部跳过」。');
+    return;
+  }
+  if(backendMode){impBackendCommit();return;}   /* 后端模式：写入交给服务端（与审计同事务） */
+  if(readonlyGuard())return;   /* 归档赛事只读 —— 与其它写路径一致，避免「界面改了但没落盘」 */
+  var pending=0,affected=0;
   IMP.diff.forEach(function(it){
-    sum[it.status]++;
-    if(!it.checked||it.status==='conflict'||it.status==='skip')return;
-    var o=it.o;
-    if(it.status==='insert'){
-      S.teams.push({id:uid('tm'),no:o.team_number,name:o.team_name,school:o.school,coach:o.coach,
-        eventId:it.evId,group:o.group_code,members:'',status:'active',source:'excel'});
+    var e=impEff(it);
+    if((e!=='insert'&&e!=='update')||!it.checked)return;
+    pending++;
+    if(it.team&&S.scores[it.team.id])affected++;
+  });
+  if(!pending){alert('没有可应用的行（可能全部为跳过，或都没勾选）。');return;}
+  var conflicted=IMP.diff.filter(function(it){return it.status==='conflict';}).length;
+  var msg='确认写入？\n\n· 新增 '+eff.insert+' 支\n· 更新 '+eff.update+' 支\n· 跳过 '+eff.skip+' 行\n'+
+    (conflicted?('· 其中 '+conflicted+' 行原为冲突，已按你的裁决处理\n'):'')+
+    (affected?('· 其中 '+affected+' 支已有成绩：只改报名信息，不动成绩\n'):'')+
+    '\n来源：'+(IMP.fileName||'（粘贴 / 样例数据）')+'\n操作人：'+currentUser().name;
+  if(!confirm(msg))return;
+  var snap={added:[],updated:[]},detail=[];
+  IMP.diff.forEach(function(it){
+    var e=impEff(it);
+    if((e!=='insert'&&e!=='update')||!it.checked)return;
+    var o=it.o,bulk=impIsBulk(),evId=bulk?IMP.bulkEvent:EVENT_BY_NAME[o.event_code];
+    var src=bulk?'excel_bulk':'excel';   /* 来源分开记 —— 审计里能看清是哪个通道进来的 */
+    if(e==='insert'){
+      var nid=uid('tm');
+      S.teams.push({id:nid,no:o.team_number,name:o.team_name,school:o.school,coach:o.coach,
+        eventId:evId,group:o.group_code,members:(o.members||''),status:'active',source:src});
+      snap.added.push(nid);
       detail.push({act:'insert',no:o.team_number,name:o.team_name});
-    }else if(it.status==='update'){
-      var mt=null;
-      for(var i=0;i<S.teams.length;i++){ if(S.teams[i].no===o.team_number){mt=S.teams[i];break;} }
-      if(mt){
-        mt.name=o.team_name;mt.school=o.school;mt.coach=o.coach;mt.group=o.group_code;
-        mt.eventId=it.evId;mt.source='excel';
-        detail.push({act:'update',no:o.team_number,name:o.team_name,changes:it.changes});
-      }
+    }else{
+      var mt=it.team;if(!mt)return;
+      snap.updated.push({id:mt.id,before:{name:mt.name,school:mt.school,coach:mt.coach,group:mt.group,eventId:mt.eventId,members:mt.members,source:mt.source}});
+      mt.name=o.team_name;mt.school=o.school;mt.coach=o.coach;mt.group=o.group_code;mt.eventId=evId;mt.source=src;
+      if(bulk)mt.members=(o.members||'');
+      detail.push({act:'update',no:o.team_number,name:o.team_name,changes:it.changes});
     }
   });
-  S.importLogs=S.importLogs||[];
-  S.importLogs.unshift({ts:nowStr(),source:'excel',operator:'记分员',summary:sum,detail:detail,status:'success'});
-  S.importLogs=S.importLogs.slice(0,20);
+  var tasks=impTaskList();
+  tasks.unshift({id:uid('it_'),ts:nowStr(),operator:currentUser().name,source:(impIsBulk()?'excel_bulk':'excel'),
+    fileName:IMP.fileName||'（粘贴 / 样例数据）',summary:eff,
+    status:(conflicted?'partial':'done'),detail:detail,affectedScores:affected,snapshot:snap});
+  S.importTasks=tasks.slice(0,50);
   save();
-  IMP.diff=null;IMP.text='';IMP.headers=null;
-  IMP.lastResult=sum;
+  IMP.lastResult={insert:eff.insert,update:eff.update,skip:eff.skip,conflict:eff.conflict,
+    affected:affected,fileName:IMP.fileName||'（粘贴 / 样例数据）'};
+  IMP.diff=null;IMP.text='';IMP.headers=null;IMP.grid=null;IMP.decisions={};IMP.parsed=false;IMP.fileName='';IMP.showPaste=false;
+  IMP.mode='wizard';IMP.step=5;   /* 第 5 态：完成页（否则成功提示会被立刻切走，用户看不到结果） */
   render();
+}
+/* ---------- 撤回 ---------- */
+function impRevoke(id){
+  if(readonlyGuard())return;
+  var t=null;
+  impTaskList().forEach(function(x){if(x.id===id)t=x;});
+  if(!t)return;
+  if(t.legacy){alert('这是升级前的历史导入记录，没有回滚快照，无法撤回。');return;}
+  if(t.status==='revoked'){alert('这批导入已经撤回过了。');return;}
+  if(t.affectedScores>0){
+    alert('撤回被拒绝：\n该批导入涉及的队伍已有 '+t.affectedScores+' 支产生成绩。\n撤回会破坏成绩与队伍的归属关系，请手工处理。');
+    return;
+  }
+  var sn=t.snapshot||{added:[],updated:[]};
+  if(!confirm('确认撤回这批导入？\n\n· 撤销本次新增 '+sn.added.length+' 支\n· 回滚本次更新 '+sn.updated.length+' 支\n\n撤回会另写一条记录，原记录保留可查。'))return;
+  sn.added.forEach(function(tid){S.teams=S.teams.filter(function(x){return x.id!==tid;});});
+  sn.updated.forEach(function(u){
+    var mt=null;
+    for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===u.id){mt=S.teams[i];break;}}
+    if(!mt)return;
+    var b=u.before||{};
+    mt.name=b.name;mt.school=b.school;mt.coach=b.coach;mt.group=b.group;mt.eventId=b.eventId;mt.source=b.source;
+    if('members' in b)mt.members=b.members;
+  });
+  t.status='revoked';t.revokedAt=nowStr();
+  impTaskList().unshift({id:uid('it_'),ts:nowStr(),operator:currentUser().name,source:t.source||'excel',
+    fileName:'（撤回）'+(t.fileName||''),summary:{insert:0,update:0,skip:0,conflict:0},
+    status:'revoked',detail:[{act:'revoke',no:'—',name:'撤回 '+(t.fileName||'')}],affectedScores:0,snapshot:null});
+  save();render();
 }
 /* ---------- .xlsx 直读（零依赖：ZIP central directory + DecompressionStream + XML 扫描） ---------- */
 function xmlUnescape(s){
@@ -1155,23 +1483,24 @@ async function readXlsxGrid(u8){
 }
 async function impHandleFile(file){
   if(!file)return;
-  IMP.error='';IMP.fileName=file.name||'';IMP.busy=true;IMP.diff=null;render();
+  IMP.error='';IMP.fileName=file.name||'';IMP.busy=true;IMP.diff=null;IMP.grid=null;IMP.headers=null;IMP.decisions={};
+  render();
   try{
     var nm=(file.name||'').toLowerCase();
     if(/\.csv$/.test(nm)){
       var text=await file.text();
       IMP.busy=false;IMP.text=text;IMP.fromExcel=false;IMP.showPaste=true;
-      ingestGrid(parseCSV(text));
+      impParse();                     /* 第 1 步 → 第 2 步：只读表头 */
       return;
     }
     if(/\.xls$/.test(nm))throw new Error('.xls 为旧版二进制格式，请在 Excel 中另存为 .xlsx 后重试');
     if(!/\.xlsx$/.test(nm))throw new Error('仅支持 .xlsx / .csv（当前：'+(file.name||'未知')+'）');
     var buf=new Uint8Array(await file.arrayBuffer());
     var grid=await readXlsxGrid(buf);
-    IMP.busy=false;IMP.fromExcel=true;IMP.text='';
-    ingestGrid(grid);
+    IMP.fromExcel=true;IMP.text='';
+    impAdoptGrid(grid);
   }catch(e){
-    IMP.busy=false;IMP.diff=null;
+    IMP.busy=false;IMP.diff=null;IMP.grid=null;IMP.headers=null;
     IMP.error='Excel 解析失败：'+((e&&e.message)?e.message:e);
     render();
   }
@@ -1185,108 +1514,400 @@ function impDrop(ev){
 function impTogglePaste(){IMP.showPaste=!IMP.showPaste;render();}
 
 function viewImport(){
-  var h='';
-  h+='<div class="card"><h2>导入链路 <small>对齐《裁判打分系统 · 队伍导入架构图 V0.2》</small></h2>'+
-     '<div class="row tight">'+
-       ['① 选择来源','② 解析+列映射','③ 字段校验','④ Diff 对比','⑤ 预览确认','⑥ 事务入库'].map(function(s,i){
-         return (i?'<span class="muted">→</span>':'')+'<span class="tag'+(IMP.diff?' b':'')+'">'+s+'</span>';
-       }).join('')+
-     '</div>'+
-     '<div class="hint" style="margin-top:10px">报名源头 = <b>WRC 官网导出报名表</b>（主通道）。导入采用<b>合并式 + 变更预览</b>，不做清空重建；已有成绩的队伍不会被物理删除，退赛仅标记为「已退赛」。</div>'+
+  if(IMP.mode==='wizard')return impWizardHtml();
+  return impListHtml();
+}
+/* ---------- 主体：导入任务列表 ---------- */
+function impListHtml(){
+  var all=impTaskList(),rows=impTaskRows();
+  var stOpts=[['all','全部状态'],['done','已入库'],['partial','部分成功'],['revoked','已撤回']];
+  var srcOpts=[['all','全部来源'],['excel','WRC 报名表'],['excel_bulk','批量导入 Excel'],['manual','手动录入']];
+  var stMap={done:['ok','已入库'],partial:['warn','部分成功'],revoked:['err','已撤回'],pending:['','待确认']};
+  var act=[];
+  if(IMQA.st!=='all')act.push('状态 = '+(stMap[IMQA.st]?stMap[IMQA.st][1]:IMQA.st));
+  if(IMQA.src!=='all')act.push('来源 = '+impSourceName(IMQA.src));
+  if(IMQA.from||IMQA.to)act.push('时间 '+(IMQA.from||'不限')+' ~ '+(IMQA.to||'不限'));
+  if(IMQA.kw)act.push('关键词 含「'+IMQA.kw+'」');
+
+  var h='<div class="card"><div class="row" style="justify-content:space-between">'+
+    '<h2 style="margin:0">导入任务 <small>每一次队伍导入 = 一条任务记录（可筛选 / 可导出 / 可撤回）</small></h2>'+
+    '<span class="row tight">'+
+      '<button class="btn primary" onclick="impWizardOpen(\'wrc\')">+ 导入 WRC 报名表</button>'+
+      '<button class="btn" onclick="impWizardOpen(\'bulk\')">批量导入 Excel</button>'+
+    '</span>'+
+  '</div>'+
+  '<div class="hint" style="margin-top:8px">'+(backendMode?'<b style="color:#1b63ab">已连接后端</b>：预览与提交都走服务端 —— 服务端会重新比对一次，写入与 import_logs 审计同事务；冲突行只能跳过或改编号（服务端不接受覆盖），且不支持撤回。<br>':'')+'两个通道：<b>导入 WRC 报名表</b>（WRC 官网导出的 6 列表，含赛项列，一份文件可覆盖多个赛项）与 <b>批量导入 Excel</b>（通用队伍表，不含赛项列，整批写入选定赛项，可一并写入成员名单）。两者都走<b>合并式 + 变更预览 + 冲突裁决</b>，不做清空重建 —— 已有成绩的队伍不会被物理删除；退赛请到「队伍管理」标记。</div>'+
   '</div>';
 
-  if(IMP.lastResult){
-    var r=IMP.lastResult;
-    h+='<div class="card" style="border-left:3px solid #2f6b0f"><b>导入成功</b> <span class="small">已写入 teams 表并生成 import_logs 审计记录：</span>'+
-       '<div class="row tight" style="margin-top:6px">'+
-       '<span class="tag ok">🟢 新增 '+r.insert+'</span><span class="tag warn">🟡 更新 '+r.update+'</span>'+
-       '<span class="tag">⚪ 跳过 '+r.skip+'</span><span class="tag err">🔴 冲突 '+r.conflict+'</span></div></div>';
-  }
-
-  h+='<div class="card"><h2>① 选择来源 <small>主通道 = 直接导入 WRC 官网导出的 Excel</small></h2>'+
-     '<label class="drop" for="impFile" ondragover="event.preventDefault()" ondrop="impDrop(event)">'+
-       '<b>'+(IMP.busy?'正在解析 Excel…':'点击选择 Excel 文件，或拖拽到此处')+'</b>'+
-       '<span>支持 .xlsx（WRC 官网导出）与 .csv；.xls 旧格式请先在 Excel 中另存为 .xlsx</span>'+
-     '</label>'+
-     '<input type="file" id="impFile" accept=".xlsx,.csv" style="display:none" onchange="impFilePicked(this)">'+
-     (IMP.fileName?'<div class="small muted" style="margin-top:8px">已选择：'+esc(IMP.fileName)+(IMP.fromExcel?' <span class="tag ok">已解析 Excel</span>':'')+'</div>':'')+
-     (IMP.error?'<div class="small" style="color:#a32d2d;margin-top:8px">'+esc(IMP.error)+'</div>':'')+
-     '<hr class="sep">'+
-     '<div class="row">'+
-       '<button class="btn" onclick="impLoadSample()">载入内置样例（'+(WRC_SAMPLE.split('\n').length-1)+' 行 · 覆盖四种变化状态）</button>'+
-       '<button class="btn" onclick="impTogglePaste()">'+(IMP.showPaste?'收起':'展开')+'粘贴 CSV 兜底通道</button>'+
-     '</div>'+
-     '<div id="impPaste" style="display:'+(IMP.showPaste?'block':'none')+';margin-top:10px">'+
-       '<div class="fld"><label>报名数据（CSV，首行为表头）</label>'+
-       '<textarea id="impText" style="min-height:150px" oninput="IMP.text=this.value" placeholder="队伍编号,参赛队伍名称,学校名称,指导教师,参赛组别,赛项">'+esc(IMP.text)+'</textarea></div>'+
-       '<button class="btn primary" onclick="buildImport()">解析并比对</button>'+
-     '</div>'+
+  h+='<div class="card"><h2>筛选条件</h2>'+
+    '<div class="row" style="gap:12px 18px">'+
+      xrFldRaw('状态','<select style="margin:0;width:140px" onchange="imqSet(\'st\',this.value)">'+
+        stOpts.map(function(o){return '<option value="'+o[0]+'" '+(IMQ.st===o[0]?'selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>')+
+      xrFldRaw('来源','<select style="margin:0;width:140px" onchange="imqSet(\'src\',this.value)">'+
+        srcOpts.map(function(o){return '<option value="'+o[0]+'" '+(IMQ.src===o[0]?'selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>')+
+      xrFldRaw('时间','<input type="date" style="margin:0;width:145px" value="'+esc(IMQ.from)+'" oninput="imqSet(\'from\',this.value)">'+
+        '<span class="muted">-</span>'+
+        '<input type="date" style="margin:0;width:145px" value="'+esc(IMQ.to)+'" oninput="imqSet(\'to\',this.value)">')+
+      xrFldRaw('关键词','<input style="margin:0;width:180px" placeholder="文件名 / 操作人" value="'+esc(IMQ.kw)+'" oninput="imqSet(\'kw\',this.value)" onkeydown="if(event.key===\'Enter\')imqSearch()">')+
+      '<button class="btn primary" onclick="imqSearch()">搜索</button>'+
+      '<button class="btn" onclick="imqReset()">重置</button>'+
+      '<button class="btn" style="margin-left:auto" onclick="impExportTasks()">导出 <span style="color:var(--muted)">Excel</span></button>'+
+    '</div>'+
+    '<div class="hint" style="margin-top:10px">'+
+      (act.length?('<b>当前条件</b>：'+esc(act.join(' · '))+'　—— 点「重置」清空全部条件。'):'未设任何条件 → 显示全部任务。')+
+      '　共 <b>'+rows.length+'</b> / '+all.length+' 条任务。</div>'+
   '</div>';
 
-  if(IMP.headers){
-    h+='<div class="card"><h2>③ 列映射 <small>确认「哪一列是哪个字段」—— 防导错列（抄 fllscoring 的防呆设计）</small></h2><div class="grid g3">';
-    WRC_FIELDS.forEach(function(f){
-      h+='<div class="fld"><label>'+f.label+(f.required?' <span style="color:#a32d2d">*必填</span>':'')+'</label>'+
-         '<select onchange="impSetMap(\''+f.k+'\',this.value)">'+
-         '<option value="-1">（不导入）</option>'+
-         IMP.headers.map(function(hd,i){return '<option value="'+i+'" '+(IMP.mapping[f.k]===i?'selected':'')+'>'+esc(hd)+'</option>';}).join('')+
-         '</select></div>';
-    });
-    h+='</div>';
-    var firstRow=IMP.diff&&IMP.diff[0]?IMP.diff[0].o:null;
-    if(firstRow){
-      h+='<div class="note">首行示例预览：'+WRC_FIELDS.map(function(f){return esc(f.label)+' = <b>'+esc(firstRow[f.k]||'（空）')+'</b>';}).join(' · ')+'</div>';
+  var tbody=rows.map(function(t){
+    var sm=stMap[t.status]||['',t.status];
+    return '<tr>'+
+      '<td class="small">'+esc(t.ts)+'</td>'+
+      '<td><span class="tag b">'+esc(impSourceName(t.source))+'</span></td>'+
+      '<td class="small">'+esc(t.fileName||'—')+'</td>'+
+      '<td class="small">'+esc(t.operator||'—')+'</td>'+
+      '<td class="small">🟢 '+t.summary.insert+'　🟡 '+t.summary.update+'</td>'+
+      '<td class="small">⚪ '+t.summary.skip+'　🔴 '+t.summary.conflict+'</td>'+
+      '<td class="small">'+((t.affectedScores||0)?(t.affectedScores+' 支'):'—')+'</td>'+
+      '<td><span class="tag '+sm[0]+'">'+sm[1]+'</span></td>'+
+      '<td><span class="row tight"><button class="btn sm" onclick="impOpenDetail(\''+t.id+'\')">'+(IMP.openTask===t.id?'收起明细':'明细')+'</button>'+
+        ((!t.legacy&&t.status!=='revoked')?('<button class="btn sm" onclick="impRevoke(\''+t.id+'\')">撤回</button>'):'')+
+      '</span></td></tr>';
+  }).join('');
+  h+='<div class="card"><h2>任务列表 <small>按时间倒序</small></h2>'+
+    '<div style="overflow:auto"><table><thead><tr><th style="min-width:140px">时间</th><th>来源</th><th style="min-width:170px">文件</th><th>操作人</th>'+
+    '<th class="num">新增 / 更新</th><th class="num">跳过 / 冲突</th><th class="num">影响成绩</th><th>状态</th><th></th></tr></thead>'+
+    '<tbody>'+(tbody||'<tr><td colspan="9" class="muted">没有符合条件的导入任务。点右上「+ 导入 WRC 报名表」或「批量导入 Excel」开始一次导入。</td></tr>')+'</tbody></table></div>';
+
+  if(IMP.openTask){
+    var tk=null;
+    all.forEach(function(x){if(x.id===IMP.openTask)tk=x;});
+    if(tk){
+      h+='<hr class="sep"><h2 style="font-size:14px">明细 · '+esc(tk.ts)+' · '+esc(tk.fileName||'—')+'</h2>'+
+        '<div class="hint">来源：'+esc(impSourceName(tk.source))+'　操作人：'+esc(tk.operator||'—')+
+        '　结果：🟢 新增 '+tk.summary.insert+'　🟡 更新 '+tk.summary.update+'　⚪ 跳过 '+tk.summary.skip+'　🔴 冲突 '+tk.summary.conflict+
+        (tk.revokedAt?('　<b style="color:#a32d2d">已于 '+esc(tk.revokedAt)+' 撤回</b>'):'')+'</div>';
+      var det=(tk.detail||[]).map(function(d){
+        var chg=(d.changes||[]).map(function(c2){return esc(c2.label)+' <span class="muted">'+esc(c2.old)+' → </span><b>'+esc(c2.new)+'</b>';}).join('；');
+        return '<tr><td><span class="tag '+({insert:'ok',update:'warn',revoke:'err'}[d.act]||'')+'">'+esc(importActName(d.act))+'</span></td>'+
+          '<td>'+esc(d.no||'—')+'</td><td><b>'+esc(d.name||'—')+'</b></td>'+
+          '<td class="small">'+(chg||'—')+'</td></tr>';
+      }).join('');
+      h+='<table style="margin-top:8px"><thead><tr><th style="width:80px">动作</th><th style="width:90px">编号</th><th>队伍</th><th>字段变更</th></tr></thead>'+
+        '<tbody>'+(det||'<tr><td colspan="4" class="muted">无明细</td></tr>')+'</tbody></table>';
     }
-    h+='</div>';
-  }
-
-  if(IMP.diff){
-    var c={insert:0,update:0,skip:0,conflict:0};
-    IMP.diff.forEach(function(it){c[it.status]++;});
-    h+='<div class="card"><h2>④ 变更比对 <small>与库内 '+S.teams.length+' 支队伍比对</small></h2>'+
-       '<div class="row tight" style="margin-bottom:10px">'+
-       '<span class="tag ok">🟢 新增 '+c.insert+'</span><span class="tag warn">🟡 更新 '+c.update+'</span>'+
-       '<span class="tag">⚪ 跳过 '+c.skip+'</span><span class="tag err">🔴 冲突 '+c.conflict+'</span>'+
-       '<span class="sp" style="flex:1"></span>'+
-       '<button class="btn sm" onclick="impToggleAll(true)">全选可应用项</button>'+
-       '<button class="btn sm" onclick="impToggleAll(false)">全不选</button></div>'+
-       '<table><thead><tr><th style="width:34px"></th><th style="width:92px">状态</th><th style="width:46px">行</th><th>编号</th><th>队伍名称</th><th>学校</th><th>教练</th><th>组别</th><th>赛项</th><th>变更 / 问题</th></tr></thead><tbody>';
-    IMP.diff.forEach(function(it,i){
-      var o=it.o,meta=DIFF_META[it.status];
-      var chg='';
-      if(it.status==='update'&&it.changes)chg=it.changes.map(function(c2){return esc(c2.label)+' <span class="muted">'+esc(c2.old)+' → </span><b>'+esc(c2.new)+'</b>';}).join('；');
-      else if(it.errs&&it.errs.length)chg='<span style="color:#a32d2d">'+it.errs.map(esc).join('；')+'</span>';
-      else if(it.status==='skip')chg='<span class="muted">与库内完全一致，不写入</span>';
-      else if(it.status==='insert')chg='<span class="muted">库中不存在该编号，将新建</span>';
-      var cb=(it.status==='conflict')?'<input type="checkbox" disabled title="冲突项需人工裁决">'
-        :'<input type="checkbox" '+(it.checked?'checked':'')+' onchange="impToggle('+i+')">';
-      h+='<tr><td style="text-align:center">'+cb+'</td><td><span class="tag '+meta.cls+'">'+meta.t+'</span></td>'+
-         '<td class="muted">'+o._row+'</td><td>'+esc(o.team_number)+'</td><td>'+esc(o.team_name)+'</td>'+
-         '<td class="small">'+esc(o.school||'—')+'</td><td class="small">'+esc(o.coach||'—')+'</td>'+
-         '<td>'+esc(o.group_code)+'</td><td>'+esc(o.event_code)+'</td>'+
-         '<td class="small">'+(chg||'—')+'</td></tr>';
-    });
-    h+='</tbody></table>'+
-       '<div class="row" style="margin-top:12px">'+
-       '<button class="btn primary" onclick="impCommit()">⑤ 确认入库（事务 + upsert + 写 import_logs）</button>'+
-       '<span class="small muted">冲突项默认不可勾选，必须人工裁决后才能提交；跳过项不产生写入。</span>'+
-       '</div></div>';
-  }
-
-  h+='<div class="card"><h2>导入审计 <small>import_logs · 争议追溯依据</small></h2>';
-  if(!S.importLogs||!S.importLogs.length){
-    h+='<div class="hint">暂无导入记录。执行一次导入后，这里会留下来源 / 时间 / 操作人 / 变更汇总 / 明细。</div>';
-  }else{
-    h+='<table><thead><tr><th>时间</th><th>来源</th><th>操作人</th><th>变更汇总</th><th>明细</th><th>状态</th></tr></thead><tbody>';
-    S.importLogs.forEach(function(l){
-      h+='<tr><td class="small">'+esc(l.ts)+'</td><td><span class="tag b">'+esc(l.source==='excel'?'Excel 导入':l.source)+'</span></td><td>'+esc(l.operator)+'</td>'+
-         '<td class="small">🟢 新增 '+l.summary.insert+'　🟡 更新 '+l.summary.update+'　⚪ 跳过 '+l.summary.skip+'　🔴 冲突 '+l.summary.conflict+'</td>'+
-         '<td class="small muted">'+esc((l.detail||[]).map(function(d){return importActName(d.act)+' '+d.no;}).join('、')||'—')+'</td>'+
-         '<td><span class="tag ok">'+esc(l.status==='success'?'成功':l.status)+'</span></td></tr>';
-    });
-    h+='</tbody></table>';
   }
   h+='</div>';
+  return h;
+}
+/* 与 xrFld 同形，但本页字段不依赖渲染序列，独立一份避免耦合 */
+function xrFldRaw(label,ctrl){
+  return '<span style="display:inline-flex;align-items:center;gap:6px">'+
+    '<span class="small muted" style="white-space:nowrap">'+esc(label)+'</span>'+ctrl+'</span>';
+}
+/* ---------- 向导 ---------- */
+function impWizardHtml(){
+  var steps=['选择文件','确认列映射','校验与变更预览','确认入库'];
+  var bar=steps.map(function(s,i){
+    var n=i+1,on=(IMP.step===n),done=(IMP.step>n);
+    return (i?'<span class="muted"> → </span>':'')+
+      '<span class="tag'+(on?' b':'')+'"'+(done?' style="cursor:pointer" onclick="impGoStep('+n+')"':'')+'>'+
+      (done?'✓ ':'')+n+' '+esc(s)+'</span>';
+  }).join('');
+  var h='<div class="card"><div class="row" style="justify-content:space-between">'+
+    '<h2 style="margin:0">'+esc(impKindName())+' <small>'+(IMP.step===5?'已完成':('第 '+IMP.step+' / 4 步'))+'</small></h2>'+
+    '<button class="btn sm" onclick="impWizardClose()">← 返回任务列表</button></div>'+
+    '<div class="row tight" style="margin-top:10px">'+bar+'</div></div>';
+  if(IMP.error)h+='<div class="card" style="border-left:3px solid #a32d2d"><b style="color:#a32d2d">无法继续</b> <span class="small">'+esc(IMP.error)+'</span></div>';
+  if(IMP.lastResult){
+    var r=IMP.lastResult;
+    h+='<div class="card" style="border-left:3px solid #2f6b0f"><b>导入成功</b> <span class="small">已写入 teams 并生成导入任务记录：</span>'+
+      '<div class="row tight" style="margin-top:6px"><span class="tag ok">🟢 新增 '+r.insert+'</span><span class="tag warn">🟡 更新 '+r.update+'</span>'+
+      '<span class="tag">⚪ 跳过 '+r.skip+'</span><span class="tag err">🔴 冲突 '+r.conflict+'</span>'+
+      (r.affected?('<span class="tag warn">涉及已有成绩 '+r.affected+' 支</span>'):'')+'</div></div>';
+  }
+  if(IMP.step===5){
+    h+='<div class="card"><h2>导入完成 <small>已生成任务记录，可随时撤回</small></h2>'+
+      '<div class="hint">这次写入采用了<b>合并式</b>：只 upsert 勾选的行，没有删除任何队伍。要撤销就回任务列表，点该条任务的「撤回」——它有回滚快照。</div>'+
+      '<div class="row" style="margin-top:12px">'+
+        '<button class="btn primary" onclick="impWizardClose()">返回任务列表</button>'+
+        '<button class="btn" onclick="impWizardOpen(\''+IMP.kind+'\')">再导入一批</button>'+
+      '</div></div>';
+    return h;
+  }
+  if(IMP.step===1)h+=impStep1();
+  else if(IMP.step===2)h+=impStep2();
+  else if(IMP.step===3)h+=impStep3();
+  else h+=impStep4();
+  return h;
+}
+function impStep1(){
+  var h='<div class="card"><h2>① 选择文件 <small>'+(impIsBulk()?'批量导入 Excel —— 通用队伍表：编号 / 名称 / 组别 / 学校 / 教练 / 成员':'主通道 = 直接导入 WRC 官网导出的 Excel')+'</small></h2>'+
+    '<label class="drop" for="impFile" ondragover="event.preventDefault()" ondrop="impDrop(event)">'+
+      '<b>'+(IMP.busy?'正在解析 Excel…':'点击选择 Excel 文件，或拖拽到此处')+'</b>'+
+      '<span>'+(impIsBulk()?'支持 .xlsx / .csv；表里不带「赛项」列，整批写入第 2 步选定的赛项':'支持 .xlsx（WRC 官网导出）与 .csv')+'；.xls 旧格式请先在 Excel 中另存为 .xlsx</span>'+
+    '</label>'+
+    '<input type="file" id="impFile" accept=".xlsx,.csv" style="display:none" onchange="impFilePicked(this)">'+
+    (IMP.fileName?'<div class="small muted" style="margin-top:8px">已选择：'+esc(IMP.fileName)+(IMP.fromExcel?' <span class="tag ok">已解析 Excel</span>':'')+'</div>':'')+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="impTogglePaste()">'+(IMP.showPaste?'收起':(impIsBulk()?'没有 Excel？用内置样例试跑':'其它方式（粘贴 CSV / 载入样例）'))+'</button>'+
+    '</div>';
+  if(IMP.showPaste){
+    h+='<div id="impPaste" style="margin-top:10px">'+
+      '<div class="row" style="margin-bottom:8px"><button class="btn sm" onclick="impLoadSample()">载入内置样例</button>'+
+      '<span class="small muted">样例里含重复编号，导入后可看到新增 / 更新 / 跳过 / 冲突四种结果</span></div>'+
+      '<div class="fld"><label>'+(impIsBulk()?'样例数据（CSV，首行为表头）':'报名数据（CSV，首行为表头）')+'</label>'+
+      '<textarea id="impText" style="min-height:150px" oninput="IMP.text=this.value" placeholder="'+(impIsBulk()?'队伍编号,队伍名称,组别,学校 / 机构,指导教师,成员':'队伍编号,参赛队伍名称,学校名称,指导教师,参赛组别,赛项')+'">'+esc(IMP.text)+'</textarea></div>'+
+      '<button class="btn primary" onclick="impParse()">解析并继续</button>'+
+    '</div>';
+  }
+  h+='</div>';
+  return h;
+}
+/* bulk 通道不带「赛项」列：这一批全部写入哪个赛项，在这里定。
+   改选后若已有数据，就地重跑校验（不留「映射改了但没重算」的死路）。 */
+function impBulkTargetBox(){
+  var opts=(S.events||[]).map(function(e){
+    return '<option value="'+e.id+'" '+(IMP.bulkEvent===e.id?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
+  return '<div class="note" style="border-left-color:#1b63ab"><b>本批写入赛项</b>'+
+    '<select style="margin:0 8px;width:180px" onchange="impSetBulkEvent(this.value)">'+opts+'</select>'+
+    '<span class="small muted">批量导入 Excel 表里没有「赛项」列 —— 整批落到这里选的赛项。改选会立即重跑校验。</span></div>';
+}
+function impSetBulkEvent(id){
+  IMP.bulkEvent=id;
+  if(IMP.grid){IMP.step=3;ingestGrid(IMP.grid);if(backendMode)impBackendPreview();}else{IMP.diff=null;render();}
+}
+/* ================= 后端模式：导入走服务端权威接口 =================
+   本仓后端已有 POST /imports/preview 与 POST /imports/commit ——
+   服务端会**重新算一遍比对结果**、只采纳客户端勾选的行号、并把写入与 import_logs 审计放同一事务。
+   所以 backendMode 下预览与提交都交给服务端，前端不再自己算、也不自己写。
+
+   三处与本地模式的能力差异（如实反映，不做假的"看起来一样"）：
+     · 冲突行由服务端标记 selectable=false → **不提供「以文件为准」覆盖**，只能跳过或改编号；
+     · 服务端没有撤回接口 → 任务列表在 backendMode 下不显示「撤回」；
+     · 预览/提交都以「单个赛项」为单位 → 多赛项文件按赛项分组，逐组调用。 */
+function impRowsByEvent(){
+  var bulk=impIsBulk(),map={},order=[];
+  (IMP.diff||[]).forEach(function(it){
+    var eid=bulk?IMP.bulkEvent:EVENT_BY_NAME[it.o.event_code];
+    if(!eid)return;
+    if(!map[eid]){map[eid]=[];order.push(eid);}
+    map[eid].push(it.o);
+  });
+  return {map:map,order:order};
+}
+function impToRemoteRows(list){
+  return list.map(function(o){
+    return {no:o.team_number,name:o.team_name,school:o.school||'',coach:o.coach||'',
+      group:o.group_code||'',members:o.members||'',lineNo:o._row};
+  });
+}
+function impBackendPreview(){
+  if(!IMP.diff||!IMP.diff.length){IMP.error=IMP.error||'没有可校验的行。';render();return;}
+  var g=impRowsByEvent();
+  if(!g.order.length){IMP.error='没有可提交到后端的行：表里的「赛项」无法识别（请检查列映射）。';render();return;}
+  IMP.busy=true;IMP.error='';render();
+  Promise.all(g.order.map(function(eid){
+    return backendFetch('/imports/preview',{method:'POST',body:{eventId:eid,rows:impToRemoteRows(g.map[eid])}})
+      .then(function(r){return {eid:eid,res:r};});
+  })).then(function(rs){
+    IMP.busy=false;
+    var items=[],bad=[];
+    rs.forEach(function(x){
+      if(!x.res.ok||!x.res.body||x.res.body.code!==0){bad.push(x);return;}
+      var d=x.res.body.data||{};
+      var ev=find(x.eid)||{};
+      (d.rows||[]).forEach(function(rw){
+        var o={_row:rw.line,
+          team_number:(rw.row&&rw.row.no)||'',team_name:(rw.row&&rw.row.name)||'',
+          school:(rw.row&&rw.row.school)||'',coach:(rw.row&&rw.row.coach)||'',
+          group_code:(rw.row&&rw.row.group)||'',members:(rw.row&&rw.row.members)||'',
+          event_code:ev.name||''};
+        var team=null;
+        for(var i=0;i<S.teams.length;i++){if(S.teams[i].no===o.team_number){team=S.teams[i];break;}}
+        items.push({i:items.length,o:o,status:rw.status,
+          errs:(rw.conflicts||[]).slice(),
+          changes:(rw.changes||[]).map(function(c2){return {label:c2.label,old:c2.before||'—',new:c2.after||'—',structural:false};}),
+          canFile:!!rw.canOverride,  /* 由服务端判定：只有「结构性变更」才允许人工裁决「以文件为准」 */
+          team:team,checked:!!rw.selectable,server:true});
+      });
+    });
+    if(bad.length){
+      IMP.error='服务端预览失败：'+bad.map(function(x){
+        return ((find(x.eid)||{}).name||x.eid)+' — '+((x.res.body&&x.res.body.message)||'未知错误');}).join('；');
+    }
+    IMP.diff=items;IMP.decisions={};IMP.f={st:'all',kw:''};
+    IMP.step=3;render();
+  })['catch'](function(e){IMP.busy=false;IMP.error='服务端预览失败：'+((e&&e.message)?e.message:e);render();});
+}
+function impBackendCommit(){
+  if((IMP.diff||[]).some(function(it){return impEff(it)==='conflict';})){alert('还有未裁决的冲突行，请先在第 3 步处理。');return;}
+  var g=impRowsByEvent(),jobs={},forcedBy={},count=0,forcedCount=0;
+  (IMP.diff||[]).forEach(function(it){
+    if(!it.checked)return;
+    var eid=impIsBulk()?IMP.bulkEvent:EVENT_BY_NAME[it.o.event_code];
+    if(!eid)return;
+    (jobs[eid]=jobs[eid]||[]).push(it.o._row);count++;
+    /* 冲突行只有被人工裁决为「以文件为准」才会走到这里（impDecide 只在 canFile 时勾选）。
+       服务端要求逐行显式声明 —— 这里按行号把裁决传过去，不搞"整批强制"。 */
+    if(it.status==='conflict'&&IMP.decisions[it.i]==='file'){
+      (forcedBy[eid]=forcedBy[eid]||[]).push({line:it.o._row,mode:'file'});
+      forcedCount++;
+    }
+  });
+  var ids=g.order.filter(function(eid){return jobs[eid]&&jobs[eid].length;});
+  if(!ids.length){alert('没有勾选任何可写入的行。');return;}
+  var msg='确认写入后端？\n\n· 提交 '+ids.length+' 个赛项、共 '+count+' 行\n'+
+    '· 服务端会重新比对一次，只采纳你勾选的行号\n'+
+    '· 写入与 import_logs 审计在同一事务内\n'+
+    (forcedCount?('· 其中 '+forcedCount+' 行为人工裁决「以文件为准」，会**强制覆盖**库内\n'):'')+
+    '· 服务端不支持撤回，导错了要在队伍管理里手工改\n\n'+
+    '来源：'+(IMP.fileName||'（粘贴 / 样例数据）');
+  if(!confirm(msg))return;
+  IMP.busy=true;render();
+  Promise.all(ids.map(function(eid){
+    return backendFetch('/imports/commit',{method:'POST',body:{eventId:eid,
+      rows:impToRemoteRows(g.map[eid]),selectedLines:jobs[eid],
+      overrides:forcedBy[eid]||[],
+      note:'前端导入：'+(IMP.fileName||'粘贴数据')}}).then(function(r){return {eid:eid,res:r};});
+  })).then(function(rs){
+    IMP.busy=false;
+    var total={insert:0,update:0,skip:0,conflict:0},fail=[];
+    rs.forEach(function(x){
+      if(!x.res.ok||!x.res.body||x.res.body.code!==0){fail.push(x);return;}
+      var s=(x.res.body.data&&x.res.body.data.summary)||{};
+      total.insert+=s.insert||0;total.update+=s.update||0;total.skip+=s.skip||0;total.conflict+=s.conflict||0;
+    });
+    if(fail.length){
+      alert('有 '+fail.length+' 个赛项提交失败：\n'+fail.map(function(x){
+        return '· '+((find(x.eid)||{}).name||x.eid)+'：'+((x.res.body&&x.res.body.message)||'未知错误');}).join('\n'));
+    }
+    IMP.lastResult={insert:total.insert,update:total.update,skip:total.skip,conflict:total.conflict,
+      affected:0,fileName:IMP.fileName||'（粘贴 / 样例数据）'};
+    IMP.diff=null;IMP.headers=null;IMP.grid=null;IMP.decisions={};IMP.parsed=false;IMP.fileName='';IMP.text='';
+    IMP.mode='wizard';IMP.step=5;render();
+    if(backendMode)loadFromBackend();   /* 任务列表以服务端 import_logs 为权威，重新拉一次 */
+  })['catch'](function(e){IMP.busy=false;alert('提交失败：'+((e&&e.message)?e.message:e));render();});
+}
+function impStep2(){
+  var h='<div class="card"><h2>② 确认列映射 <small>确认「哪一列是哪个字段」—— 防导错列</small></h2>'+
+    (impIsBulk()?impBulkTargetBox():'')+
+    '<div class="grid g3">';
+  impFields().forEach(function(fe){
+    h+='<div class="fld"><label>'+fe.label+(fe.required?' <span style="color:#a32d2d">*必填</span>':'')+'</label>'+
+      '<select onchange="impSetMap(\''+fe.k+'\',this.value)">'+
+      '<option value="-1">（不导入）</option>'+
+      IMP.headers.map(function(hd,i){return '<option value="'+i+'" '+(IMP.mapping[fe.k]===i?'selected':'')+'>'+esc(hd)+'</option>';}).join('')+
+      '</select></div>';
+  });
+  h+='</div>';
+  var miss=impFields().filter(function(fe){return fe.required&&!(IMP.mapping[fe.k]>=0);}).map(function(fe){return fe.label;});
+  if(miss.length)h+='<div class="note" style="border-left-color:#a32d2d">必填字段还没映射：<b>'+esc(miss.join(' / '))+'</b> —— 不映射会导致这些行全部校验失败。</div>';
+  var g=IMP.grid||[];
+  h+='<hr class="sep"><h2 style="font-size:14px">来源列预览 <small>每列取前 3 行实际值，用来核对「映射对了没」</small></h2>'+
+    '<div style="overflow:auto"><table><thead><tr><th style="width:150px">来源列</th><th>映射到</th><th>第 1 行值</th><th>第 2 行值</th><th>第 3 行值</th></tr></thead><tbody>';
+  IMP.headers.forEach(function(hd,ci){
+    var to='<span class="muted">（不导入）</span>';
+    impFields().forEach(function(fe){if(IMP.mapping[fe.k]===ci)to='<span class="tag b">'+esc(fe.label)+'</span>';});
+    var v=function(ri){var r=g[ri+1];return (r&&r[ci]!=null&&String(r[ci]).trim()!=='')?esc(String(r[ci])):'<span class="muted">—</span>';};
+    h+='<tr><td class="small">'+esc(hd)+'</td><td class="small">'+to+'</td><td class="small">'+v(0)+'</td><td class="small">'+v(1)+'</td><td class="small">'+v(2)+'</td></tr>';
+  });
+  h+='</tbody></table></div>'+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="impGoStep(1)">← 上一步</button>'+
+      '<button class="btn primary" onclick="impConfirmMapping()">确认映射，开始校验 →</button>'+
+      '<span class="small muted">改映射不会重跑校验 —— 校验在下一步才执行</span>'+
+    '</div></div>';
+  return h;
+}
+function impStep3(){
+  var eff=impEffCounts(),c=eff,diff=IMP.diff||[];
+  var chips=[['all','全部',diff.length],['insert','🟢 新增',c.insert],['update','🟡 更新',c.update],
+    ['skip','⚪ 跳过',c.skip],['conflict','🔴 未裁决冲突',c.conflict]];
+  var h='<div class="card"><h2>③ 校验与变更预览 <small>与库内 '+S.teams.length+' 支队伍比对</small></h2>'+
+    '<div class="row tight" style="margin-bottom:10px">'+
+    chips.map(function(x){
+      var on=(IMP.f.st===x[0]);
+      return '<span class="tag'+(on?' b':'')+'" style="cursor:pointer" onclick="impFs(\''+x[0]+'\')">'+esc(x[1])+' '+x[2]+'</span>';
+    }).join('')+
+    '<span class="sp" style="flex:1"></span>'+
+    '<input style="width:150px" placeholder="搜编号 / 队名" value="'+esc(IMP.f.kw)+'" onchange="impFkw(this.value)" onkeydown="if(event.key===\'Enter\')impFkw(this.value)">'+
+    '<button class="btn sm" onclick="impToggleAll(true)">全选可应用项</button>'+
+    '<button class="btn sm" onclick="impToggleAll(false)">全不选</button>'+
+    (c.conflict?('<button class="btn sm" onclick="impSkipAllConflicts()">冲突全部跳过</button>'):'')+
+    '</div>';
+  var view=diff.filter(function(it){
+    if(IMP.f.st!=='all'&&impEff(it)!==IMP.f.st)return false;
+    if(IMP.f.kw){
+      var k=IMP.f.kw.toLowerCase();
+      if((String(it.o.team_number||'')+' '+String(it.o.team_name||'')).toLowerCase().indexOf(k)<0)return false;
+    }
+    return true;
+  });
+  h+='<div style="overflow:auto"><table><thead><tr><th style="width:34px"></th><th style="width:92px">状态</th><th style="width:46px">行</th>'+
+    '<th style="min-width:80px">编号</th><th style="min-width:120px">队伍名称</th><th style="min-width:130px">学校</th>'+
+    '<th style="min-width:80px">教练</th><th style="min-width:70px">组别</th><th style="min-width:90px">'+(impIsBulk()?'成员':'赛项')+'</th>'+
+    '<th style="min-width:240px">变更 / 问题</th><th style="min-width:210px">裁决</th></tr></thead><tbody>';
+  view.forEach(function(it){
+    var o=it.o,e=impEff(it),meta=DIFF_META[it.status];
+    var chg='';
+    if(it.changes&&it.changes.length)chg=it.changes.map(function(c2){return esc(c2.label)+' <span class="muted">'+esc(c2.old)+' → </span><b>'+esc(c2.new)+'</b>';}).join('；');
+    else if(it.errs&&it.errs.length)chg='<span style="color:#a32d2d">'+it.errs.map(esc).join('；')+'</span>';
+    else if(it.status==='skip')chg='<span class="muted">与库内完全一致，不写入</span>';
+    else chg='<span class="muted">库中不存在该编号，将新建</span>';
+    if(it.status==='conflict'&&e!=='conflict')chg+=' <span class="muted">→ 按裁决处理为「'+({update:'更新',skip:'跳过',insert:'新增'}[e]||e)+'」</span>';
+    var writable=(e==='insert'||e==='update');
+    var cb=writable?('<input type="checkbox" '+(it.checked?'checked':'')+' onchange="impToggle('+it.i+')">')
+      :('<input type="checkbox" disabled title="'+(e==='conflict'?'需先裁决':'该行无需写入')+'">');
+    var decide='<span class="muted">—</span>';
+    if(it.status==='conflict'){
+      decide='<select style="margin:0;width:132px" onchange="impDecide('+it.i+',this.value)">'+
+        '<option value="" '+(!IMP.decisions[it.i]?'selected':'')+'>未裁决</option>'+
+        '<option value="file" '+(!it.canFile?'disabled':'')+' '+(IMP.decisions[it.i]==='file'?'selected':'')+'>'+(it.canFile?'以文件为准（覆盖）':'以文件为准（不适用）')+'</option>'+
+        '<option value="db" '+(IMP.decisions[it.i]==='db'?'selected':'')+'>以库内为准（丢弃）</option>'+
+        '<option value="skip" '+(IMP.decisions[it.i]==='skip'?'selected':'')+'>跳过</option>'+
+        '</select>'+
+        '<input style="width:78px;display:inline-block;margin-left:4px" placeholder="改编号" value="" onchange="impRenum('+it.i+',this)">';
+    }
+    h+='<tr><td style="text-align:center">'+cb+'</td><td><span class="tag '+meta.cls+'">'+meta.t+'</span></td>'+
+      '<td class="muted">'+o._row+'</td><td>'+esc(o.team_number)+'</td><td>'+esc(o.team_name)+'</td>'+
+      '<td class="small">'+esc(o.school||'—')+'</td><td class="small">'+esc(o.coach||'—')+'</td>'+
+      '<td>'+esc(o.group_code||'—')+'</td><td class="small">'+esc((impIsBulk()?o.members:o.event_code)||'—')+'</td>'+
+      '<td class="small">'+chg+'</td><td class="small">'+decide+'</td></tr>';
+  });
+  h+='</tbody></table></div>'+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="impGoStep(2)">← 上一步</button>'+
+      '<button class="btn primary" onclick="impGoStep(4)">下一步：确认入库 →</button>'+
+      (c.conflict?('<span class="small" style="color:#a32d2d">还有 '+c.conflict+' 条冲突未裁决，必须逐条处理才能提交</span>'):'')+
+    '</div></div>';
+  return h;
+}
+function impStep4(){
+  var eff=impEffCounts(),affected=0;
+  (IMP.diff||[]).forEach(function(it){
+    var e=impEff(it);
+    if((e==='insert'||e==='update')&&it.checked&&it.team&&S.scores[it.team.id])affected++;
+  });
+  var conflicted=(IMP.diff||[]).filter(function(it){return it.status==='conflict';}).length;
+  var h='<div class="card"><h2>④ 确认入库 <small>写入前请核对影响面</small></h2>'+
+    '<div class="grid g4">'+
+      '<div class="kpi"><div class="lb">将新增</div><div class="nm">'+eff.insert+' 支</div><div class="ft">库中不存在该编号</div></div>'+
+      '<div class="kpi"><div class="lb">将更新</div><div class="nm">'+eff.update+' 支</div><div class="ft">编号相同、字段有变化</div></div>'+
+      '<div class="kpi"><div class="lb">跳过</div><div class="nm">'+eff.skip+' 行</div><div class="ft">无变化 / 已裁决为跳过</div></div>'+
+      '<div class="kpi"><div class="lb">未裁决冲突</div><div class="nm">'+eff.conflict+' 条</div><div class="ft">'+(eff.conflict?'必须处理后才能提交':'已全部处理')+'</div></div>'+
+    '</div>'+
+    '<div class="note">来源文件：<b>'+esc(IMP.fileName||'（粘贴 / 样例数据）')+'</b>'+
+      (impIsBulk()?('　写入赛项：<b>'+esc((find(IMP.bulkEvent)||{}).name||IMP.bulkEvent||'—')+'</b>'):'')+
+      '　操作人：<b>'+esc(currentUser().name)+'</b>'+
+      (conflicted?('　其中 <b>'+conflicted+'</b> 行原为冲突，将按你的裁决处理'):'')+
+      (backendMode?('　<b style="color:#1b63ab">写入后端</b>（服务端重算 + 同事务审计，无撤回）'):'')+
+      (affected?('　其中 <b>'+affected+'</b> 支已有成绩：<b>只改报名信息，不动成绩</b>'):'')+'</div>'+
+    '<div class="hint">写入是<b>合并式</b>：只 upsert 勾选的行，不删除任何队伍；退赛队伍请到「队伍管理」标记，不在导入里处理。提交后会生成一条导入任务记录（带回滚快照，可在任务列表撤回）。</div>'+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="impGoStep(3)">← 上一步</button>'+
+      '<button class="btn primary" '+(eff.conflict?'disabled':'')+' onclick="impCommit()">确认入库（写入 teams + 生成任务记录）</button>'+
+      '<span class="small muted">点下去还会再弹一次确认，列出影响面</span>'+
+    '</div></div>';
   return h;
 }
 
@@ -1323,12 +1944,7 @@ function viewTeams(){
     '</div>'+
     '<div class="row"><button class="btn primary" onclick="addTeam()">添加到「'+esc(ev?ev.name:'')+'」</button>'+
       '<span class="sp" style="flex:1"></span>'+
-      '<button class="btn" onclick="toggleBulk()">批量导入（CSV）</button></div>'+
-    '<div id="bulkBox" style="display:none;margin-top:12px">'+
-      '<div class="fld"><label>每行一队：编号,队伍名称,组别,学校,教练,成员（编号与名称必填，其余可留空）</label>'+
-      '<textarea id="bulkText" placeholder="5001,星河队,小学组,杭州实验小学,张老师,张三/李四&#10;5002,追光队,小学组,杭州实验小学,李老师,王五/赵六"></textarea></div>'+
-      '<button class="btn primary" onclick="bulkImport()">导入</button>'+
-    '</div>'+
+      '<span class="small muted">批量导入已并入 <a href="javascript:nav(\'import\')" style="color:#1b63ab;text-decoration:none">队伍导入</a> —— 支持 WRC 报名表与批量导入 Excel，走变更预览 + 冲突裁决并留审计</span></div>'+
   '</div>'+
   '<div class="card"><h2>队伍列表 <small>按赛项筛选</small></h2>'+
     '<div class="row" style="margin-bottom:10px"><select style="max-width:220px" onchange="selTeamEvent(this.value)">'+opts+'</select>'+
@@ -1340,7 +1956,6 @@ function viewTeams(){
   '</div>';
 }
 function selTeamEvent(id){CUR_EVENT=id;CUR_TEAM=null;render();}
-function toggleBulk(){var b=document.getElementById('bulkBox');if(b)b.style.display=b.style.display==='none'?'block':'none';}
 function addTeam(){
   var n=(document.getElementById('ntName')||{}).value||'';
   var no=((document.getElementById('ntNo')||{}).value||'').trim();
@@ -1354,21 +1969,6 @@ function addTeam(){
     members:((document.getElementById('ntMembers')||{}).value||'').trim(),
     status:'active',source:'manual'});
   save();render();
-}
-function bulkImport(){
-  var ta=document.getElementById('bulkText');if(!ta)return;
-  var lines=ta.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
-  var n=0,skip=0;
-  lines.forEach(function(l){
-    var p=l.split(/[,，]/);
-    var no=(p[0]||'').trim(),nm=(p[1]||'').trim();
-    if(!no||!nm){skip++;return;}
-    if(!/^\d+$/.test(no)||S.teams.some(function(t){return t.no===no;})){skip++;return;}
-    S.teams.push({id:uid('tm'),no:no,name:nm,group:(p[2]||'').trim(),school:(p[3]||'').trim(),
-      coach:(p[4]||'').trim(),members:(p[5]||'').trim(),eventId:CUR_EVENT,status:'active',source:'manual'});
-    n++;
-  });
-  save();alert('已导入 '+n+' 支队伍'+(skip?('，跳过 '+skip+' 行（编号缺失/重复/非数字）'):''));render();
 }
 function delTeam(id){
   var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===id){t=S.teams[i];break;}}
@@ -1438,7 +2038,9 @@ function scoreForm(ev){
   var fields=items.map(function(it){
     var v=rec.tasks[it.id];
     var ctl;
-    if(it.type==='enum'){
+    if(it.type==='toggle'){
+      ctl='<label class="row tight" style="cursor:pointer"><input type="checkbox" style="width:auto" '+((v===true||v==='true')?'checked':'')+' onchange="setScore(\''+it.id+'\',this.checked)"> <span class="small">已完成</span></label>';
+    }else if(it.type==='enum'){
       var en=it.enumMap||{};var keys=Object.keys(en);
       if(!keys.length)keys=['优','良','中','差'];
       ctl='<select onchange="setScore(\''+it.id+'\',this.value)"><option value="">-- 请选择 --</option>'+
@@ -1940,7 +2542,7 @@ function viewAudit(){
       '<table style="margin-top:10px"><thead><tr><th style="width:130px">时间</th><th style="width:90px">操作人</th><th style="width:92px">操作类型</th><th>操作对象</th><th style="width:120px">旧值</th><th style="width:140px">新值</th><th style="width:180px">原因</th></tr></thead>'+
       '<tbody>'+(rows||'<tr><td colspan="7" class="muted">暂无操作日志</td></tr>')+'</tbody></table>'+
     '</div>'+
-    '<div class="card"><h2>队伍导入记录 <small>WRC 报名导入审计</small></h2>'+
+    '<div class="card"><h2>队伍导入记录 <small>导入审计 · 争议追溯依据</small></h2>'+
       '<table><thead><tr><th style="width:130px">时间</th><th style="width:90px">操作人</th><th style="width:92px">类型</th><th>来源</th><th style="width:170px">变更汇总</th><th>明细</th><th style="width:90px">状态</th></tr></thead>'+
       '<tbody>'+(imp||'<tr><td colspan="7" class="muted">暂无导入记录</td></tr>')+'</tbody></table>'+
     '</div>';
