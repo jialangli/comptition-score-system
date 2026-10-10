@@ -11,14 +11,14 @@ import (
 type ScoreStore struct{ q querier }
 
 const scoreColumns = `id, team_id, round_no::int, task_values, duration_sec::float8,
-	yellow::int, red::int, signed, operator, created_at, updated_at`
+	yellow::int, red::int, upgraded_red::int, signed, operator, created_at, updated_at`
 
 func scanScore(row interface{ Scan(...any) error }) (*model.ScoreRecord, error) {
 	var r model.ScoreRecord
 	var taskRaw []byte
 	if err := row.Scan(
 		&r.ID, &r.TeamID, &r.RoundNo, &taskRaw, &r.DurationSec,
-		&r.Yellow, &r.Red, &r.Signed, &r.Operator, &r.CreatedAt, &r.UpdatedAt,
+		&r.Yellow, &r.Red, &r.UpgradedRed, &r.Signed, &r.Operator, &r.CreatedAt, &r.UpdatedAt,
 	); err != nil {
 		return nil, notFoundIfNoRows(err)
 	}
@@ -39,18 +39,19 @@ func scanScore(row interface{ Scan(...any) error }) (*model.ScoreRecord, error) 
 // 本方法的「覆盖」语义只服务于同一轮内的连续编辑。
 func (s *ScoreStore) Save(ctx context.Context, r *model.ScoreRecord) error {
 	return mapError(s.q.QueryRow(ctx, `
-		INSERT INTO scores (team_id, round_no, task_values, duration_sec, yellow, red, signed, operator, contest_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		INSERT INTO scores (team_id, round_no, task_values, duration_sec, yellow, red, upgraded_red, signed, operator, contest_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 		ON CONFLICT (contest_id, team_id, round_no) DO UPDATE SET
 			task_values  = EXCLUDED.task_values,
 			duration_sec = EXCLUDED.duration_sec,
 			yellow       = EXCLUDED.yellow,
 			red          = EXCLUDED.red,
+			upgraded_red = EXCLUDED.upgraded_red,
 			signed       = EXCLUDED.signed,
 			operator     = EXCLUDED.operator
 		RETURNING id, created_at, updated_at`,
 		r.TeamID, r.RoundNo, jsonArg(r.TaskValues), r.DurationSec,
-		r.Yellow, r.Red, r.Signed, r.Operator, store.CurrentContest(ctx),
+		r.Yellow, r.Red, r.UpgradedRed, r.Signed, r.Operator, store.CurrentContest(ctx),
 	).Scan(&r.ID, &r.CreatedAt, &r.UpdatedAt))
 }
 
@@ -89,7 +90,7 @@ func (s *ScoreStore) ListByTeam(ctx context.Context, teamID int64) ([]model.Scor
 func (s *ScoreStore) ListByEvent(ctx context.Context, eventID string) (map[int64][]model.ScoreRecord, error) {
 	rows, err := s.q.Query(ctx, `
 		SELECT s.id, s.team_id, s.round_no::int, s.task_values, s.duration_sec::float8,
-		       s.yellow::int, s.red::int, s.signed, s.operator, s.created_at, s.updated_at
+		       s.yellow::int, s.red::int, s.upgraded_red::int, s.signed, s.operator, s.created_at, s.updated_at
 		FROM scores s
 		JOIN teams t ON t.id = s.team_id AND t.contest_id = s.contest_id
 		WHERE t.event_id = $1 AND s.contest_id = $2

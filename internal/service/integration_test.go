@@ -608,3 +608,81 @@ func firstForcedAct(detail []any) string {
 	}
 	return ""
 }
+
+// TestScoreCardYellowClearsAtThreshold 黄牌新口径（2026/10/10）：记满阈值即转红并清零计数。
+//
+// 验证两件事，缺一不可：
+//
+//	① **新列往返** —— 前端已归零的形态（yellow=0 + upgradedRed=1）落到 scores.upgraded_red 后
+//	   必须原样读回，否则红牌总数变 0、取消资格静默失效（成绩看着对、后果没了）；
+//	② **写路径归一** —— 旧客户端 / 离线补传可能仍发越界的 yellow（如 5，阈值 3），
+//	   服务端必须归一到 (2, 1)，否则同一批数据走「平板直传」与「离线补传」会算出不同红牌数。
+func TestScoreCardYellowClearsAtThreshold(t *testing.T) {
+	svc, _ := newSvc(t)
+	ctx := operatorCtx("运营A")
+
+	ev, err := svc.CreateEvent(ctx, brainPlanetEvent())
+	if err != nil {
+		t.Fatalf("建赛项失败: %v", err)
+	}
+	mkTeam := func(no, name string) *model.Team {
+		tm, err := svc.CreateTeam(ctx, model.TeamDraft{
+			EventID: ev.ID, TeamNo: no, Name: name, GroupCode: "小学组",
+		})
+		if err != nil {
+			t.Fatalf("建队 %s 失败: %v", name, err)
+		}
+		return tm
+	}
+
+	// ① 已归零形态：黄牌 0 + 已升级红牌 1
+	a := mkTeam("1001", "甲队")
+	if _, err := svc.SaveScore(ctx, &model.ScoreRecord{
+		TeamID: a.ID, RoundNo: 1, TaskValues: map[string]any{"focus": 90.0},
+		Yellow: 0, UpgradedRed: 1, Signed: true,
+	}); err != nil {
+		t.Fatalf("保存甲队成绩失败: %v", err)
+	}
+	gotA, err := svc.GetScore(ctx, a.ID, 1)
+	if err != nil {
+		t.Fatalf("回读甲队成绩失败: %v", err)
+	}
+	if gotA.Yellow != 0 || gotA.UpgradedRed != 1 {
+		t.Errorf("已升级红牌数未往返：yellow=%d upgradedRed=%d（期望 0 / 1）", gotA.Yellow, gotA.UpgradedRed)
+	}
+
+	// ② 越界值：yellow=5（阈值 3）→ 归一到 (2, 1)
+	b := mkTeam("1002", "乙队")
+	saved, err := svc.SaveScore(ctx, &model.ScoreRecord{
+		TeamID: b.ID, RoundNo: 1, TaskValues: map[string]any{"focus": 80.0},
+		Yellow: 5, Signed: true,
+	})
+	if err != nil {
+		t.Fatalf("保存乙队成绩失败: %v", err)
+	}
+	if saved.Yellow != 2 || saved.UpgradedRed != 1 {
+		t.Errorf("服务端应把 5 张黄牌归一为 (2, 1)，得到 (%d, %d)", saved.Yellow, saved.UpgradedRed)
+	}
+	gotB, err := svc.GetScore(ctx, b.ID, 1)
+	if err != nil {
+		t.Fatalf("回读乙队成绩失败: %v", err)
+	}
+	if gotB.Yellow != 2 || gotB.UpgradedRed != 1 {
+		t.Errorf("归一结果未落库：yellow=%d upgradedRed=%d（期望 2 / 1）", gotB.Yellow, gotB.UpgradedRed)
+	}
+
+	// ③ 再存一次（幂等）：已归一的值不应被二次折算
+	again, err := svc.SaveScore(ctx, &model.ScoreRecord{
+		TeamID: b.ID, RoundNo: 1, TaskValues: map[string]any{"focus": 85.0},
+		Yellow: 2, UpgradedRed: 1, Signed: true,
+	})
+	if again != nil && err == nil {
+		gotB2, err2 := svc.GetScore(ctx, b.ID, 1)
+		if err2 != nil {
+			t.Fatalf("二次回读失败: %v", err2)
+		}
+		if gotB2.Yellow != 2 || gotB2.UpgradedRed != 1 {
+			t.Errorf("重复归一被叠加：yellow=%d upgradedRed=%d（期望 2 / 1）", gotB2.Yellow, gotB2.UpgradedRed)
+		}
+	}
+}

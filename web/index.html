@@ -433,6 +433,7 @@ function backendSync(){
     if(rec && rec.signed){
       var item={eventId:t.eventId,no:t.no,roundNo:1,clientId:'web-demo',tasks:rec.tasks||{},time:rec.time||0,signed:!!rec.signed};
       item.yellow=rec.yellow||0;
+      item.upgradedRed=rec.upgradedRed||0;
       item.red=rec.red||0;
       scores.push(item);
     }
@@ -681,7 +682,7 @@ function computeTotal(ev,rec){
 }
 /* ---------- 牌面计数规则（黄牌计数器 / 累计升级 / 红牌后果） ----------
    与后端 engine/cards.go 同口径，两端必须一致：
-     黄牌 —— 只累计，满阈值升级成红牌；本身不产生任何后果。
+     黄牌 —— 记满阈值即升级成红牌**并清零计数**（计数器上限 = 阈值）；本身不产生任何后果。
      红牌 —— 当场取消比赛资格：成绩保留（照常算分、照常留痕），但不排名次、不参评奖项。
      开关 —— 黄牌计数器关闭 = 整个黄牌体系停用（不显示、不累计、不升级红牌）；
              红牌是独立入口，仍可直接记录。 */
@@ -697,12 +698,16 @@ function redReasonsOf(ev){
   var c=cardRulesOf(ev);
   return ((c&&c.reasons)||[]).filter(function(r){return (r.card==='red'?'red':'yellow')==='red';});
 }
-/* 归一后的牌面：黄牌数 + 红牌数（含黄牌累计升级出来的部分） */
+/* 归一后的牌面：黄牌数（当前周期）+ 红牌数（直接记的 + 黄牌升级出来的）
+   🔴 2026/10/10 口径变更（用户定）：黄牌**记满阈值即自动升级 1 张红牌并清零黄牌计数**（循环计数），
+   所以裁判端黄牌计数器的上限 = 后台「判罚规则 · 累计升级阈值」。
+   老数据兼容：yellow 可能仍是"累计值"（>= 阈值）→ 读入时在这里一并归一（结果与旧口径一致）。 */
 function effectiveRed(ev,rec){
+  var th=redThresholdOf(ev);
   var yellow=Math.max(0,Number(rec&&rec.yellow)||0);
   var red=Math.max(0,Number(rec&&rec.red)||0);
-  var up=0;
-  if(cardCounterOn(ev))up=Math.floor(yellow/redThresholdOf(ev));
+  var up=Math.max(0,Number(rec&&rec.upgradedRed)||0);
+  if(cardCounterOn(ev)&&th>0){up+=Math.floor(yellow/th);yellow=yellow%th;}
   return {yellow:yellow,red:red+up,upgraded:up};
 }
 function standings(evId){
@@ -1033,7 +1038,7 @@ function eventForm(ev){
       (crOn
         ? '<span class="small muted" style="margin-left:18px">升级阈值</span>'+
           '<input type="number" min="1" style="width:70px" value="'+crThresh+'" oninput="updRedThreshold(this.value)">'+
-          '<span class="small muted">张黄牌 → 1 张红牌</span>'
+          '<span class="small muted">张黄牌 → 1 张红牌（满即清零黄牌计数，裁判端计数器上限 = 此值）</span>'
         : '<span class="small muted" style="margin-left:18px">升级阈值</span>'+
           '<span class="small muted">已停用（黄牌不累计、不升级红牌）</span>')+
     '</div>'+

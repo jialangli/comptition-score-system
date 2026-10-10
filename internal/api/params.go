@@ -135,12 +135,13 @@ type importRowJSON struct {
 
 // saveScoreReq 录入 / 修改成绩的请求体。
 type saveScoreReq struct {
-	RoundNo    int            `json:"roundNo"`
-	TaskValues map[string]any `json:"tasks"`
-	Duration   float64        `json:"time"`
-	Yellow     int            `json:"yellow"`
-	Red        int            `json:"red"`
-	Signed     bool           `json:"signed"`
+	RoundNo     int            `json:"roundNo"`
+	TaskValues  map[string]any `json:"tasks"`
+	Duration    float64        `json:"time"`
+	Yellow      int            `json:"yellow"`
+	UpgradedRed int            `json:"upgradedRed"` // 已由黄牌升级出的红牌数（计入红牌总数）
+	Red         int            `json:"red"`
+	Signed      bool           `json:"signed"`
 }
 
 // scoreChangeReq 改分申请 / 授权改分的请求体。
@@ -190,14 +191,15 @@ type screenConfigBody struct {
 
 // applyChangeReq 授权改分请求体（成绩字段 + 审批信息）。
 type applyChangeReq struct {
-	Round      int            `json:"roundNo"`
-	TaskValues map[string]any `json:"tasks"`
-	Duration   float64        `json:"time"`
-	Yellow     int            `json:"yellow"`
-	Red        int            `json:"red"`
-	Signed     bool           `json:"signed"`
-	Approver   string         `json:"approver"`
-	Reason     string         `json:"reason"`
+	Round       int            `json:"roundNo"`
+	TaskValues  map[string]any `json:"tasks"`
+	Duration    float64        `json:"time"`
+	Yellow      int            `json:"yellow"`
+	UpgradedRed int            `json:"upgradedRed"` // 已由黄牌升级出的红牌数（计入红牌总数）
+	Red         int            `json:"red"`
+	Signed      bool           `json:"signed"`
+	Approver    string         `json:"approver"`
+	Reason      string         `json:"reason"`
 }
 
 // syncReq 离线批量上行的请求体（P5 前端断网兜底用）。
@@ -213,14 +215,15 @@ type syncReq struct {
 // 用 TeamNo 而不是 TeamID：现场离线录分时前端只知道队伍编号，
 // 队伍 ID 是后端分配的，前端不一定拿到过。用编号更贴近现场实际。
 type syncScoreJSON struct {
-	EventID    string         `json:"eventId"`
-	TeamNo     string         `json:"no"`
-	RoundNo    int            `json:"roundNo"`
-	TaskValues map[string]any `json:"tasks"`
-	Duration   float64        `json:"time"`
-	Yellow     int            `json:"yellow"`
-	Red        int            `json:"red"`
-	Signed     bool           `json:"signed"`
+	EventID     string         `json:"eventId"`
+	TeamNo      string         `json:"no"`
+	RoundNo     int            `json:"roundNo"`
+	TaskValues  map[string]any `json:"tasks"`
+	Duration    float64        `json:"time"`
+	Yellow      int            `json:"yellow"`
+	UpgradedRed int            `json:"upgradedRed"` // 已由黄牌升级出的红牌数（计入红牌总数）
+	Red         int            `json:"red"`
+	Signed      bool           `json:"signed"`
 	// ClientID 客户端本地记录标识，用于回执对账（可选）。
 	ClientID string `json:"clientId,omitempty"`
 }

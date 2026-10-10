@@ -9,7 +9,8 @@ import "github.com/jialangli/comptition-score-server/internal/model"
 //
 // 口径（2026/10/09 产品定调）：
 //
-//	黄牌 —— 只累计，最多按阈值升级成红牌；**本身永远不产生任何后果**。
+//	黄牌 —— 记满阈值即升级 1 张红牌**并清零黄牌计数**（循环计数），因此
+//	        **裁判端黄牌计数器的上限 = 阈值**；黄牌**本身永远不产生任何后果**。
 //	红牌 —— **当场生效的取消比赛资格**：该队成绩**保留**（照常算分、照常留痕），
 //	        但**不参与名次与奖项分配**。
 //
@@ -24,7 +25,7 @@ import "github.com/jialangli/comptition-score-server/internal/model"
 
 // Cards 归一后的牌面计数。
 type Cards struct {
-	Yellow      int // 实际记下的黄牌数
+	Yellow      int // 黄牌计数（当前周期，0..阈值-1）
 	Red         int // 红牌总数（直接记的 + 黄牌累计升级出来的）
 	UpgradedRed int // 其中由黄牌累计升级而来的部分
 }
@@ -44,14 +45,40 @@ func ResolveCards(rec model.ScoreRecord, rules *model.CardRules) Cards {
 		red = 0
 	}
 
-	upgraded := 0
+	upgraded := rec.UpgradedRed
+	if upgraded < 0 {
+		upgraded = 0
+	}
+
 	if rules.EnabledOrDefault() {
 		if th := rules.ThresholdOrDefault(); th > 0 {
-			upgraded = yellow / th // 满 th 张黄牌升级 1 张红牌；不满不计
+			// 满 th 张黄牌升级 1 张红牌，**余数留在黄牌计数上**（口径见文件头）。
+			// 老数据里 yellow 可能仍是「累计值」（>= th）→ 在此一并归一，结果与旧口径一致；
+			// 新数据由 NormalizeCards 在录入端先归零，这里自然不做额外折算。
+			upgraded += yellow / th
+			yellow = yellow % th
 		}
 	}
 
 	return Cards{Yellow: yellow, Red: red + upgraded, UpgradedRed: upgraded}
+}
+
+// NormalizeCards 写路径归一：把「要记的黄牌总数」折算为 (黄牌计数, 升级红牌数)。
+//
+// 与 ResolveCards 同一口径，供录入端（记满即转红并清零）与服务端落库共用 ——
+// 两端各算一套必然会漂移。黄牌计数器关闭时**不折算**（黄牌不累计、不升级）。
+func NormalizeCards(yellow int, rules *model.CardRules) (int, int) {
+	if yellow < 0 {
+		yellow = 0
+	}
+	if !rules.EnabledOrDefault() {
+		return yellow, 0
+	}
+	th := rules.ThresholdOrDefault()
+	if th <= 0 {
+		return yellow, 0
+	}
+	return yellow % th, yellow / th
 }
 
 // DisqualifiedByCards 该队是否因红牌被取消比赛资格。

@@ -17,13 +17,14 @@ const (
 type ScoreRecord struct {
 	ID          int64          `json:"id"`
 	TeamID      int64          `json:"teamId"`
-	RoundNo     int            `json:"roundNo"`  // 1 或 2
-	TaskValues  map[string]any `json:"tasks"`    // taskID → 裁判录入的原始值
-	DurationSec float64        `json:"time"`     // 用时（秒），时间奖励的输入
-	Yellow      int            `json:"yellow"`   // 黄牌数
-	Red         int            `json:"red"`      // 红牌数
-	Signed      bool           `json:"signed"`   // 选手代表已签字确认
-	Operator    string         `json:"operator"` // 记录人（裁判 / 记分员）
+	RoundNo     int            `json:"roundNo"`     // 1 或 2
+	TaskValues  map[string]any `json:"tasks"`       // taskID → 裁判录入的原始值
+	DurationSec float64        `json:"time"`        // 用时（秒），时间奖励的输入
+	Yellow      int            `json:"yellow"`      // 黄牌计数（当前周期，0..阈值-1）
+	UpgradedRed int            `json:"upgradedRed"` // 由黄牌累计升级出的红牌数
+	Red         int            `json:"red"`         // 直接记的红牌数
+	Signed      bool           `json:"signed"`      // 选手代表已签字确认
+	Operator    string         `json:"operator"`    // 记录人（裁判 / 记分员）
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 }

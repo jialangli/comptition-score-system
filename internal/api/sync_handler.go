@@ -132,6 +132,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 			TaskValues:  item.TaskValues,
 			DurationSec: item.Duration,
 			Yellow:      item.Yellow,
+			UpgradedRed: item.UpgradedRed,
 			Red:         item.Red,
 			Signed:      item.Signed,
 			Operator:    op,

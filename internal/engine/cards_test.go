@@ -9,7 +9,7 @@ import (
 // ============================================================================
 // 牌面计数与红牌后果（2026/10/09 口径）
 //
-//	黄牌 —— 只累计，最多按阈值升级成红牌，本身不产生任何后果。
+//	黄牌 —— 记满阈值即升级 1 张红牌并清零黄牌计数（循环计数），计数器上限 = 阈值。
 //	红牌 —— 当场取消比赛资格：成绩保留、不排名次、不参评奖项。
 //	开关 —— 黄牌计数器关闭 = 整个黄牌体系停用（不显示、不累计、不升级）。
 // ============================================================================
@@ -26,22 +26,62 @@ func cardRules(enabled bool, threshold int) *model.CardRules {
 func TestResolveCardsYellowUpgrade(t *testing.T) {
 	rules := cardRules(true, 3)
 	cases := []struct {
-		yellow, red, wantRed, wantUpgraded int
+		yellow, red, wantYellow, wantRed, wantUpgraded int
 	}{
-		{0, 0, 0, 0},
-		{1, 0, 0, 0}, // 不满阈值不计
-		{2, 0, 0, 0},
-		{3, 0, 1, 1}, // 满 3 张升级 1 张红牌
-		{4, 0, 1, 1},
-		{6, 0, 2, 2}, // 满 6 张升级 2 张
-		{7, 0, 2, 2},
+		{0, 0, 0, 0, 0},
+		{1, 0, 1, 0, 0}, // 不满阈值：黄牌计数原样保留
+		{2, 0, 2, 0, 0},
+		{3, 0, 0, 1, 1}, // 满 3 张：升级 1 张红牌，**黄牌计数清零**
+		{4, 0, 1, 1, 1},
+		{6, 0, 0, 2, 2}, // 满 6 张：2 张红牌，计数清零
+		{7, 0, 1, 2, 2},
 	}
 	for _, c := range cases {
 		got := ResolveCards(model.ScoreRecord{Yellow: c.yellow, Red: c.red}, rules)
-		if got.Red != c.wantRed || got.UpgradedRed != c.wantUpgraded || got.Yellow != c.yellow {
-			t.Errorf("黄 %d 红 %d：得到 red=%d upgraded=%d，期望 red=%d upgraded=%d",
-				c.yellow, c.red, got.Red, got.UpgradedRed, c.wantRed, c.wantUpgraded)
+		if got.Red != c.wantRed || got.UpgradedRed != c.wantUpgraded || got.Yellow != c.wantYellow {
+			t.Errorf("黄 %d 红 %d：得到 yellow=%d red=%d upgraded=%d，期望 yellow=%d red=%d upgraded=%d",
+				c.yellow, c.red, got.Yellow, got.Red, got.UpgradedRed, c.wantYellow, c.wantRed, c.wantUpgraded)
 		}
+	}
+}
+
+// TestNormalizeCardsWritePath 写路径归一：录入端「记满即转红并清零」与服务端落库必须同一口径。
+func TestNormalizeCardsWritePath(t *testing.T) {
+	rules := cardRules(true, 3)
+	cases := []struct{ in, wantCur, wantUp int }{
+		{0, 0, 0}, {1, 1, 0}, {2, 2, 0},
+		{3, 0, 1}, // 记满 3 张 → 计数清零、升级 1 张红牌
+		{4, 1, 1}, {6, 0, 2}, {7, 1, 2},
+	}
+	for _, c := range cases {
+		cur, up := NormalizeCards(c.in, rules)
+		if cur != c.wantCur || up != c.wantUp {
+			t.Errorf("记 %d 张黄牌：得到 (计数 %d, 升级 %d)，期望 (%d, %d)", c.in, cur, up, c.wantCur, c.wantUp)
+		}
+	}
+	// 计数器关闭：不折算（黄牌不累计、也不升级）
+	if cur, up := NormalizeCards(9, cardRules(false, 3)); cur != 9 || up != 0 {
+		t.Errorf("关闭黄牌计数器时不应折算，得到 (%d, %d)", cur, up)
+	}
+	// 阈值缺失 → 回落默认 3
+	if cur, up := NormalizeCards(3, &model.CardRules{}); cur != 0 || up != 1 {
+		t.Errorf("阈值缺失应回落默认 3，得到 (%d, %d)", cur, up)
+	}
+}
+
+// TestResolveCardsUpgradedRedField 已升级红牌数**存在字段里**（不靠重算）——
+// 这是「计数器上限 = 阈值」能成立的关键：UI 归零后仍能知道已经转出过几张红牌。
+func TestResolveCardsUpgradedRedField(t *testing.T) {
+	rules := cardRules(true, 3)
+	got := ResolveCards(model.ScoreRecord{Yellow: 2, UpgradedRed: 1}, rules)
+	if got.Red != 1 || got.UpgradedRed != 1 || got.Yellow != 2 {
+		t.Errorf("带已升级字段：得到 yellow=%d red=%d upgraded=%d，期望 2/1/1", got.Yellow, got.Red, got.UpgradedRed)
+	}
+	// 兼容：字段 + 越界黄牌（老数据、或写入端漏归一）合并归一
+	got = ResolveCards(model.ScoreRecord{Yellow: 4, UpgradedRed: 1}, rules)
+	if got.Red != 2 || got.UpgradedRed != 2 || got.Yellow != 1 {
+		t.Errorf("字段 + 越界黄牌应合并归一，得到 yellow=%d red=%d upgraded=%d，期望 1/2/2",
+			got.Yellow, got.Red, got.UpgradedRed)
 	}
 }
 

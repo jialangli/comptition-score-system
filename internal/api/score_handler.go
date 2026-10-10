@@ -94,6 +94,7 @@ func (s *Server) handleSaveScore(w http.ResponseWriter, r *http.Request) {
 		TaskValues:  body.TaskValues,
 		DurationSec: body.Duration,
 		Yellow:      body.Yellow,
+		UpgradedRed: body.UpgradedRed,
 		Red:         body.Red,
 		Signed:      body.Signed,
 	})
@@ -157,6 +158,7 @@ func (s *Server) handleApplyScoreChange(w http.ResponseWriter, r *http.Request) 
 		TaskValues:  body.TaskValues,
 		DurationSec: body.Duration,
 		Yellow:      body.Yellow,
+		UpgradedRed: body.UpgradedRed,
 		Red:         body.Red,
 		Signed:      body.Signed,
 	}, body.Approver, body.Reason)

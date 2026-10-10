@@ -51,6 +51,12 @@ func (s *Service) SaveScore(ctx context.Context, rec *model.ScoreRecord) (*model
 	if err != nil {
 		return nil, err
 	}
+	// 黄牌写路径归一（2026/10/10 口径）：记满阈值即转 1 张红牌并把黄牌计数清零，
+	// 与前端录入端（setYellow）和 engine.NormalizeCards 同一口径 —— 两端各算一套必然漂移。
+	// ⚠️ 必须放在算分之前：否则本次算的是未归一的牌面。
+	curYellow, upRed := engine.NormalizeCards(rec.Yellow, ev.PenaltyRule.CardRules)
+	rec.Yellow, rec.UpgradedRed = curYellow, rec.UpgradedRed+upRed
+
 	if rec.RoundNo < model.MinRound || rec.RoundNo > model.MaxRound {
 		return nil, &model.FieldError{
 			Field: "roundNo",
@@ -240,6 +246,12 @@ func (s *Service) ApplyScoreChange(ctx context.Context, rec *model.ScoreRecord,
 	if err != nil {
 		return nil, err
 	}
+	// 黄牌写路径归一（2026/10/10 口径）：记满阈值即转 1 张红牌并把黄牌计数清零，
+	// 与前端录入端（setYellow）和 engine.NormalizeCards 同一口径 —— 两端各算一套必然漂移。
+	// ⚠️ 必须放在算分之前：否则本次算的是未归一的牌面。
+	curYellow, upRed := engine.NormalizeCards(rec.Yellow, ev.PenaltyRule.CardRules)
+	rec.Yellow, rec.UpgradedRed = curYellow, rec.UpgradedRed+upRed
+
 	old, err := s.ro().Scores.Get(ctx, rec.TeamID, rec.RoundNo)
 	if err != nil {
 		return nil, err
