@@ -26,6 +26,14 @@ body{margin:0;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",system-u
 .ni.off{color:#5b6b7e;cursor:not-allowed}
 .ni.off:hover{background:transparent;color:#5b6b7e}
 .nib{float:right;margin-top:2px;font-size:10px;line-height:14px;color:#7b8ea3;border:1px solid #2b3f57;border-radius:4px;padding:0 5px}
+/* 分段切换（打分页轮次 / 大屏模式）：.seg 是无定义类，本轮补齐 */
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg span{padding:3px 10px;font-size:13px;cursor:pointer;border-left:1px solid var(--line);line-height:1.5}
+.seg span:first-child{border-left:none}
+.seg span.on{background:var(--brand);color:#fff;font-weight:500}
+/* 锁定态：与 .ni.off 同理，必须同时覆盖 :hover，否则鼠标划过仍变亮 */
+.seg span.off{opacity:.5;cursor:not-allowed}
+.seg span.off:hover{background:transparent;color:inherit}
 .side .foot{margin-top:18px;padding:10px 12px;border-radius:8px;background:#132339;font-size:11.5px;color:#7d8ea6;line-height:1.7}
 .main{flex:1;min-width:0;display:flex;flex-direction:column}
 .top{background:#fff;border-bottom:1px solid var(--line);padding:12px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:8;flex-wrap:wrap}
@@ -224,6 +232,7 @@ var VIEW='dash';
 var CUR_EVENT='brain_planet';     // 赛项与规则页当前编辑赛项
 var SCORE_EVENT='brain_planet';   // 裁判打分页当前赛项
 var CUR_TEAM=null;                // 打分页当前队伍
+var SCORE_ROUND=1;                // 打分页当前轮次（两轮制：一队打两轮）
 var RANK_EVENT='brain_planet';    // 榜单页当前赛项
 var PUB_EVENT='brain_planet';     // 公示页当前赛项
 var PUB_ANON=false;
@@ -522,7 +531,7 @@ function pushAudit(d,action,target,before,after,reason){
    赛项默认全带上（建赛页可勾选子集）；队伍、成绩、裁判码、赛程、留底一律从零开始。 */
 function blankContestData(){
   return {
-    schemaVersion:'1.1', schemaV:2,
+    schemaV:2,
     currentUserId:'u1',
     events:clone(EVENT_TEMPLATES),
     teams:[], scores:{}, published:{}, pubDirty:{}, handoff:{},
@@ -603,8 +612,7 @@ function contestStats(cid){
   var d=null;
   try{var raw=localStorage.getItem(ckey(cid));if(raw)d=JSON.parse(raw);}catch(e){}
   if(!d)return {events:0,teams:0,signed:0,published:0,queued:0,ready:false};
-  var signed=0,scores=d.scores||{};
-  for(var k in scores){if(scores[k]&&scores[k].signed)signed++;}
+  var signed=contestSignedCount(d);
   var queued=0;(d.changeRequests||[]).forEach(function(r){if(r.status==='待审批')queued++;});
   (d.disputes||[]).forEach(function(x){if(x.status==='待裁定')queued++;});
   (d.alerts||[]).forEach(function(a){if(a.status==='待处理')queued++;});
@@ -732,7 +740,16 @@ function migrate(d){
   if(!d.chiefReferee)d.chiefReferee='';
   d.unlockAlerts=d.unlockAlerts||[];
   (d.events||[]).forEach(function(e){if(e.configSN==null)e.configSN=1;if(e.ruleDoc==null)e.ruleDoc='—';});
-  Object.keys(d.scores||{}).forEach(function(k){var sc=d.scores[k];if(sc&&!sc.state){sc.state=(sc.signed?'submitted':'draft');}});
+  /* v8 迁移：成绩升级为**按轮存储** —— d.scores[teamId] = {1:{…}, 2:{…}}。
+     老结构是扁平的（一队一条记录），一律归到**第 1 轮**（不丢数据）；顺手补 state。 */
+  Object.keys(d.scores||{}).forEach(function(k){
+    var sc=d.scores[k];if(!sc)return;
+    if(isFlatRec(sc)){sc={1:sc};d.scores[k]=sc;}
+    Object.keys(sc).forEach(function(r){
+      var rec=sc[r];
+      if(rec&&!rec.state)rec.state=(rec.signed?'submitted':'draft');
+    });
+  });
   Object.keys(d.published).forEach(function(k){
     if(d.published[k]===true)d.published[k]={at:'（历史数据）',count:1};
   });
@@ -767,6 +784,50 @@ function migrate(d){
     if(!e.penaltyRule)e.penaltyRule={template:'record_only',params:{}};
     if(e.penaltyRule.template!=='record_only')e.penaltyRule.template='record_only';
   });
+  /* v6 迁移：正式场次的队伍改为**派生**后（见 slotTeams），把历史 `slot.teams` 反推成
+     队伍级归台 —— 归台 = 赛台(seatId) + 台内顺位(order) + 参赛轮次(session)。
+     不翻译就会丢台：老缓存里队伍只在场次里出现，派生后它会"排不进任何场次"。
+     判据全是"缺了才补" → 幂等，跑几次结果一样。 */
+  (function(){
+    /* 0、先把场次轮次与时段对齐：2 轮赛项上午=第 1 轮、下午=第 2 轮（口径已绑定）。
+          老缓存里 round 是"恒为 1"的默认值，不校正就会出现"下午场次却是第 1 轮"的自相矛盾，
+          后面的归台反推也会把两段都当成第 1 轮。 */
+    (d.slots||[]).forEach(function(sl){
+      var ev=null;(d.events||[]).forEach(function(e){if(e.id===sl.eventId)ev=e;});
+      if(!ev||Number(ev.rounds||1)<2)return;
+      if(sl.type==='extra')return;
+      var want=(sl.period==='下午')?2:1;
+      if(Number(sl.round||1)!==want)sl.round=want;
+    });
+    var seatOf={},sessOf={};
+    (d.slots||[]).forEach(function(sl){
+      if(sl.type==='extra')return;            /* 加时赛仍以场内快照为准 */
+      /* 按轮次反推；老数据可能没有 round 字段 → 回退按时段（上午=1、下午=2，与赛制一致） */
+      var k=String(Number(sl.round!=null?sl.round:((sl.period==='下午')?2:1)));
+      (sl.teams||[]).forEach(function(tid){
+        if(sl.seatId)seatOf[tid]=sl.seatId;
+        sessOf[tid]=sessOf[tid]?(sessOf[tid]===k?sessOf[tid]:'both'):k;
+      });
+    });
+    var fill={};
+    (d.teams||[]).forEach(function(t){
+      if(!t.seatId&&seatOf[t.id])t.seatId=seatOf[t.id];
+      if(!t.session)t.session=sessOf[t.id]||'both';
+      /* v7：旧值 am/pm → 1/2（口径从"上下午两批"纠正为「第 1 / 第 2 轮」） */
+      if(t.session==='am')t.session='1';
+      if(t.session==='pm')t.session='2';
+      if(t.session!=='1'&&t.session!=='2'&&t.session!=='both')t.session='both';
+      /* 顺位为 0 但有归台 → 视为缺顺位，稍后按赛台补到末尾 */
+      if(t.seatId&&!Number(t.order)&&sessOf[t.id]){fill[t.seatId]=fill[t.seatId]||[];fill[t.seatId].push(t.id);}
+    });
+    Object.keys(fill).forEach(function(sid){
+      var max=0;
+      (d.teams||[]).forEach(function(t){if(t.seatId===sid&&Number(t.order)>max)max=Number(t.order);});
+      fill[sid].forEach(function(tid,i){
+        (d.teams||[]).forEach(function(t){if(t.id===tid)t.order=max+i+1;});
+      });
+    });
+  })();
   return d;
 }
 function save(){
@@ -890,14 +951,61 @@ function effectiveRed(ev,rec){
   if(cardCounterOn(ev))up=Math.floor(yellow/redThresholdOf(ev));
   return {yellow:yellow,red:red+up,upgraded:up};
 }
+/* ---------- 两轮制成绩（与后端 engine 同口径）----------
+   存储：S.scores[teamId] = {1: rec, 2: rec}；老结构（扁平 rec）视为第 1 轮，迁移会归一。
+   取优规则与后端 `betterRound` 逐条一致：总分 ↓ → 用时 ↑ → 轮次小者优先。
+   ⚠️ 前端不得另写一套算法（项目铁律）：改动这里必须同步 engine/scoring.go。 */
+function isFlatRec(o){return !!o&&(o.tasks!==undefined||o.signed!==undefined||o.state!==undefined||o.time!==undefined||o.yellow!==undefined||o.red!==undefined);}
+function recOfMap(map,tid,rn){var o=map&&map[tid];if(!o)return null;if(isFlatRec(o))return Number(rn)===1?o:null;return o[Number(rn)]||null;}
+function roundsOfMap(map,tid){var o=map&&map[tid];if(!o)return [];if(isFlatRec(o))return [1];
+  var out=[];[1,2].forEach(function(r){if(o[r])out.push(r);});return out;}
+/* 该赛项应有几轮（1 轮赛项只有第 1 轮；2 轮赛项两轮都算） */
+function expectedRounds(ev){return Number((ev&&ev.rounds)||1)>=2?[1,2]:[1];}
+function allSignedOf(map,tid,rds){for(var i=0;i<rds.length;i++){var rec=recOfMap(map,tid,rds[i]);if(!rec||!rec.signed)return false;}return true;}
+function recsAllHaveTasks(map,tid,rds){for(var i=0;i<rds.length;i++){var rec=recOfMap(map,tid,rds[i]);if(!rec||!Object.keys(rec.tasks||{}).length)return false;}return true;}
+function anyScoreOf(map,tid){return roundsOfMap(map,tid).length>0;}
+function scoreRec(tid,rn){return recOfMap(S.scores,tid,rn);}
+function scoreRounds(tid){return roundsOfMap(S.scores,tid);}
+function ensureScoreRec(tid,rn){
+  var o=S.scores[tid];
+  if(o&&isFlatRec(o)){o={1:o};S.scores[tid]=o;}else if(!o){o={};S.scores[tid]=o;}
+  var r=Number(rn)||1;
+  return o[r]||(o[r]={tasks:{},time:0,yellow:0,red:0,signed:false});
+}
+/* 该队是否"该签的都签了"（1 轮看第 1 轮；2 轮要两轮都签） */
+function teamAllSigned(t){if(!t)return false;return allSignedOf(S.scores,t.id,expectedRounds(find(t.eventId)||{}));}
+/* 跨赛事统计用：直接吃原始数据 d（不是当前 S） */
+function contestSignedCount(d){
+  var rds={};(d.events||[]).forEach(function(e){rds[e.id]=expectedRounds(e);});
+  var n=0;(d.teams||[]).forEach(function(t){if(allSignedOf(d.scores,t.id,rds[t.eventId]||[1]))n++;});
+  return n;
+}
+function betterRound(a,b){
+  if(a.result.total!==b.result.total)return a.result.total>b.result.total;
+  var at=Number(a.rec.time)||0,bt=Number(b.rec.time)||0;
+  if(at!==bt)return at<bt;
+  return a.round<b.round;
+}
+function bestRoundOf(ev,tid){
+  var rounds=scoreRounds(tid),best=null,found=false;
+  rounds.forEach(function(rn){
+    var rec=scoreRec(tid,rn);if(!rec)return;
+    var cur={round:rn,rec:rec,result:computeTotal(ev,rec)};
+    if(!found||betterRound(cur,best)){best=cur;found=true;}
+  });
+  return {best:best,found:found,rounds:rounds};
+}
 function rankAll(evId){
   var ev=find(evId);if(!ev)return [];
   var tb=(ev.rankRule&&ev.rankRule.tieBreak)||['score','time'];
   var list=S.teams.filter(function(t){return t.eventId===evId;}).map(function(t){
-    var r=S.scores[t.id]||{};
-    var c=computeTotal(ev,r);
+    /* 两轮取优：从各轮记录里挑最好的一轮计入名次（用时也取该轮）—— 与后端 engine 同口径 */
+    var b=bestRoundOf(ev,t.id);
+    var r=(b.found&&b.best.rec)||{};
+    var c=(b.found&&b.best.result)||computeTotal(ev,{});
     return {team:t,total:c.total,base:c.base,bonus:c.bonus,penalty:c.penalty,yellow:c.yellow,red:c.red,
-            dq:!!c.dq,complete:c.complete,time:Number(r.time)||0};
+            dq:!!c.dq,complete:c.complete,time:Number(r.time)||0,
+            rounds:b.rounds,bestRound:(b.found?b.best.round:0)};
   });
   list.sort(function(a,b){
     /* 红牌 = 当场取消比赛资格：不参与名次，排到榜单最后（分数仍保留可查） */
@@ -924,6 +1032,17 @@ function standings(evId){
   rows.forEach(function(r){if(r.dq){r.rank=0;r.tie=false;}});
   return rows;
 }
+/* 两轮赛项：标出这一行的成绩来自哪一轮（取优结果）——
+   两轮都录 → 「取第 N 轮」；只录了一轮 → 「仅第 N 轮」（这件事现场更需要被看见：
+   只有一个轮次分数就参与排名，往往意味着另一轮漏录了）。1 轮赛项恒返回空串。 */
+function bestRoundTag(ev,r){
+  if(!ev||Number(ev.rounds||1)<2)return '';
+  if(!r||!r.bestRound)return '';
+  return ((r.rounds||[]).length>=2?('取第 '+r.bestRound+' 轮'):('仅第 '+r.bestRound+' 轮'));
+}
+/* 导出用：列名已经写了「取优轮」，单元格里只留值（「第 2 轮」/「仅第 1 轮」），
+   无成绩留空 —— 别把「取第 2 轮」塞进叫「取优轮」的列里（读起来是"取优轮：取第 2 轮"）。 */
+function bestRoundCell(ev,r){var t=bestRoundTag(ev,r);return t?t.replace(/^取/,''):'';}
 /* 作废队清单（用于「影响预览」与公示声明） */
 function voidedInfo(evId){
   var all=rankAll(evId);
@@ -1043,7 +1162,7 @@ function sidebar(){
   '</aside>';
 }
 function topbar(){
-  var titles={contests:'赛事管理（一场赛事一份数据 · 隔离与归档）',crossrank:'比赛结果总览',dash:'总览（开赛就绪度 · 赛项状态）',events:'赛项与规则配置',seats:'赛台与赛程编排',teams:'队伍与报名 · 队伍管理',import:'队伍与报名 · WRC 报名导入',referees:'裁判与排班 · 裁判档案与裁判码',duty:'裁判与排班 · 执裁排班（赛台 × 时段 × 人）',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',watch:'处理进度看板（告警收件箱 + 改分 / 争议台账 · 只读看板）',dq:'公示与发布 · 资格与递补（取消资格登记 + 递补）',evidence:'留底证据库（服务端那一端）',publish:'公示与发布 · 公示与导出',roles:'合规 · 角色与权限',audit:'合规 · 全操作审计'};
+  var titles={contests:'赛事管理（一场赛事一份数据 · 隔离与归档）',crossrank:'比赛结果总览',dash:'总览（开赛就绪度 · 赛项状态）',events:'赛项与规则配置',seats:'赛台与赛程编排（含分台与顺位）',teams:'队伍与报名 · 队伍管理',import:'队伍与报名 · WRC 报名导入',referees:'裁判与排班 · 裁判档案与裁判码',duty:'裁判与排班 · 执裁排班（赛台 × 时段 × 人）',score:'裁判打分录入',rank:'实时榜单',screen:'大屏展示（实时榜单 / 赛后公示表）',watch:'处理进度看板（告警收件箱 + 改分 / 争议台账 · 只读看板）',dq:'公示与发布 · 资格与递补（取消资格登记 + 递补）',evidence:'留底证据库（服务端那一端）',publish:'公示与发布 · 公示与导出',roles:'合规 · 角色与权限',audit:'合规 · 全操作审计'};
   var contestPicker='<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;margin:0">'+
     '<span class="muted">赛事</span>'+
     '<select onchange="switchContest(this.value)" style="width:auto;min-width:230px;max-width:320px" title="切换赛事 = 切换整套数据（队伍 / 成绩 / 规则 / 留底 / 审计）">'+
@@ -1232,8 +1351,7 @@ function contestSnapshot(cid){
     teams:0,signed:0,published:0,req:0,dis:0,alert:0,events:[]};
   if(!d)return out;
   out.teams=(d.teams||[]).length;
-  var scores=d.scores||{};
-  for(var k in scores){if(scores[k]&&scores[k].signed)out.signed++;}
+  out.signed=contestSignedCount(d);
   out.published=Object.keys(d.published||{}).length;
   (d.changeRequests||[]).forEach(function(r){if(r.status==='待审批')out.req++;});
   (d.disputes||[]).forEach(function(r){if(r.status==='待裁定')out.dis++;});
@@ -1241,7 +1359,7 @@ function contestSnapshot(cid){
   out.events=(d.events||[]).map(function(e){
     var tms=(d.teams||[]).filter(function(t){return t.eventId===e.id;});
     return {name:e.name,teams:tms.length,
-      signed:tms.filter(function(t){var r=scores[t.id];return !!(r&&r.signed);}).length,
+      signed:tms.filter(function(t){return allSignedOf(d.scores,t.id,expectedRounds(e));}).length,
       published:!!((d.published||{})[e.id])};
   });
   return out;
@@ -1265,11 +1383,23 @@ function readinessOf(cid){
   function run(){
     var teams=S.teams||[],slots=(S.slots||[]).filter(function(x){return x.type!=='extra';});
     var evs=S.events||[],refs=S.referees||[];
+    var seatIds={};S.seats.forEach(function(x){seatIds[x.id]=1;});
     box.v={
       events:evs.length,teams:teams.length,slots:slots.length,refs:refs.length,
       ruleBad:evs.filter(function(e){return validateEvent(e).errs.length>0;}).length,
-      unseated:teams.filter(function(t){return !t.seatId;}).length,
-      emptySlots:slots.filter(function(x){return !((x.teams||[]).length);}).length,
+      /* 未分台 = 没有归台，或归台指向一张**已不存在的赛台**（后者原先被漏判 → 队伍隐身却绿灯） */
+      unseated:teams.filter(function(t){return !t.seatId||!seatIds[t.seatId];}).length,
+      /* 场次是否排到队伍：必须用 slotTeams() 派生结果 —— 原先读 x.teams，
+         那是已废弃的存储字段，改成派生后会**永远为空**、永远报错（假红）。 */
+      emptySlots:slots.filter(function(x){return !slotTeams(x).length;}).length,
+      /* 已分台却排不进任何场次：该赛台缺少对应时段 / 赛项 / 组别的场次（现场最典型的漏排） */
+      unslotted:teams.filter(function(t){
+        if(!t.seatId||!seatIds[t.seatId]||t.status==='withdrawn')return false;
+        return !slots.some(function(sl){
+          return sl.seatId===t.seatId&&sl.eventId===t.eventId&&sl.group===t.group
+            &&sessionHas(t.session,Number(sl.round||1));
+        });
+      }).length,
       unstaffed:slots.filter(function(x){return !((x.judges||[]).length);}).length,
       idle:refs.filter(function(r){return r.status!=='activated';}).length
     };
@@ -1285,9 +1415,11 @@ function readinessItems(cid){
     {k:'队伍已导入',ok:r.teams>0,good:r.teams+' 支在册',
      bad:'还没有队伍（可走 WRC 报名导入，或手工补报）',view:'import'},
     {k:'队伍已分台',ok:r.teams>0&&r.unseated===0,good:r.teams+' 支全部分台',
-     bad:(r.unseated+' 支未分台 —— 到「队伍管理」点「自动分台」'),view:'teams'},
+     bad:(r.unseated+' 支未分台 —— 到「赛台与赛程编排」的「分台与顺位」点「一键自动分台」'),view:'seats'},
+    {k:'分台已排进场次',ok:r.teams>0&&r.unslotted===0,good:'已分台队伍都能排进场次',
+     bad:(r.unslotted+' 支排不进任何场次 —— 该赛台缺对应时段 / 赛项 / 组别的场次（场次队伍由「分台与顺位」派生，不是手排的）'),view:'seats'},
     {k:'场次已排队伍',ok:r.slots>0&&r.emptySlots===0,good:r.slots+' 个场次都排了队伍',
-     bad:(r.slots===0?'还没有编排场次':(r.emptySlots+' 个场次还是空的 —— 到「赛台与赛程」点「按赛台分配队伍」')),view:'seats'},
+     bad:(r.slots===0?'还没有编排场次':(r.emptySlots+' 个场次是空的 —— 到「分台与顺位」把队伍归台（或补该时段的场次）')),view:'seats'},
     {k:'裁判已激活',ok:r.refs>0&&r.idle===0,good:r.refs+' 人全部激活',
      bad:(r.refs===0?'还没有裁判档案':(r.idle+' 人未激活 —— 本人还没在平板上登录过，现场最容易卡在这里')),view:'referees'},
     {k:'场次已排班',ok:r.slots>0&&r.unstaffed===0,good:'全部场次已排班',
@@ -1714,13 +1846,13 @@ function viewRefereePool(){
 /* ---------- 视图 1：总览 ---------- */
 function viewDash(){
   var totalTeams=S.teams.length;
-  var scored=S.teams.filter(function(t){return S.scores[t.id]&&S.scores[t.id].signed;}).length;
+  var scored=S.teams.filter(function(t){return teamAllSigned(t);}).length;
   var notPub=S.events.filter(function(e){return !S.published[e.id];}).length;
   var kpi=function(lb,nm,ft){return '<div class="kpi"><div class="lb">'+lb+'</div><div class="nm">'+nm+'</div><div class="ft">'+ft+'</div></div>';};
 
   var rows=S.events.map(function(e){
     var tms=S.teams.filter(function(t){return t.eventId===e.id;});
-    var sc=tms.filter(function(t){return S.scores[t.id]&&S.scores[t.id].signed;}).length;
+    var sc=tms.filter(function(t){return teamAllSigned(t);}).length;
     var v=validateEvent(e);
     var st=v.errs.length?'<span class="tag err">配置有误</span>':(v.warns.length?'<span class="tag warn">待复核</span>':'<span class="tag ok">配置就绪</span>');
     var pv=S.published[e.id]?(pubDirtyOf(e.id)?'<span class="tag warn">⚠ 待重发</span>':'<span class="tag b">已公示</span>'):'<span class="tag">未公示</span>';
@@ -2015,7 +2147,6 @@ function eventForm(ev){
     '<div class="hint">争议 / 申诉<b>类型按赛项各自配置</b>（如「选手申诉」「重复打分」「用时争议」「器材故障」，双队对抗赛项可另加「对抗场次争议」），由工作人员按当季规程增删；裁判端<b>只读选择、不能自造</b>。与判罚事由的区别：判罚事由是裁判<b>当场判定</b>并留痕（不扣分），争议类型是裁判<b>上报</b>后进待裁定队列、由裁判长在裁定台判定。</div>'+
     '<div class="row" style="margin-top:6px">'+
       '<button class="btn primary" onclick="doValidate()">校验配置</button>'+
-      '<button class="btn" onclick="exportEvent()">导出该赛项 JSON</button>'+
     '</div>'+
     '<div class="vres" id="vres"></div>';
 }
@@ -2415,7 +2546,7 @@ function impDiffRow(o,counts){
   if(evId&&mt.eventId!==evId){
     changes.push({label:'赛项',old:((curEv&&curEv.name)||'—'),new:((ev&&ev.name)||'—'),structural:true});
   }
-  var hasScore=!!S.scores[mt.id];
+  var hasScore=anyScoreOf(S.scores,mt.id);
   if(hasScore&&changes.some(function(c){return c.structural;})){
     return {status:'conflict',errs:['该队已有成绩，变更组别 / 赛项会破坏成绩归属'],changes:changes,canFile:true,team:mt,reason:'structural'};
   }
@@ -2505,7 +2636,7 @@ function impCommit(){
     var e=impEff(it);
     if((e!=='insert'&&e!=='update')||!it.checked)return;
     pending++;
-    if(it.team&&S.scores[it.team.id])affected++;
+    if(it.team&&anyScoreOf(S.scores,it.team.id))affected++;
   });
   if(!pending){alert('没有可应用的行（可能全部为跳过，或都没勾选）。');return;}
   var conflicted=IMP.diff.filter(function(it){return it.status==='conflict';}).length;
@@ -2965,7 +3096,7 @@ function impStep4(){
   var eff=impEffCounts(),affected=0;
   (IMP.diff||[]).forEach(function(it){
     var e=impEff(it);
-    if((e==='insert'||e==='update')&&it.checked&&it.team&&S.scores[it.team.id])affected++;
+    if((e==='insert'||e==='update')&&it.checked&&it.team&&anyScoreOf(S.scores,it.team.id))affected++;
   });
   var conflicted=(IMP.diff||[]).filter(function(it){return it.status==='conflict';}).length;
   var h='<div class="card"><h2>④ 确认入库 <small>写入前请核对影响面</small></h2>'+
@@ -2995,19 +3126,23 @@ function viewTeams(){
   var ev=find(CUR_EVENT)||S.events[0];
   var tms=ev?S.teams.filter(function(t){return t.eventId===ev.id;}):[];
   var rows=tms.map(function(t){
-    var sc=S.scores[t.id]||{};
-    var signed=sc.signed?'<span class="tag ok">已签字</span>':'<span class="tag">未签字</span>';
-    var has=sc.tasks?'<span class="tag b">有成绩</span>':'<span class="tag">待录入</span>';
+    /* 进度列与「分台与顺位」卡**共用一个 teamScoreTag()**：三态互斥（已签 / 已录 / 待录）。
+       原先这里是「签字 + 成绩」两个维度并排 —— 同一队会显出 4 个标签，而"第 N 轮未签 + 第 N 轮待录"
+       其实是同一件事（还没录）的两种说法，读起来像 4 个状态。抽成一处也更难改漏。 */
+    var prog=teamScoreTag(t);
     var st=t.status==='withdrawn'?'<span class="tag err">退赛</span>':'<span class="tag ok">在册</span>';
     var src=(t.source==='excel')?'<span class="tag b">WRC 导入</span>':((t.source==='excel_bulk')?'<span class="tag b">批量导入</span>':'<span class="tag">'+esc(impSourceName(t.source))+'</span>');
     var ev0=find(t.eventId)||{groups:['小学组','初中组']};
     var gOpts=(ev0.groups||['小学组','初中组']).map(function(g){return '<option '+(g===t.group?'selected':'')+'>'+esc(g)+'</option>';}).join('');
+    var _sn=seatName(t.seatId);
+    var seatCell=(t.seatId&&_sn!=='—')?(esc(_sn)+'<div class="small muted">'+sessionName(t.session)+'</div>'):'<span class="muted">未分台</span>';
     return '<tr><td><b>'+esc(t.no||'—')+'</b></td>'+
       '<td><b>'+esc(t.name)+'</b><div class="small muted">'+esc(t.members||'—')+'</div></td>'+
       '<td class="small">'+esc(t.school||'—')+'</td><td class="small">'+esc(t.coach||'—')+'</td>'+
       '<td><select style="max-width:112px" onchange="changeTeamGroup(\''+t.id+'\',this.value)">'+gOpts+'</select></td>'+
+      '<td class="small">'+seatCell+'</td>'+
       '<td>'+st+'</td><td class="small">'+src+'</td>'+
-      '<td>'+has+' '+signed+'</td>'+
+      '<td>'+prog+'</td>'+
       '<td><span class="row tight"><button class="btn sm" onclick="toggleWithdraw(\''+t.id+'\')">'+(t.status==='withdrawn'?'恢复':'弃赛')+'</button>'+
       '<button class="btn sm danger" onclick="delTeam(\''+t.id+'\')">删除</button></span></td></tr>';
   }).join('');
@@ -3028,10 +3163,11 @@ function viewTeams(){
     '<div class="row" style="margin-bottom:10px"><select style="max-width:220px" onchange="selTeamEvent(this.value)">'+opts+'</select>'+
       '<span class="small muted">共 '+tms.length+' 支队伍</span>'+
     '</div>'+
-    '<table><thead><tr><th>编号</th><th>队伍 / 成员</th><th>学校</th><th>教练</th><th>组别</th><th>状态</th><th>来源</th><th>进度</th><th></th></tr></thead>'+
-    '<tbody>'+(rows||'<tr><td colspan="9" class="muted">该赛项暂无队伍</td></tr>')+'</tbody></table>'+
-  '</div>'+
-  seatPanel();
+    '<table><thead><tr><th>编号</th><th>队伍 / 成员</th><th>学校</th><th>教练</th><th>组别</th><th>所在赛台</th><th>状态</th><th>来源</th><th>进度</th><th></th></tr></thead>'+
+    '<tbody>'+(rows||'<tr><td colspan="10" class="muted">该赛项暂无队伍</td></tr>')+'</tbody></table>'+
+    '<div class="hint">「分台与顺位」（含<b>参赛轮次</b>：第 1 轮 / 第 2 轮）已移到<b>「赛台与赛程编排」</b>页 —— '
+      +'本页只读显示所在赛台与参赛轮次。要分台、换台、调顺位或改轮次，请到那一页操作（那里也是唯一的归台入口）。</div>'+
+  '</div>';
 }
 function selTeamEvent(id){CUR_EVENT=id;CUR_TEAM=null;render();}
 function addTeam(){
@@ -3045,6 +3181,7 @@ function addTeam(){
     coach:((document.getElementById('ntCoach')||{}).value||'').trim(),
     eventId:CUR_EVENT,group:((document.getElementById('ntGroup')||{}).value||'').trim(),
     members:((document.getElementById('ntMembers')||{}).value||'').trim(),
+    session:'both',   /* 参赛轮次默认「两轮」= 常态（一队上午第1轮、下午第2轮都打） */
     status:'active',source:'manual'});
   save();render();
 }
@@ -3079,18 +3216,48 @@ function changeTeamGroup(id,g){
    提交即终态下，完成度 = 赛项 × 组别级（多赛台汇总）。故此处维护「队伍 → 赛台 + 赛台内顺位」。 */
 var TEAM_SEAT_GROUP='';
 function selSeatGroup(v){TEAM_SEAT_GROUP=v;render();}
+/* 分台卡自己的赛项下拉：分台是按赛项算的，而「赛台与赛程编排」页原先没有赛项上下文
+   （搬到本页后必须有，否则不知道在给哪个赛项分台）。 */
+function selSeatEvent(v){TEAM_SEAT_GROUP='';selSeatGroup('');CUR_EVENT=v;CUR_TEAM=null;render();}
 function findTeam(id){var a=S.teams||[];for(var i=0;i<a.length;i++){if(a[i].id===id)return a[i];}return null;}
 function teamScoreTag(t){
-  var sc=S.scores[t.id]||{};
   if(t.status==='withdrawn')return '<span class="tag err">退赛</span>';
-  if(sc.signed)return '<span class="tag ok">已签字</span>';
-  if(sc.tasks)return '<span class="tag b">已录入</span>';
-  return '<span class="tag">待录入</span>';
+  var rds=expectedRounds(find(t.eventId)||{});
+  /* 1 轮赛项只有一轮 —— 给每个标签再加「第 1 轮」前缀是纯噪音（现场只会读成"又强调了一次"）。
+     2 轮赛项下前缀是必需的：同一个格子里要区分上午 / 下午两轮，不写轮次根本分不清。 */
+  var one=(rds.length<2);
+  return rds.map(function(rn){
+    var rec=scoreRec(t.id,rn);
+    var lb=one?'':('第 '+rn+' 轮');
+    if(rec&&rec.signed)return '<span class="tag ok">'+lb+'已签</span>';
+    if(rec&&Object.keys(rec.tasks||{}).length)return '<span class="tag b">'+lb+'已录</span>';
+    return '<span class="tag">'+lb+'待录</span>';
+  }).join(' ');
 }
 function teamSeatTeams(evId,group,seatId){
   return (S.teams||[]).filter(function(t){
     return t.eventId===evId&&t.status!=='withdrawn'&&(t.seatId||'')===seatId&&(!group||t.group===group);
   }).sort(function(a,b){return (Number(a.order)||9999)-(Number(b.order)||9999);});
+}
+/* ---------- 参赛轮次（第 1 轮 / 第 2 轮）----------
+   赛制事实（用户 2026/10/09 确认）：**一个赛项里一支队伍要打两轮 —— 上午第 1 轮、下午第 2 轮**。
+   所以「上午 / 下午」本质是轮次，而不是"分批"；常态值是「两轮」，只在某队确实只打一轮时才改。
+   放在**队伍级**而不是场次级，是为了保住"单一事实源"：场次队伍全由它派生，不再有第二套存储。 */
+var SESSIONS=[['1','第 1 轮'],['2','第 2 轮'],['both','两轮']];
+function sessionName(v){for(var i=0;i<SESSIONS.length;i++){if(SESSIONS[i][0]===v)return SESSIONS[i][1];}return '两场';}
+/* 参赛轮次：'both' = 两轮都打（= 赛制常态：一队上午第 1 轮、下午第 2 轮）。
+   sessionHas(v, rn) 判断"这支队在第 rn 轮上不上场" —— 用**轮次**而不是时段，
+   因为时段与轮次是绑定的（上午=第 1 轮、下午=第 2 轮），按轮次匹配更本质、也与后端 round_no 对齐。 */
+function sessionHas(v,rn){v=v||'both';return v==='both'||String(rn)===String(v);}
+function sessionOpts(cur){var c=cur||'both';return SESSIONS.map(function(x){
+  return '<option value="'+x[0]+'" '+(c===x[0]?'selected':'')+'>'+x[1]+'</option>';}).join('');}
+function setTeamSession(id,v){
+  if(!perm('ref'))return;
+  var t=findTeam(id);if(!t)return;
+  var before=sessionName(t.session);
+  t.session=v||'both';
+  if(before!==sessionName(t.session))logAudit('分台',t.name+' 参赛轮次',before,sessionName(t.session),'轮次调整');
+  save();render();
 }
 function seatPanel(){
   var ev=find(CUR_EVENT)||S.events[0];
@@ -3103,7 +3270,7 @@ function seatPanel(){
   var usedSeats=[];S.seats.forEach(function(x){
     if(pool.some(function(t){return t.seatId===x.id;}))usedSeats.push(x.id);
   });
-  var done=pool.filter(function(t){var sc=S.scores[t.id]||{};return !!sc.signed;}).length;
+  var done=pool.filter(function(t){return teamAllSigned(t);}).length;
   var kpi=function(lb,nm,ft){return '<div class="kpi"><div class="lb">'+lb+'</div><div class="nm">'+nm+'</div><div class="ft">'+ft+'</div></div>';};
   var gOpts=[''].concat(ev.groups||[]).map(function(g){
     return '<option value="'+esc(g)+'" '+(TEAM_SEAT_GROUP===g?'selected':'')+'>'+(g?esc(g):'全部组别')+'</option>';
@@ -3117,6 +3284,7 @@ function seatPanel(){
       '<td><b>'+esc(t.no||'—')+'</b></td>'+
       '<td>'+esc(t.name)+'<div class="small muted">'+esc(t.members||'—')+'</div></td>'+
       '<td class="small">'+esc(t.group||'—')+'</td>'+
+      '<td><select style="max-width:104px" onchange="setTeamSession(\''+t.id+'\',this.value)">'+sessionOpts(t.session)+'</select></td>'+
       '<td>'+teamScoreTag(t)+'</td>'+
       '<td><span class="row tight">'+
         '<button class="btn sm" onclick="moveTeamOrder(\''+t.id+'\',-1)">↑</button>'+
@@ -3133,7 +3301,7 @@ function seatPanel(){
         '<span class="small muted">'+list.length+' 支队伍 · 出赛顺位 1–'+list.length+'</span>'+
       '</div>'+
       '<div style="overflow:auto">'+
-      '<table style="margin-top:6px"><thead><tr><th style="width:40px">选</th><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:90px">组别</th><th style="width:88px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
+      '<table style="margin-top:6px"><thead><tr><th style="width:40px">选</th><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:84px">组别</th><th style="width:104px">参赛轮次</th><th style="width:78px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
       '<tbody>'+(rows||'<tr><td colspan="6" class="muted">该赛台暂无队伍</td></tr>')+'</tbody></table></div>'+
     '</div>';
   }).join('');
@@ -3141,15 +3309,17 @@ function seatPanel(){
   var unBlock=unassigned.length
     ? '<div style="margin-top:12px;border:1px dashed #f6ad55;border-radius:8px;padding:10px 12px;background:#fffaf0">'+
       '<div class="row" style="justify-content:space-between"><b>未分台</b><span class="small muted">'+unassigned.length+' 支 · 平板端不会出现在任何赛台队列里</span></div>'+
-      '<div style="overflow:auto"><table style="margin-top:6px"><thead><tr><th style="width:40px">选</th><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:90px">组别</th><th style="width:88px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
+      '<div style="overflow:auto"><table style="margin-top:6px"><thead><tr><th style="width:40px">选</th><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:84px">组别</th><th style="width:104px">参赛轮次</th><th style="width:78px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
       '<tbody>'+unassigned.map(function(t){return teamRow(t,'—');}).join('')+'</tbody></table></div></div>'
     : '';
 
+  var evOpts2=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===ev.id?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
   return '<div class="card"><div class="row">'+
       '<h2 style="margin:0">分台与顺位 <small>'+esc(ev.name)+' · 平板端队列口径</small></h2>'+
       '<span class="sp" style="flex:1"></span>'+
+      '<select style="max-width:150px" onchange="selSeatEvent(this.value)">'+evOpts2+'</select>'+
       '<select style="max-width:140px" onchange="selSeatGroup(this.value)">'+gOpts+'</select>'+
-      '<button class="btn primary" onclick="autoDistributeSeats()">按人数均分到赛台</button>'+'<button class="btn" onclick="autoDistributeSeatsSel()">按编号均分选中队伍</button>'+
+      '<button class="btn primary" onclick="autoDistributeSeats()">一键自动分台</button>'+'<button class="btn" onclick="autoDistributeSeatsSel()">按编号均分选中队伍</button>'+
       '<button class="btn" onclick="clearTeamSeats()">清空分台</button>'+
     '</div>'+
     '<div class="grid g4" style="margin-top:12px">'+
@@ -3158,14 +3328,19 @@ function seatPanel(){
       kpi('占用赛台',usedSeats.length,'仅统计有队伍的赛台')+
       kpi('完成度',done+' / '+pool.length,'已签字确认 · 平板端按此口径汇总')+
     '</div>'+
-    (blocks||'<div class="hint" style="margin-top:12px">当前没有已分台的队伍。点「按人数均分到赛台」快速铺开，或逐队在右侧下拉里指定赛台。</div>')+
+    (blocks||'<div class="hint" style="margin-top:12px">当前没有已分台的队伍。点「<b>一键自动分台</b>」即可 —— 按<b>编号顺序</b>排队后平均铺到各赛台（不用先勾选）；也可逐队在右侧下拉里指定赛台。</div>')+
     unBlock+
     '<div class="hint" style="margin-top:12px">'+
       '<b>① 分台决定平板端看到什么</b>：裁判登录后只见<b>本人预绑赛台</b>的队伍队列（P2 队列标题即「本赛台队列」），顺序就是这里的<b>出赛顺位</b>；未分台的队伍不会出现在任何赛台，等于漏赛。<br>'+
       '<b>② 顺位 = 出赛顺序</b>：平板端「第 X 顺位 / 共 N 队」徽标、以及提交后自动切下一队的指针，都按此顺位推进。<br>'+
       '<b>③ 完成度是赛项 × 组别级</b>：平板端打分端的「已完成 X / 共 Y 队」按此口径（多赛台汇总后）计算，是"这个组别能不能发榜"的依据 —— 与单个赛台的队列进度不是一回事。<br>'+
       '<b>④ 分台可跨赛项复用</b>：同一张赛台在不同时段可承载不同赛项 / 组别（见「赛台与赛程编排」），分台与顺位不冲突。<br>'+
-      '<b>⑤ 留痕</b>：均分、改派、调顺位、清空都写入操作审计（新增「分台」类型）。'+
+      '<b>⑤ 参赛轮次（第 1 轮 / 第 2 轮 / 两轮）</b>：本赛制一队要打两轮 —— <b>上午第 1 轮、下午第 2 轮</b>，'
+      +'所以常态就是「两轮」。轮次是<b>队伍级</b>字段，场次里的队伍由「赛台 × 赛项 × 组别 × 轮次」<b>派生</b>；'
+      +'只在某队确实只打一轮时才改它。<br>'+
+      '<b>⑥ 本页是唯一的归台入口</b>：一键自动分台 = 按<b>编号顺序</b>排队后平均铺到各赛台（结果可预期、可对着名单核对）；'
+      +'要只重排一部分就勾选后用「按编号均分选中队伍」。<br>'+
+      '<b>⑦ 留痕</b>：均分、改派、调顺位、改轮次、清空都写入操作审计（「分台」类型）。'+
     '</div>'+
   '</div>';
 }
@@ -3199,16 +3374,20 @@ function autoDistributeSeats(){if(!perm('ref'))return;
   });
   if(!pool.length){alert('该赛项没有在册队伍');return;}
   if(!S.seats.length){alert('还没有配置赛台，请先到「赛台与赛程编排」新建赛台');return;}
-  if(!confirm('把 '+pool.length+' 支队伍按人数均分到 '+S.seats.length+' 张赛台？\n将覆盖现有分台与顺位。\n\n'
-    +'注意：这一步只把队伍排到「赛台」。还要到「赛台与赛程」对各个场次点「按赛台分配队伍」，'
-    +'队伍才会排进具体时段（否则场次里仍然是空的）。'))return;
+  if(!confirm('一键自动分台：把 '+pool.length+' 支队伍按**编号顺序**平均分到 '+S.seats.length+' 张赛台？\n\n'
+    +'· 顺序可预期：按编号升序排队，依次铺到各赛台（'+S.seats.map(function(x){return x.name;}).join(' → ')+' → 循环）\n'
+    +'· 会覆盖现有分台与顺位；参赛轮次（第 1 / 第 2 轮）保持不变\n'
+    +'· 场次里的队伍由分台**自动派生**，不用再逐场次分配'))return;
+  /* 按编号升序排队后再轮流铺 —— "自动分台"的关键：结果可预期、可复算、可对着名单核对。
+     原实现直接吃 S.teams 的库内顺序（≈导入顺序），现场看不出规律，等于每次结果不同。 */
+  var ordered=pool.slice().sort(function(a,b){return (Number(a.no)||0)-(Number(b.no)||0);});
   var buckets={};S.seats.forEach(function(x){buckets[x.id]=[];});
-  pool.forEach(function(t,i){buckets[S.seats[i%S.seats.length].id].push(t.id);});
+  ordered.forEach(function(t,i){buckets[S.seats[i%S.seats.length].id].push(t.id);});
   S.seats.forEach(function(x){
     buckets[x.id].forEach(function(tid,k){var t=findTeam(tid);if(t){t.seatId=x.id;t.order=k+1;}});
   });
   var detail=S.seats.map(function(x){return x.name+' '+buckets[x.id].length+' 队';}).join('；');
-  logAudit('分台','按人数均分赛台',pool.length+' 支待分台',detail,'自动均分（可手动调整）');
+  logAudit('分台','一键自动分台（按编号顺序）',pool.length+' 支待分台',detail,'自动均分（可手动调整）');
   save();render();
 }
 function autoDistributeSeatsSel(){
@@ -3232,7 +3411,10 @@ function autoDistributeSeatsSel(){
 
 function clearTeamSeats(){if(!perm('ref'))return;
   var ev=find(CUR_EVENT);if(!ev)return;
-  if(!confirm('清空该赛项全部队伍的分台与顺位？'))return;
+  if(!confirm('清空该赛项全部队伍的分台与顺位？\n\n'
+    +'· 队伍会变成「未分台」，需要重新分台；\n'
+    +'· 参赛轮次（第 1 轮 / 第 2 轮）**保留** —— 那是"这队打哪几轮"，与赛台无关；\n'
+    +'· 各场次的队伍由分台**派生**，所以会跟着一起空掉（场次本身与裁判排班不动）。'))return;
   var n=0;(S.teams||[]).forEach(function(t){if(t.eventId===ev.id&&t.seatId){t.seatId='';t.order=0;n++;}});
   logAudit('分台','清空分台',n+' 支已分台','—','重新编排');
   save();render();
@@ -3603,15 +3785,28 @@ function viewScore(){
   if(!CUR_TEAM&&tms.length)CUR_TEAM=tms[0].id;
   var opts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===ev.id?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
   var teamList=tms.map(function(t){
-    var sc=S.scores[t.id]||{};
-    var done=sc.tasks?Object.keys(sc.tasks).length>0:false;
+    /* 1 轮赛项只有一轮 → 标签里不带"1"，直接显示「签 / 录 / 空」（与进度列同一取舍：
+       没有歧义时就不写轮次）。2 轮赛项保留「1 签  2 空」—— 左侧列表里必须能分清是哪一轮。 */
+    var _rds0=expectedRounds(ev),_oneR=(_rds0.length<2);
+    var _tags=_rds0.map(function(rn){
+      var rec=scoreRec(t.id,rn);
+      var dn=!!(rec&&Object.keys(rec.tasks||{}).length);
+      return '<span class="tag'+(rec&&rec.signed?' ok':(dn?' b':''))+'">'+(_oneR?'':rn+' ')+(rec&&rec.signed?'签':(dn?'录':'空'))+'</span>';
+    }).join(' ');
     return '<div class="li'+(t.id===CUR_TEAM?' on':'')+'" onclick="selScoreTeam(\''+t.id+'\')">'+
-      '<span>'+esc(t.name)+'<div class="small muted">'+esc(t.group)+'</div></span>'+
-      (sc.signed?'<span class="tag ok">签</span>':(done?'<span class="tag b">录</span>':'<span class="tag">空</span>'))+
+      '<span>'+esc(t.name)+'<div class="small muted">'+esc(t.group)+'</div></span>'+_tags+
     '</div>';
   }).join('');
   return scoreStateBanner()+'<div class="card" style="margin-bottom:16px"><div class="row">'+
       '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selScoreEvent(this.value)">'+opts+'</select>'+
+      (Number(ev.rounds||1)>=2?('<span class="small muted">轮次</span><span class="seg">'+[1,2].map(function(r){
+          var lk=roundLocked(ev.id,r);
+          /* 锁定态**不生成 onclick**（不是靠 CSS 挡）—— 硬锁，点了就是没反应，说明在右侧常驻提示里 */
+          return '<span class="'+(r===SCORE_ROUND?'on':'')+(lk?' off':'')+'"'+
+            (lk?' title="赛制锁定：第 1 轮全部提交后才开放第 2 轮"'
+               :' onclick="selScoreRound('+r+')"')+
+            '>第 '+r+' 轮'+(lk?' 🔒':'')+'</span>';}).join('')+'</span>'+
+        scoreRoundLockNote(ev.id)):'')+
       '<span class="small muted">录入身份</span><select style="max-width:200px" onchange="setEntryRole(this.value)">'+
         '<option value="ops" '+(SCORE_ENTRY_ROLE==='ops'?'selected':'')+'>工作人员代录</option>'+
         '<option value="sync" '+(SCORE_ENTRY_ROLE==='sync'?'selected':'')+'>现场回传（平板）</option>'+
@@ -3623,13 +3818,30 @@ function viewScore(){
     '<div class="card" style="margin:0">'+scoreForm(ev)+'</div>'+
   '</div>';
 }
-function selScoreEvent(id){SCORE_EVENT=id;CUR_TEAM=null;render();}
+function selScoreEvent(id){SCORE_EVENT=id;CUR_TEAM=null;SCORE_ROUND=1;render();}
+function selScoreRound(r){
+  var rn=Number(r)||1,ev=find(SCORE_EVENT);
+  /* 硬锁下的第二道闸：锁定轮次在界面上没有入口，这里只是防程序化调用把状态置成锁定轮 */
+  if(ev&&roundLocked(ev.id,rn))return;
+  SCORE_ROUND=rn;render();
+}
 function selScoreTeam(id){CUR_TEAM=id;render();}
 function setEntryRole(v){SCORE_ENTRY_ROLE=v;saveEntryRole();render();}
 function scoreForm(ev){
   if(!CUR_TEAM)return '<h2>录入</h2><div class="hint">请选择左侧队伍。</div>';
+  /* 防御：锁定的轮次不该有入口，但 SCORE_ROUND 是全局状态 —— 万一被别处置成锁定轮，
+     这里必须挡住，否则"锁定"只剩视觉意义。同时给出**可执行的**出路（标记弃赛），不只是报错。 */
+  if(roundLocked(ev.id,SCORE_ROUND)){
+    var lp=roundProgress(ev.id,1);
+    return '<h2>录入</h2><div class="note" style="border-color:#fc8181;background:#fff5f5">'+
+      '<b>🔒 第 '+SCORE_ROUND+' 轮未开放</b>：本赛项第 1 轮还有 <b>'+lp.pend.length+'</b> 队未提交（'+
+      lp.pend.slice(0,5).map(function(t){return esc(t.no);}).join('、')+(lp.pend.length>5?' 等':'')+'）。'+
+      '按赛制，第 1 轮全部提交后才开放第 2 轮。<br>'+
+      '若某队确实不再参赛，请到「<b>队伍管理</b>」把它标记为<b>弃赛</b> —— 弃赛队不计入本轮进度；'+
+      '不要为了"先往下走"而漏录第 1 轮。</div>';
+  }
   var team=S.teams.find(function(t){return t.id===CUR_TEAM;});
-  var rec=S.scores[CUR_TEAM]||(S.scores[CUR_TEAM]={tasks:{},time:0,yellow:0,red:0,signed:false});
+  var rec=ensureScoreRec(CUR_TEAM,SCORE_ROUND);
   rec.tasks=rec.tasks||{};
   var locked=!!(team&&scoreStateOf(team)!=='draft');
   var items=getInputItems(ev);
@@ -3695,7 +3907,7 @@ function scoreForm(ev){
     '</div>'+
     '<div class="row" style="margin-top:12px">'+
       '<button class="btn primary" onclick="saveScoreEntry()">保存本次录入（含留痕）</button>'+
-      '<button class="btn" onclick="requestScoreChange()">发起改分申请（需裁判长授权）</button>'+
+      '<button class="btn" onclick="requestScoreChange()">发起改分申请（'+(Number(ev.rounds||1)>=2?('第 '+SCORE_ROUND+' 轮 · '):'')+'需裁判长授权）</button>'+
       '<span class="small muted">提交后裁判不可直接改分；改分须裁判长授权，且全程留痕。</span>'+
     '</div>'+
     '<div class="hint" style="margin-top:10px">录入即存本地（离线优先）；联网后随裁判码同步。未来之城 V7.3 双队对抗时，两队选手代表均需签字。<br>'+
@@ -3717,10 +3929,10 @@ function lockReadonlyHtml(html){
 }
 function curRec(){
   if(!CUR_TEAM)return null;
-  if(!S.scores[CUR_TEAM])S.scores[CUR_TEAM]={tasks:{},time:0,yellow:0,red:0,signed:false};
-  if(!S.scores[CUR_TEAM].tasks)S.scores[CUR_TEAM].tasks={};
-  S.scores[CUR_TEAM].enteredBy=SCORE_ENTRY_ROLE;
-  return S.scores[CUR_TEAM];
+  var rec=ensureScoreRec(CUR_TEAM,SCORE_ROUND);
+  if(!rec.tasks)rec.tasks={};
+  rec.enteredBy=SCORE_ENTRY_ROLE;
+  return rec;
 }
 function setScore(tid,v){var r=curRec();if(!r)return;if(!perm('score'))return;if(!scoreGateChk())return;r.tasks[tid]=v;markScoresDirty();save();refreshPreview();}
 function setMeta(k,v){var r=curRec();if(!r)return;if(!perm('score'))return;if(!scoreGateChk())return;r[k]=Number(v)||0;markScoresDirty();save();refreshPreview();}
@@ -3730,7 +3942,7 @@ function scoreEntryRemark(){
   return '录入来源：'+(SCORE_ENTRY_ROLE==='ops'?'工作人员代录':'现场回传（平板）')+' · 操作人 '+operatorName()+'（'+roleName(currentUser().role)+'）';
 }
 function scoreDiffItems(tid){
-  var t=findTeam(tid),r=S.scores[tid]||{},base=r.logBase||{},ev=find(t?t.eventId:'');
+  var t=findTeam(tid),r=scoreRec(tid,SCORE_ROUND)||{},base=r.logBase||{},ev=find(t?t.eventId:'');
   var out=[];
   ((ev&&ev.tasks)||[]).forEach(function(it){
     var b=base[it.id],n=(r.tasks||{})[it.id];
@@ -3784,17 +3996,21 @@ function requestScoreChange(){
   var reason=prompt('改分申请：请填写申诉 / 复核原因（裁判长授权后生效）','申诉复核');
   if(!reason)return;
   var no=nextCaseNo('R');
+  /* 改分是**按轮**的：记录当前正在录的那一轮，不能恒为 1（否则两轮制的第 2 轮改分会挂到第 1 轮上） */
+  var rn=Number(SCORE_ROUND)||1;
   S.changeRequests=S.changeRequests||[];
-  S.changeRequests.unshift({no:no,teamId:CUR_TEAM,eventId:ev.id,group:(t&&t.group)||'',round:1,
+  S.changeRequests.unshift({no:no,teamId:CUR_TEAM,eventId:ev.id,group:(t&&t.group)||'',round:rn,
     field:'整队复核（后台代录页发起）',from:before,to:'待裁判长核定',
     source:'后台代录页',by:operatorName(),ts:nowStr(),status:'待审批',approver:'',approveTs:'',opinion:'',takeover:''});
   if(operatorName()===((currentUser()||{}).approver||'')){
     pushAlert('自批','danger',no+' · '+(t?t.name:'—'),'改分申请人 = 审批人（'+operatorName()+'），同一账号自批','—',operatorName(),'后台');
   }
-  logAudit('改分',(t?t.name+'（'+t.no+'）':CUR_TEAM)+' · '+ev.name,'总分 '+before,'已生成 '+no+'（待裁判长授权）',
+  logAudit('改分',(t?t.name+'（'+t.no+'）':CUR_TEAM)+' · '+ev.name+(Number(ev.rounds||1)>=2?(' · 第 '+rn+' 轮'):''),
+    '总分 '+before,'已生成 '+no+'（待裁判长授权）',
     scoreEntryRemark()+' · '+reason);
   save();render();
-  alert('改分申请已生成 '+no+'，已进入「申请与工单台账」，等待裁判长在平板端 P9 授权。\n依据：裁判提交后禁止直接改分，须走审批并留痕。');
+  alert('改分申请已生成 '+no+(Number(ev.rounds||1)>=2?('（针对第 '+rn+' 轮成绩）'):'')+'，'+
+    '已进入「申请与工单台账」，等待裁判长在平板端 P9 授权。\n依据：裁判提交后禁止直接改分，须走审批并留痕。');
 }
 
 /* ---------- 视图 6：实时榜单 ---------- */
@@ -3808,12 +4024,13 @@ function viewRank(){
   var doneN=rows.filter(function(r){return r.complete;}).length;
   var allDone=rows.length>0&&doneN===rows.length;
   var body=rows.map(function(r){
+    var bt=bestRoundTag(ev,r);   /* 两轮赛项才有值：取第 N 轮 / 仅第 N 轮 */
     return '<tr>'+
       '<td class="num">'+(r.dq?'<span class="tag err">取消资格</span>':'<b>'+r.rank+'</b>'+(r.tie?' <span class="tag warn">并列</span>':''))+'</td>'+
       '<td><b>'+esc(r.team.name)+'</b><div class="small muted">'+esc(r.team.group)+'</div></td>'+
       '<td class="small">'+maskMembers(r.team.members)+'</td>'+
       '<td class="num">'+((r.yellow||r.red)?('黄 '+(r.yellow||0)+(r.red?(' · 红 '+r.red):'')):'—')+'</td>'+
-      '<td class="num"><b style="font-size:14px">'+r.total.toFixed(1)+'</b></td>'+
+      '<td class="num"><b style="font-size:14px">'+r.total.toFixed(1)+'</b>'+(bt?('<div class="small muted">'+bt+'</div>'):'')+'</td>'+
       '<td class="num">'+(r.time||'—')+'</td>'+
       '<td>'+(r.complete?'<span class="tag ok">完成</span>':'<span class="tag warn">待完成</span>')+'</td>'+
     '</tr>';
@@ -3853,8 +4070,14 @@ function selRankEvent(id){RANK_EVENT=id;render();}
 function exportStandings(){
   var ev=find(RANK_EVENT);if(!ev)return;
   var rows=standings(ev.id);
-  var head=['排名','队伍','组别','黄牌','红牌','总分','用时(秒)','完成度'];
-  var data=rows.map(function(r){return [r.rank,r.team.name,r.team.group,r.yellow||0,r.red||0,r.total.toFixed(1),r.time||'',r.complete?'完成':'待完成'];});
+  /* 两轮赛项才带「取优轮」列 —— 1 轮赛项上这是空维度，加了反而让人以为漏了东西 */
+  var two=Number(ev.rounds||1)>=2;
+  var head=['排名','队伍','组别','黄牌','红牌','总分'].concat(two?['取优轮']:[]).concat(['用时(秒)','完成度']);
+  var data=rows.map(function(r){
+    return [r.rank,r.team.name,r.team.group,r.yellow||0,r.red||0,r.total.toFixed(1)]
+      .concat(two?[bestRoundCell(ev,r)]:[])
+      .concat([r.time||'',r.complete?'完成':'待完成']);
+  });
   download('榜单_'+contestName(CUR_CONTEST)+'_'+ev.name+'_'+nowStr().replace(/[: ]/g,'')+'.xlsx', buildXlsx([head].concat(data)), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
@@ -3898,7 +4121,9 @@ function viewPublish(){
     var hf=ev?((S.handoff||{})[ev.id]||null):null;
   var body=rows.map(function(r){
     var name=PUB_ANON?('参赛队 '+r.rank):r.team.name;
-    return '<tr><td class="num">'+r.rank+'</td><td>'+esc(name)+'</td><td class="num">'+r.total.toFixed(1)+'</td></tr>';
+    var bt=bestRoundTag(ev,r);   /* 对外也标出取的是哪一轮 —— 家长 / 领队会问"两轮为什么只算一次" */
+    return '<tr><td class="num">'+r.rank+'</td><td>'+esc(name)+'</td>'+
+      '<td class="num">'+r.total.toFixed(1)+(bt?('<div class="small muted">'+bt+'</div>'):'')+'</td></tr>';
   }).join('');
   return '<div class="card"><div class="row">'+
       '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selPubEvent(this.value)">'+opts+'</select>'+
@@ -3923,7 +4148,8 @@ function viewPublish(){
     '<div class="sub">config_version = '+configVersionOf(ev?ev.id:'')+' · 规则文档 '+esc((ev&&ev.ruleDoc)||'—')+' · '+(pub?'已发布':'草稿（未发布）')+' · 组别 '+esc(((ev&&ev.groups)||[]).join(' / '))+'</div>'+
     '<table><thead><tr><th class="num">名次</th><th>队伍</th><th class="num">总分</th></tr></thead>'+
     '<tbody>'+(body||'<tr><td colspan="3" class="muted">暂无可公示成绩</td></tr>')+'</tbody></table>'+
-    '<div class="hint" style="margin-top:14px;text-align:center">公示内容为最终成绩；未成年人信息已做匿名化处理。</div>'+
+    '<div class="hint" style="margin-top:14px;text-align:center">公示内容为最终成绩；未成年人信息已做匿名化处理。'+
+      (ev&&Number(ev.rounds||1)>=2?('<br>本赛制每队两轮（上午第 1 轮 / 下午第 2 轮），<b>取优轮</b>成绩计入名次。'):'')+'</div>'+
   '</div>';
 }
 function selPubEvent(id){PUB_EVENT=id;render();}
@@ -4009,16 +4235,16 @@ function doPublish(){if(!perm('publish'))return;
 function exportPublishXlsx(){
   var ev=find(PUB_EVENT);if(!ev)return;
   var rows=standings(ev.id);
-  var head=['名次','队伍','组别','申报单位','总分'];
-  var data=rows.map(function(r){return [r.rank,(PUB_ANON?'参赛队 '+r.rank:r.team.name),r.team.group||'',r.team.school||'',r.total];});
+  /* 对外表也要能自证"两轮只算一次"：加「取优轮」列（仅 2 轮赛项） */
+  var two=Number(ev.rounds||1)>=2;
+  var head=['名次','队伍','组别','申报单位','总分'].concat(two?['取优轮']:[]);
+  var data=rows.map(function(r){
+    return [r.rank,(PUB_ANON?'参赛队 '+r.rank:r.team.name),r.team.group||'',r.team.school||'',r.total]
+      .concat(two?[bestRoundCell(ev,r)]:[]);
+  });
   download('公示_'+contestName(CUR_CONTEST)+'_'+ev.name+'.xlsx', buildXlsx([head].concat(data)), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
-/* ---------- 配置导出 / 快照 ---------- */
-function exportEvent(){
-  var ev=find(CUR_EVENT);if(!ev)return;
-  download('赛项配置_'+contestName(CUR_CONTEST)+'_'+ev.id+'.json',JSON.stringify({schemaVersion:S.schemaVersion,events:[ev]},null,2),'application/json');
-}
 /* ---------- 视图 8：赛台与赛程编排 ---------- */
 var CUR_SLOT=null;
 function periodTime(p){return p==='上午'?'09:00–12:00':'14:00–17:00';}
@@ -4026,13 +4252,20 @@ function slotById(id){for(var i=0;i<S.slots.length;i++){if(S.slots[i].id===id)re
 function slotOfSeat(seatId,period){for(var i=0;i<S.slots.length;i++){var x=S.slots[i];if(x.seatId===seatId&&x.period===period)return x;}return null;}
 function slotCountOfSeat(seatId){var n=0;S.slots.forEach(function(x){if(x.seatId===seatId)n++;});return n;}
 function seatName(id){for(var i=0;i<S.seats.length;i++){if(S.seats[i].id===id)return S.seats[i].name;}return '—';}
+/* 正式场次的队伍 = **派生**，不是存储 —— 唯一事实源是队伍级归台（seatId + order + session）。
+   派生规则：该赛台 × 该赛项 × 该组别 × 参赛轮次匹配本场次轮次，按台内顺位排序。
+   所以"某队只打这一场"这类例外**不能**在场次上表达 —— 要调就改归台（分台与顺位）。
+   为什么改成派生：原先 team.seatId 与 slot.teams 是两套存储，实测会互相说谎（改派不回写、
+   删台后队伍隐身、顺位两套口径）。详见《分台与场次融合改造方案 v1.1》§3。 */
 function slotTeams(sl){
   if(!sl)return [];
   if(sl.type==='extra')return (sl.snapshot||[]).map(function(x){return {no:x.no,name:x.name,school:x.school||'',temp:true};});
-  return (sl.teams||[]).map(function(id){
-    var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===id){t=S.teams[i];break;}}
-    return t?{no:t.no,name:t.name,school:t.school||'',id:t.id,temp:false}:null;
-  }).filter(function(x){return !!x;});
+  var rn=Number(sl.round||1);
+  return (S.teams||[]).filter(function(t){
+    return t.eventId===sl.eventId&&t.group===sl.group&&(t.seatId||'')===(sl.seatId||'')
+      &&t.status!=='withdrawn'&&sessionHas(t.session,rn);
+  }).sort(function(a,b){return (Number(a.order)||9999)-(Number(b.order)||9999);})
+   .map(function(t){return {no:t.no,name:t.name,school:t.school||'',id:t.id,temp:false,session:(t.session||'both')};});
 }
 function addSeat(){
   var name=prompt('新赛台名称：','赛台 '+(S.seats.length+1));
@@ -4052,16 +4285,25 @@ function delSeat(id){
   var s=null;for(var i=0;i<S.seats.length;i++){if(S.seats[i].id===id){s=S.seats[i];break;}}
   if(!s)return;
   var used=slotCountOfSeat(id);
-  if(!confirm('删除「'+s.name+'」？'+(used?('该赛台下 '+used+' 个场次将一并移除。'):'')))return;
+  var nTeams=(S.teams||[]).filter(function(t){return t.seatId===id;}).length;
+  if(!confirm('删除「'+s.name+'」？'+(used?('该赛台下 '+used+' 个场次将一并移除。'):'')
+    +(nTeams?('\n该台上的 '+nTeams+' 支队伍会退回「未分台」（队伍不会丢，重新分台即可）。'):'')))return;
   S.seats=S.seats.filter(function(x){return x.id!==id;});
   S.slots=S.slots.filter(function(x){return x.seatId!==id;});
+  /* 归台必须一起清空：否则队伍会"挂"在已删除的赛台上 —— 既不在任何赛台块、也不在「未分台」，
+     在界面上等于隐身，而就绪度还会因为 seatId 有值而放它绿灯。 */
+  (S.teams||[]).forEach(function(t){if(t.seatId===id){t.seatId='';t.order=0;}});
   if(CUR_SLOT&&!slotById(CUR_SLOT))CUR_SLOT=null;
-  logAudit('调赛台','删除赛台',s.name,'—','现场撤台');
+  logAudit('调赛台','删除赛台',s.name,'—','现场撤台'+(nTeams?('（'+nTeams+' 支退回未分台）'):''));
   save();render();
 }
 function addSlot(seatId,period){
   var ev=S.events[0]||{id:'',groups:[]};
-  var sl={id:uid('sl'),seatId:seatId,period:period,round:1,time:periodTime(period),eventId:ev.id,
+  /* 轮次默认值：2 轮赛项按「上午=第 1 轮 / 下午=第 2 轮」自动带出（赛制：一队上午一轮、下午一轮）；
+     1 轮赛项恒为第 1 轮。原先两个时段都默认 1，会让下午场次变成"第 1 轮"，还会误报"未安排第 2 轮"。 */
+  var _rds=Number(ev.rounds||1);
+  var _rnd=(_rds>=2&&period==='下午')?2:1;
+  var sl={id:uid('sl'),seatId:seatId,period:period,round:_rnd,time:periodTime(period),eventId:ev.id,
           group:(ev.groups&&ev.groups[0])||'小学组',type:'normal',teams:[],snapshot:null,chief:'',judges:[]};
   S.slots.push(sl);CUR_SLOT=sl.id;
   logAudit('调赛台','新增场次',seatName(seatId)+' · '+period,sl.group,'赛程编排');
@@ -4092,52 +4334,16 @@ function slotSet(id,k,v){
 /* 按「赛台分台结果」把队伍排进同时段各场次。
    注意：必须尊重 team.seatId —— 否则「自动分台」与这里就是两套互不参照的算法，
    先后点两次结果会打架（实测 6 支里 4 支对不上）。 */
-function autoAssignByProximity(slotId){
-  var sl=slotById(slotId);if(!sl)return;
-  if(sl.type==='extra'){alert('加时赛场次请用「导入队伍编号」建立场内快照，不参与自动分配。');return;}
-  var targets=S.slots.filter(function(x){return x.period===sl.period&&x.type==='normal'&&x.eventId===sl.eventId&&x.group===sl.group;});
-  if(!targets.length){alert('该时段没有同赛项同组别的可用场次，请先配置赛台场次。');return;}
-  var pool=S.teams.filter(function(t){return t.eventId===sl.eventId&&t.group===sl.group&&t.status!=='withdrawn';});
-  if(!pool.length){alert('该赛项该组别没有在册队伍。');return;}
-  var occupied=targets.reduce(function(a,x){return a+((x.teams||[]).length);},0);
-  var unseated=pool.filter(function(t){return !t.seatId||!targets.some(function(x){return x.seatId===t.seatId;});}).length;
-  if(!confirm('按「赛台分台结果」把 '+pool.length+' 支队伍分配到 '+targets.length+' 个场次？\n\n'
-    +'将覆盖该时段这 '+targets.length+' 个场次现有的队伍编排（当前 '+occupied+' 支）。'
-    +(unseated?('\n\n其中 '+unseated+' 支尚未分台（或分到的赛台本时段没有场次），会按人数均衡补位 —— 建议先到「队伍管理」分台。'):'')))return;
-  /* ① 先按队伍自己的赛台归位 */
-  var bySeat={};
-  targets.forEach(function(x){bySeat[x.seatId]=[];});
-  var unasg=[];
-  pool.forEach(function(t){
-    if(t.seatId&&bySeat[t.seatId])bySeat[t.seatId].push(t.id);else unasg.push(t.id);
-  });
-  /* ② 没分台的按人数均衡补位到最少的场次 */
-  unasg.forEach(function(id){
-    var best=targets[0];
-    targets.forEach(function(x){if(bySeat[x.seatId].length<bySeat[best.seatId].length)best=x;});
-    bySeat[best.seatId].push(id);
-  });
-  targets.forEach(function(x){x.teams=bySeat[x.seatId]||[];});
-  var detail=targets.map(function(x){return seatName(x.seatId)+' '+(x.teams||[]).length+' 队';}).join('；');
-  logAudit('调赛台','按赛台分配队伍',pool.length+' 支待分配',detail,
-    '按分台结果分配到各场次'+(unasg.length?('（其中 '+unasg.length+' 支未分台，均衡补位）'):''));
-  save();render();
-}
-function moveTeamToSlot(teamId,targetSlotId){
-  if(!targetSlotId)return;
-  var from=null;
-  S.slots.forEach(function(x){if(x.teams){var i=x.teams.indexOf(teamId);if(i>=0){from=x;x.teams.splice(i,1);}}});
-  var to=slotById(targetSlotId);
-  if(!to||to.type==='extra'){alert('目标场次不可用。');save();render();return;}
-  to.teams=to.teams||[];if(to.teams.indexOf(teamId)<0)to.teams.push(teamId);
-  var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===teamId){t=S.teams[i];break;}}
-  logAudit('调赛台','手动改派赛台',(t?t.name:teamId)+' @ '+(from?seatName(from.seatId):'—'),seatName(to.seatId),'现场调度');
-  save();render();
-}
 function clearSlotTeams(slotId){
   var sl=slotById(slotId);if(!sl)return;
-  if(sl.type==='extra')sl.snapshot=[];else sl.teams=[];
-  logAudit('调赛台','清空场次队伍',sl.period+' · '+sl.group,'—','重新编排');
+  /* 正式场次的队伍现在是**派生**结果，没有"清空"这回事 —— 要清就清归台（分台与顺位）。
+     只有加时赛的场内快照仍是本页自己的数据，可以清。 */
+  if(sl.type!=='extra'){
+    alert('正式场次的队伍由「分台与顺位」派生，不能在这里清空。\n要清就去「分台与顺位」点「清空分台」（或把队伍改到别的赛台）。');
+    return;
+  }
+  sl.snapshot=[];
+  logAudit('调赛台','清空加时赛快照',sl.period+' · '+sl.group,'—','重新编排');
   save();render();
 }
 function importExtraTeams(slotId){
@@ -4183,18 +4389,16 @@ function viewSeats(){
     var ev=find(sl.eventId)||{groups:[]};
     var evOpts=S.events.map(function(e){return '<option value="'+e.id+'" '+(e.id===sl.eventId?'selected':'')+'>'+esc(e.name)+'</option>';}).join('');
     var grpOpts=(ev.groups||['小学组','初中组']).map(function(g){return '<option '+(g===sl.group?'selected':'')+'>'+esc(g)+'</option>';}).join('');
-    var sib=S.slots.filter(function(x){return x.period===sl.period&&x.type==='normal'&&x.id!==sl.id;});
-    var moveOpts=sib.map(function(x){return '<option value="'+x.id+'">'+esc(seatName(x.seatId))+'</option>';}).join('');
     var teamRows=slotTeams(sl).map(function(t){
       return '<tr><td><b>'+esc(t.no)+'</b></td><td>'+esc(t.name)+'</td><td class="small">'+esc(t.school||'—')+'</td>'+
-        '<td>'+(t.temp?'<span class="tag warn">场内快照</span>':'<span class="tag b">主库</span>')+'</td>'+
-        '<td>'+(t.temp?'<span class="small muted">仅本场次</span>':'<select style="max-width:150px" onchange="moveTeamToSlot(\''+t.id+'\',this.value)"><option value="">改派到…</option>'+moveOpts+'</select>')+'</td></tr>';
+        '<td>'+(t.temp?'<span class="tag warn">场内快照</span>':'<span class="small">'+sessionName(t.session)+'</span>')+'</td>'+
+        '<td>'+(t.temp?'<span class="small muted">仅本场次</span>':'<span class="small muted">分台派生</span>')+'</td></tr>';
     }).join('');
     detailHtml='<h2 style="margin-top:0">场次详情 <small>'+esc(seatName(sl.seatId))+' · '+esc(sl.period)+' '+esc(sl.time)+'</small></h2>'+
       '<div class="grid g4">'+
         '<div class="fld"><label>赛项</label><select onchange="slotSet(\''+sl.id+'\',\'eventId\',this.value)">'+evOpts+'</select></div>'+
         '<div class="fld"><label>组别</label><select onchange="slotSet(\''+sl.id+'\',\'group\',this.value)">'+grpOpts+'</select></div>'+
-        '<div class="fld"><label>轮次</label><select onchange="slotSet(\''+sl.id+'\',\'round\',this.value)">'+
+        '<div class="fld"><label>轮次 <span class="muted" style="font-weight:400">（上午=第 1 轮 / 下午=第 2 轮）</span></label><select onchange="slotSet(\''+sl.id+'\',\'round\',this.value)">'+
           '<option value="1" '+(Number(sl.round||1)===1?'selected':'')+'>第 1 轮</option>'+
           '<option value="2" '+(Number(sl.round||1)===2?'selected':'')+'>第 2 轮</option></select></div>'+
         '<div class="fld"><label>场次类型</label><select onchange="slotSet(\''+sl.id+'\',\'type\',this.value)">'+
@@ -4207,11 +4411,10 @@ function viewSeats(){
           '<textarea id="extraText" placeholder="9001&#10;9002,临时队"></textarea></div>'+
           '<div class="row" style="margin-bottom:12px"><button class="btn primary" onclick="importExtraTeams(\''+sl.id+'\')">导入为场内快照</button>'+
           '<button class="btn" onclick="clearSlotTeams(\''+sl.id+'\')">清空快照</button></div>'
-        : '<div class="row" style="margin-bottom:12px">'+
-          '<button class="btn primary" onclick="autoAssignByProximity(\''+sl.id+'\')">按赛台分配队伍</button>'+
-          '<button class="btn" onclick="clearSlotTeams(\''+sl.id+'\')">清空队伍</button>'+
-          '<span class="small muted">就近 = 该时段同赛项同组别的队伍按顺序均衡铺到各赛台；也可在右侧下拉手动改派。</span></div>')+
-      '<table><thead><tr><th style="width:90px">编号</th><th>队伍名称</th><th>申报单位</th><th style="width:96px">来源</th><th style="width:180px">手动改派</th></tr></thead>'+
+        : '<div class="note" style="margin-bottom:12px">队伍由上方「<b>分台与顺位</b>」<b>派生</b>而来'
+          +'（赛台 × 赛项 × 组别 × 参赛轮次，按台内顺位排序）—— 这里<b>只读</b>。要换台 / 调顺序 / 改轮次，请回上方那一栏操作。'
+          +'<br>轮次口径：<b>上午 = 第 1 轮、下午 = 第 2 轮</b>（本赛制一队两轮都要打）。</div>')+
+      '<table><thead><tr><th style="width:90px">编号</th><th>队伍名称</th><th>申报单位</th><th style="width:84px">参赛轮次</th><th style="width:96px">来源</th></tr></thead>'+
       '<tbody>'+(teamRows||'<tr><td colspan="5" class="muted">该场次暂无队伍</td></tr>')+'</tbody></table>'+
       '<div class="row" style="margin-top:12px"><button class="btn danger" onclick="delSlot(\''+sl.id+'\')">删除该场次</button></div>';
   }
@@ -4229,6 +4432,7 @@ function viewSeats(){
         '<div><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>'+
         '<div class="hint" style="margin-top:8px">单元格 = 赛台 × 时段。空位点「+ 配置场次」新建；同一赛项可同时占用多张赛台（人多就多开台）。</div></div>'+
       '</div></div>'+
+    seatPanel()+
     '<div class="card">'+detailHtml+'</div>';
 }
 
@@ -4718,6 +4922,9 @@ function viewDq(){
    后台要的是「可见 + 可督办 + 可接管」，不复制一套审批界面。 */
 var LIVE_AT='2026-09-17 13:20';   /* 演示用「现场当前时刻」（种子数据均为 09-17） */
 var CASE_TIMEOUT_MIN=30;          /* 与平板端 P8 note 8 同口径：超 30 分钟未处理即催办 */
+/* 改分台账的轮次筛选：'' = 全部 / '1' = 第 1 轮 / '2' = 第 2 轮
+   —— 与平板端 P2 note 8「与 S 端『轮次：全部 / 第 1 轮 / 第 2 轮』筛选概念一致」对齐 */
+var CASE_ROUND_FILTER='';
 function tsMin(t){
   t=String(t||'');var m=t.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
   if(!m)return 0;
@@ -4731,12 +4938,21 @@ function overdueOf(rec){
   return m>CASE_TIMEOUT_MIN?m:0;
 }
 function teamLabel(id){var t=findTeam(id);return t?(t.name+'（'+t.no+'）'):String(id||'—');}
+/* 改分单的轮次维度：只有 2 轮赛项才展示「第 N 轮」——
+   1 轮赛项显示「—」，免得满屏都是无意义的"第 1 轮"（轮次维度对它是空的）。 */
+function caseRoundCell(r){
+  var ev=find((r||{}).eventId);
+  if(ev&&Number(ev.rounds||1)>=2)return '第 '+Number((r||{}).round||1)+' 轮';
+  return '<span class="muted">—</span>';
+}
 function caseStatusTag(st){
   var cls=(st==='已批准'||st==='已裁定')?'ok':((st==='待审批'||st==='待裁定')?'warn':'err');
   return '<span class="tag '+cls+'">'+esc(st)+'</span>';
 }
 /* Plan B：催办 / 改派 / 接管 已移除 —— 审批裁定仍在平板端，后台不做主动处置入口。
    裁判长响应慢属其本人 accountability，换人直接在「裁判与排班」处理。 */
+/* 改分台账的轮次筛选：单值下拉，改选即生效（不做 XRF/XRA 那套草稿-生效双状态 —— 只有一个条件时那是多余） */
+function caseRoundFilter(v){CASE_ROUND_FILTER=String(v==null?'':v);render();}
 function viewCases(){
   var reqs=S.changeRequests||[],diss=S.disputes||[];
   var wReq=reqs.filter(function(r){return r.status==='待审批';}).length;
@@ -4744,12 +4960,16 @@ function viewCases(){
   var od=(reqs.filter(function(r){return overdueOf(r);}).length)+(diss.filter(function(r){return overdueOf(r);}).length);
   var done=reqs.filter(function(r){return r.status!=='待审批';}).length+diss.filter(function(r){return r.status!=='待裁定';}).length;
   var kpi=function(lb,nm,ft){return '<div class="kpi"><div class="lb">'+lb+'</div><div class="nm">'+nm+'</div><div class="ft">'+ft+'</div></div>';};
-  var reqRows=reqs.map(function(r,i){
+  /* 筛选只作用于**表格行**：KPI 与超时统计仍是全部轮次（否则"待审批 5 件"会随筛选跳动，看着像数据丢了）。
+     标题里会写明「共 N 件（当前只看第 X 轮：M 件）」，避免"表里 2 行、上面说 5 件"的误解。 */
+  var reqShown=reqs.filter(function(r){return !CASE_ROUND_FILTER||String(Number(r.round||1))===CASE_ROUND_FILTER;});
+  var reqRows=reqShown.map(function(r,i){
     var o=overdueOf(r);
     var pending=(r.status==='待审批');
     var ops='<span class="small muted">'+(pending?'由裁判长在平板端处理':'已闭环 · 无需督办')+'</span>';
     return '<tr><td><b>'+esc(r.no)+'</b></td><td>'+esc(teamLabel(r.teamId))+'</td>'+
-      '<td class="small">'+esc((find(r.eventId)||{name:'—'}).name)+' · '+esc(r.group)+'<div class="small muted">第 '+Number(r.round||1)+' 轮</div></td>'+
+      '<td class="small">'+esc((find(r.eventId)||{name:'—'}).name)+' · '+esc(r.group)+'</td>'+
+      '<td class="num">'+caseRoundCell(r)+'</td>'+
       '<td class="small">'+esc(r.field)+'<div><b>'+esc(r.from)+' → '+esc(r.to)+'</b></div></td>'+
       '<td class="small">'+esc(r.source)+'</td>'+
       '<td class="small">'+esc(r.by)+'<div class="small muted">'+esc(r.ts)+'</div></td>'+
@@ -4784,9 +5004,18 @@ function viewCases(){
       kpi('超时未处理',od+' 件','超 '+CASE_TIMEOUT_MIN+' 分钟（现场时刻 '+LIVE_AT.slice(11)+'）')+
       kpi('今日已结',done+' 件','批复 / 裁定 / 驳回后闭环')+
     '</div>'+
-  '<div class="card" style="margin-top:16px"><h2>改分申请台账 R-00x <small>共 '+reqs.length+' 件 · 操作在平板端 P9，本页只读</small></h2>'+
-    '<div style="overflow:auto"><table><thead><tr><th style="width:70px">单号</th><th>队伍</th><th style="width:140px">赛项 · 组别</th><th style="width:150px">改动内容</th><th style="width:110px">来源</th><th style="width:120px">申请人</th><th style="width:130px">状态</th><th style="width:150px">审批人</th><th>审批意见</th><th style="width:240px">操作</th></tr></thead>'+
-    '<tbody>'+(reqRows||'<tr><td colspan="10" class="muted">暂无申请单</td></tr>')+'</tbody></table></div>'+
+  '<div class="card" style="margin-top:16px"><h2>改分申请台账 R-00x <small>共 '+reqs.length+' 件'+
+      (CASE_ROUND_FILTER?('（当前只看第 '+CASE_ROUND_FILTER+' 轮：'+reqShown.length+' 件）'):'')+' · 操作在平板端 P9，本页只读</small></h2>'+
+    '<div class="row" style="margin:4px 0 8px">'+
+      '<span class="small muted">轮次</span>'+
+      '<select style="max-width:150px" onchange="caseRoundFilter(this.value)">'+
+        [['','全部'],['1','第 1 轮'],['2','第 2 轮']].map(function(x){
+          return '<option value="'+x[0]+'" '+(CASE_ROUND_FILTER===x[0]?'selected':'')+'>'+x[1]+'</option>';}).join('')+
+      '</select>'+
+      '<span class="small muted">同一支队两轮各出错就是两张单，按轮分开看</span>'+
+    '</div>'+
+    '<div style="overflow:auto"><table><thead><tr><th style="width:70px">单号</th><th>队伍</th><th style="width:140px">赛项 · 组别</th><th class="num" style="width:76px">轮次</th><th style="width:150px">改动内容</th><th style="width:110px">来源</th><th style="width:120px">申请人</th><th style="width:130px">状态</th><th style="width:150px">审批人</th><th>审批意见</th><th style="width:240px">操作</th></tr></thead>'+
+    '<tbody>'+(reqRows||('<tr><td colspan="11" class="muted">'+(CASE_ROUND_FILTER?('当前筛选（第 '+CASE_ROUND_FILTER+' 轮）下没有申请单 —— 共 '+reqs.length+' 件，切到「全部」可看'):'暂无申请单')+'</td></tr>'))+'</tbody></table></div>'+
   '</div>'+
   '<div class="card"><h2>争议工单台账 D-00x <small>共 '+diss.length+' 件 · 裁定操作在平板端 P8，本页只读</small></h2>'+
     '<div style="overflow:auto"><table><thead><tr><th style="width:70px">单号</th><th>队伍</th><th style="width:150px">赛项 · 组别</th><th>争议类型</th><th style="width:130px">来源</th><th style="width:120px">上报人</th><th style="width:130px">状态</th><th style="width:150px">裁定人</th><th>裁定结论</th><th style="width:240px">操作</th></tr></thead>'+
@@ -4802,7 +5031,9 @@ function viewCases(){
         '如需换人直接在「裁判与排班」调整，本页不重复提供改派 / 接管。<br>'+
       '<b>④ 待裁定工单影响发榜</b>：待裁定工单未闭环时该组别不应发榜，发布前请确认完整性校验 + 工单已结；'+
         '真正的发布闸门在「公示与导出」。<br>'+
-      '<b>⑤ 超时信息同时进入告警收件箱</b>：类型 = 超时催办，可在本看板上方「告警收件箱」查看，便于事后追溯。'+
+      '<b>⑤ 超时信息同时进入告警收件箱</b>：类型 = 超时催办，可在本看板上方「告警收件箱」查看，便于事后追溯。<br>'+
+      '<b>⑥ 改分按轮次归属</b>：两轮制下单号带<b>轮次</b>（第 1 / 第 2 轮）—— 同一支队可能两次改分分别落在不同轮次，'+
+        '台账按单独立、不合并；复审时请连轮次一起看，别只看队名。上方<b>「轮次」下拉</b>可按轮筛选（只筛表格行，KPI 仍是全部轮次）。'+
     '</div>'+
   '</div>';
 }
@@ -4932,7 +5163,8 @@ function viewWatch(){
    队轮状态：draft（草稿，可编辑）→ submitted（已签字提交，终态不可直接改）
    → 更正走 P8 裁定 / P9 改分审批 + 重新发布（不是解锁，是重发）。
    发布闸门改为「发布前完整性校验」，不再依赖双锁。 */
-function scoreStateOf(t){var sc=S.scores[t&&t.id];return (sc&&sc.state)||'draft';}
+/* 状态是**按轮**的：第 1 轮提交不该锁住第 2 轮（后端 state 也在每轮记录上） */
+function scoreStateOf(t,rn){var sc=scoreRec(t&&t.id,rn||SCORE_ROUND);return (sc&&sc.state)||'draft';}
 function scoreStateLabel(st){return st==='submitted'?'已提交（终态）':(st==='archived'?'已归档':'草稿');}
 /* 闸门：草稿可直改；已提交 / 已归档不可直接改（服务端校验的界面表达，非仅置灰） */
 function scoreGateChk(){
@@ -4946,7 +5178,7 @@ function scoreGateChk(){
 }
 /* 签字 + 保存即把草稿转「已提交（终态）」 */
 function submitScoreState(t){
-  var sc=S.scores[t.id];if(!sc)return;
+  var sc=scoreRec(t.id,SCORE_ROUND);if(!sc)return;
   if(sc.state!=='submitted'){sc.state='submitted';sc.submittedAt=nowStr();sc.submittedBy=operatorName();}
 }
 /* 发布前完整性校验（替代双锁）：完整度 / 签字 / 待裁定 / 待审批改分 / 弃赛 */
@@ -4954,9 +5186,9 @@ function publishReadyGate(evId){
   var ev=find(evId);if(!ev)return {ok:false,miss:['赛项不存在']};
   var miss=[];
   var teams=(S.teams||[]).filter(function(t){return t.eventId===evId&&t.status!=='withdrawn';});
-  var unsigned=teams.filter(function(t){return !(S.scores[t.id]||{}).signed;});
+  var unsigned=teams.filter(function(t){return !teamAllSigned(t);});
   if(unsigned.length)miss.push('未签字提交队伍：'+(unsigned.map(function(t){return t.name;}).join('、')||'—'));
-  var noScore=teams.filter(function(t){var sc=S.scores[t.id];return !sc||!Object.keys(sc.tasks||{}).length;});
+  var noScore=teams.filter(function(t){return !recsAllHaveTasks(S.scores,t.id,expectedRounds(ev||{}));});
   if(noScore.length)miss.push('无成绩记录队伍：'+noScore.length+' 支');
   var dqN=(S.dqCases||[]).filter(function(c){return c.eventId===evId&&c.status==='待裁定';}).length;
   if(dqN)miss.push('待裁定资格案例：'+dqN+' 件');
@@ -4972,8 +5204,8 @@ function publishReadinessHtml(evId){
     return '<tr><td>'+lb+'</td><td><span class="tag '+(ok?'ok':'err')+'">'+(ok?'✅ 已就位':'❌ 未就位')+'</span></td><td class="small">'+txt+'</td></tr>';
   }
   var teams=(S.teams||[]).filter(function(t){return t.eventId===evId&&t.status!=='withdrawn';});
-  var signedN=teams.filter(function(t){return (S.scores[t.id]||{}).signed;}).length;
-  var scoredN=teams.filter(function(t){var sc=S.scores[t.id];return sc&&Object.keys(sc.tasks||{}).length;}).length;
+  var signedN=teams.filter(function(t){return teamAllSigned(t);}).length;
+  var scoredN=teams.filter(function(t){return recsAllHaveTasks(S.scores,t.id,expectedRounds(find(evId)||{}));}).length;
   var dqN=(S.dqCases||[]).filter(function(c){return c.eventId===evId&&c.status==='待裁定';}).length;
   var chgN=(S.changeRequests||[]).filter(function(c){return c.eventId===evId&&c.status==='待审批';}).length;
   var wdN=(S.teams||[]).filter(function(t){return t.eventId===evId&&t.status==='withdrawn';}).length;
@@ -4992,9 +5224,39 @@ function publishReadinessHtml(evId){
     '</div></div>';
 }
 /* 打分页顶部状态横幅（替代原「成绩已锁定」横幅） */
+/* ---------- 两轮制 · 轮次开放规则 ----------
+   依据平板端「第 1 轮全部完成前第 2 轮锁定」。
+   这里做成「默认锁定 + 显式破锁」而不是硬锁死：现场常有缺席 / 弃赛 / 补录，
+   硬锁一旦第 1 轮永远凑不齐就会把第 2 轮彻底卡住。破锁要写操作审计，并在顶部常驻提示 + 可一键恢复。 */
+function roundProgress(evId,rn){
+  var r=Number(rn)||1;
+  var need=S.teams.filter(function(t){return t.eventId===evId&&t.status!=='withdrawn'&&sessionHas(t.session,r);});
+  var pend=need.filter(function(t){return scoreStateOf(t,r)!=='submitted';});
+  return {need:need.length,done:need.length-pend.length,pend:pend,open:need.length>0&&pend.length===0};
+}
+/* 锁定条件：2 轮赛项、要的是第 2 轮及以后、第 1 轮有队但没全提交。
+   这是**硬锁**（用户 10/09 明确要求"第 2 轮完全点不动、连临时解锁都没有"）：
+   界面不生成入口、无破锁通道。现场若遇队伍缺席导致第 1 轮凑不齐，处置方式是到
+   「队伍管理」把它标记为**弃赛** —— 弃赛队不计入 need（否则一队弃赛就把第 2 轮永久卡死），
+   而不是给一个破锁开关（破锁等于把赛制规则变成可选项）。 */
+function roundLocked(evId,rn){
+  if(Number(rn)<2)return false;
+  var ev=find(evId);
+  if(!ev||Number(ev.rounds||1)<2)return false;
+  var p=roundProgress(evId,1);
+  return p.need>0&&!p.open;
+}
+/* 打分页轮次条右侧的锁定提示 —— 常驻显示，不依赖 hover（title 在触屏 / 截图里都看不到） */
+function scoreRoundLockNote(evId){
+  if(!roundLocked(evId,2))return '';
+  var p=roundProgress(evId,1);
+  var names=p.pend.slice(0,3).map(function(t){return t.no;}).join('、');
+  return '<span class="small" style="color:#a32d2d">🔒 第 2 轮未开放：第 1 轮还有 '+p.pend.length+
+    ' 队未提交（'+esc(names)+(p.pend.length>3?' 等':'')+'）</span>';
+}
 function scoreStateBanner(){
   var t=findTeam(CUR_TEAM);if(!t)return '';
-  var sc=S.scores[t.id];if(!sc)return '';
+  var sc=scoreRec(t.id,SCORE_ROUND);if(!sc)return '';
   var st=sc.state||'draft';
   if(st==='draft')return '';
   return '<div class="note" style="margin-bottom:16px;background:#fff5f5;border-color:#fc8181">'+
