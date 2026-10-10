@@ -551,7 +551,7 @@ func TestScoreAndStandingsOverHTTP(t *testing.T) {
 func TestScheduleAndScreenOverHTTP(t *testing.T) {
 	ts := newTestServer(t)
 	ev := ts.createEvent(t, brainPlanetBody())
-	ts.createTeam(t, ev.ID, "1001", "星河队", "小学组")
+	t1 := ts.createTeam(t, ev.ID, "1001", "星河队", "小学组")
 	ts.createTeam(t, ev.ID, "1002", "追光队", "小学组")
 
 	// 赛台
@@ -571,23 +571,50 @@ func TestScheduleAndScreenOverHTTP(t *testing.T) {
 		"eventId": ev.ID, "group": "小学组", "type": "normal",
 	}, "运营A").expect(t, http.StatusCreated).as(t, &slot)
 
-	// 就近自动分配 → 两支小学组队伍都进这个场次
+	// 一键自动分台 → 两支小学组队伍都归到这张台（**写的是队伍级归台**，不是场次队伍）
 	var assigned struct {
-		Count   int     `json:"count"`
-		TeamIDs []int64 `json:"teamIds"`
+		Count int `json:"count"`
 	}
 	ts.do(t, http.MethodPost, "/api/v1/slots/"+itoa(slot.ID)+"/auto-assign", nil, "运营A").
 		expect(t, http.StatusOK).as(t, &assigned)
 	if assigned.Count != 2 {
-		t.Fatalf("自动分配应铺入 2 支队伍，实际 %d", assigned.Count)
+		t.Fatalf("自动分台应铺入 2 支队伍，实际 %d", assigned.Count)
 	}
 
-	// 手动改派
-	ts.do(t, http.MethodPost, "/api/v1/slots/"+itoa(slot.ID)+"/teams", map[string]any{
-		"teamIds": []int64{assigned.TeamIDs[0]}, "reason": "现场手动调整",
-	}, "运营A").expect(t, http.StatusOK)
+	// 场次队伍是**派生**读：自动分台后该场次立刻派生 2 支，顺序 = 台内顺位
+	var derived service.SlotTeamsResult
+	ts.do(t, http.MethodGet, "/api/v1/slots/"+itoa(slot.ID)+"/teams", nil, "").
+		expect(t, http.StatusOK).as(t, &derived)
+	if derived.Total != 2 || derived.Source != "main" {
+		t.Fatalf("派生读应给出 2 支主库队伍：%+v", derived)
+	}
+	if len(derived.Teams) != 2 || derived.Teams[0].No != "1001" || derived.Teams[1].No != "1002" {
+		t.Fatalf("派生顺序应按台内顺位（现场叫号顺序）：%+v", derived.Teams)
+	}
 
-	// 场次列表带出队伍
+	// 手动改派 = 改队伍级归台（不是改场次），派生立刻跟着变
+	var seat2 model.Seat
+	ts.do(t, http.MethodPost, "/api/v1/seats", map[string]any{"name": "赛台 2", "sortOrder": 1}, "运营A").
+		expect(t, http.StatusCreated).as(t, &seat2)
+	var moved model.Team
+	ts.do(t, http.MethodPut, "/api/v1/teams/"+itoa(t1.ID)+"/seat", map[string]any{
+		"seatId": seat2.ID, "seatOrder": 1, "reason": "现场手动调整",
+	}, "运营A").expect(t, http.StatusOK).as(t, &moved)
+	if moved.SeatID == nil || *moved.SeatID != seat2.ID {
+		t.Fatalf("改派未生效：%+v", moved)
+	}
+	ts.do(t, http.MethodGet, "/api/v1/slots/"+itoa(slot.ID)+"/teams", nil, "").
+		expect(t, http.StatusOK).as(t, &derived)
+	if derived.Total != 1 {
+		t.Fatalf("改派后该场次应只剩 1 支，实际 %d", derived.Total)
+	}
+
+	// 写场次队伍的旧接口已废弃 → 410，并给出替代路径
+	ts.do(t, http.MethodPost, "/api/v1/slots/"+itoa(slot.ID)+"/teams", map[string]any{
+		"teamIds": []int64{}, "reason": "老客户端",
+	}, "运营A").expect(t, http.StatusGone)
+
+	// 场次列表也带派生队伍
 	var slots struct {
 		Slots []model.Slot `json:"slots"`
 		Total int          `json:"total"`
@@ -595,7 +622,7 @@ func TestScheduleAndScreenOverHTTP(t *testing.T) {
 	ts.do(t, http.MethodGet, "/api/v1/slots?seat="+itoa(seat.ID)+"&event="+ev.ID, nil, "").
 		expect(t, http.StatusOK).as(t, &slots)
 	if slots.Total != 1 || len(slots.Slots[0].TeamIDs) != 1 {
-		t.Fatalf("场次列表应带出队伍绑定：%+v", slots)
+		t.Fatalf("场次列表应带出派生队伍：%+v", slots)
 	}
 
 	// 加时赛场次 + 场内快照
@@ -865,3 +892,92 @@ type syncRes struct {
 }
 
 func itoa(v int64) string { return strconv.FormatInt(v, 10) }
+
+// ---------------------------------------------------------------------------
+// 队伍归台 / 参赛轮次（迁移 0016）
+// ---------------------------------------------------------------------------
+
+func TestTeamSeatAndSessionAPI(t *testing.T) {
+	ts := newTestServer(t)
+	ev := ts.createEvent(t, brainPlanetBody())
+	team := ts.createTeam(t, ev.ID, "1001", "星河队", "小学组")
+
+	var seat model.Seat
+	ts.do(t, http.MethodPost, "/api/v1/seats", map[string]any{
+		"name": "1 号台", "sortOrder": 1,
+	}, "运营A").expect(t, http.StatusCreated).as(t, &seat)
+
+	// 新建队伍未排台，但参赛轮次已按默认口径给成 both ——
+	// 让前端不必自己补默认值（漏补就会出现「一轮都不打」的解读）
+	var created model.Team
+	ts.do(t, http.MethodGet, "/api/v1/teams/"+itoa(team.ID), nil, "").expect(t, http.StatusOK).as(t, &created)
+	if created.SeatID != nil {
+		t.Fatalf("新建队伍应未排台，实际 seatId=%v", *created.SeatID)
+	}
+	if created.Session != model.SessionBoth {
+		t.Fatalf("新建队伍参赛轮次应为 both，实际 %q", created.Session)
+	}
+
+	// 归台
+	var got model.Team
+	ts.do(t, http.MethodPut, "/api/v1/teams/"+itoa(team.ID)+"/seat", map[string]any{
+		"seatId": seat.ID, "seatOrder": 2, "reason": "首次分台",
+	}, "运营A").expect(t, http.StatusOK).as(t, &got)
+	if got.SeatID == nil || *got.SeatID != seat.ID || got.SeatOrder != 2 {
+		t.Fatalf("归台响应异常：seatId=%v order=%d", got.SeatID, got.SeatOrder)
+	}
+
+	// 列表里也带得出来（分台页靠它渲染；漏带 = 页面全显示未排台）
+	var list struct {
+		Teams []model.Team `json:"teams"`
+	}
+	ts.do(t, http.MethodGet, "/api/v1/events/"+ev.ID+"/teams", nil, "").expect(t, http.StatusOK).as(t, &list)
+	if len(list.Teams) != 1 || list.Teams[0].SeatID == nil || *list.Teams[0].SeatID != seat.ID {
+		t.Fatalf("队伍列表未带出归台：%+v", list.Teams)
+	}
+
+	// 改参赛轮次：某队下午不来
+	ts.do(t, http.MethodPut, "/api/v1/teams/"+itoa(team.ID)+"/session", map[string]any{
+		"session": "1", "reason": "该队下午缺席，已与领队确认",
+	}, "运营A").expect(t, http.StatusOK).as(t, &got)
+	if got.Session != model.SessionRound1 {
+		t.Fatalf("参赛轮次未生效，实际 %q", got.Session)
+	}
+
+	// 负向：非法参赛轮次 / 顺位不合规 / 赛台不存在 / 缺原因
+	ts.do(t, http.MethodPut, "/api/v1/teams/"+itoa(team.ID)+"/session", map[string]any{
+		"session": "全打", "reason": "试一试",
+	}, "运营A").expect(t, http.StatusBadRequest)
+	ts.do(t, http.MethodPut, "/api/v1/teams/"+itoa(team.ID)+"/seat", map[string]any{
+		"seatId": seat.ID, "seatOrder": 0, "reason": "分台",
+	}, "运营A").expect(t, http.StatusBadRequest)
+	ts.do(t, http.MethodPut, "/api/v1/teams/"+itoa(team.ID)+"/seat", map[string]any{
+		"seatId": 999999, "seatOrder": 1, "reason": "分台",
+	}, "运营A").expect(t, http.StatusNotFound)
+	ts.do(t, http.MethodPut, "/api/v1/teams/"+itoa(team.ID)+"/session", map[string]any{
+		"session": "both",
+	}, "运营A").expect(t, http.StatusBadRequest)
+	ts.do(t, http.MethodPut, "/api/v1/teams/999999/seat", map[string]any{
+		"seatId": seat.ID, "seatOrder": 1, "reason": "分台",
+	}, "运营A").expect(t, http.StatusNotFound)
+
+	// 取消归台：seatId 省略 / 0 都算「回到未排台」，顺位一并归零。
+	//
+	// ⚠️ 必须解到**新变量**：seatId 带 omitempty，取消后响应里没有这个字段，
+	// 复用同一个结构体会把上一次的旧值留在原地（Unmarshal 不清零缺失字段），
+	// 于是测试会「看起来通过/失败」但测的其实是上一次的响应。
+	var cleared model.Team
+	ts.do(t, http.MethodPut, "/api/v1/teams/"+itoa(team.ID)+"/seat", map[string]any{
+		"seatOrder": 5, "reason": "该台撤销",
+	}, "运营A").expect(t, http.StatusOK).as(t, &cleared)
+	if cleared.SeatID != nil || cleared.SeatOrder != 0 {
+		t.Fatalf("取消归台后响应应为未排台，实际 seatId=%v order=%d", cleared.SeatID, cleared.SeatOrder)
+	}
+
+	// 再读一次确认库里也真的是未排台（响应说清了不等于落库了）
+	var reread model.Team
+	ts.do(t, http.MethodGet, "/api/v1/teams/"+itoa(team.ID), nil, "").expect(t, http.StatusOK).as(t, &reread)
+	if reread.SeatID != nil || reread.SeatOrder != 0 {
+		t.Fatalf("取消归台未落库：seatId=%v order=%d", reread.SeatID, reread.SeatOrder)
+	}
+}

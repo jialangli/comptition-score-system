@@ -98,6 +98,61 @@ func (s *Server) handleUpdateTeam(w http.ResponseWriter, r *http.Request) {
 	OK(w, updated)
 }
 
+// handleAssignTeamSeat PUT /api/v1/teams/{id}/seat
+//
+// 请求体：{ "seatId": 3, "seatOrder": 2, "reason": "..." }
+// seatId 省略或 0 = **取消归台**（回到「未排台」，顺位一并归零）。
+//
+// 归台是「分台与顺位」页的动作，与改队伍信息分开：它不动队伍身份，
+// 只动现场编排，留痕动作也另算一类（调赛台）。
+func (s *Server) handleAssignTeamSeat(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		Fail(w, r, err)
+		return
+	}
+	var body assignSeatBody
+	if err := decodeJSON(w, r, &body); err != nil {
+		Fail(w, r, err)
+		return
+	}
+	var seatID *int64
+	if body.SeatID > 0 {
+		seatID = &body.SeatID
+	}
+	team, err := s.svc.AssignTeamSeat(r.Context(), id, seatID, body.SeatOrder, body.Reason)
+	if err != nil {
+		Fail(w, r, err)
+		return
+	}
+	OK(w, team)
+}
+
+// handleSetTeamSession PUT /api/v1/teams/{id}/session
+//
+// 请求体：{ "session": "1" | "2" | "both", "reason": "..." }
+//
+// 「某队下午不来」的**正解** —— 比弃赛轻得多：成绩全部保留，
+// 榜单在总分下标注「仅第 N 轮」，发布门 / 完整性判据按新轮次重算。
+func (s *Server) handleSetTeamSession(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		Fail(w, r, err)
+		return
+	}
+	var body setSessionBody
+	if err := decodeJSON(w, r, &body); err != nil {
+		Fail(w, r, err)
+		return
+	}
+	team, err := s.svc.SetTeamSession(r.Context(), id, model.TeamSession(body.Session), body.Reason)
+	if err != nil {
+		Fail(w, r, err)
+		return
+	}
+	OK(w, team)
+}
+
 // handleDeleteTeam DELETE /api/v1/teams/{id}
 func (s *Server) handleDeleteTeam(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)

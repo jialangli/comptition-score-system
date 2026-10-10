@@ -100,6 +100,24 @@ type updateTeamBody struct {
 	Reason  string `json:"reason"`
 }
 
+// assignSeatBody 队伍归台的请求体（PUT /teams/{id}/seat）。
+//
+// seatId 省略或 0 = **取消归台**（回到「未排台」，顺位一并归零）：
+// 用 0 而不是 null，是为了让前端「清掉选择框就提交 0」这种最自然的写法直接可用。
+type assignSeatBody struct {
+	SeatID    int64  `json:"seatId"`
+	SeatOrder int    `json:"seatOrder"`
+	Reason    string `json:"reason"`
+}
+
+// setSessionBody 设置队伍参赛轮次的请求体（PUT /teams/{id}/session）。
+//
+// session 取 '1' / '2' / 'both'（省略按 both）；非法值由服务层转成 400。
+type setSessionBody struct {
+	Session string `json:"session"`
+	Reason  string `json:"reason"`
+}
+
 // importPreviewReq 报名导入预览 / 提交的请求体。
 //
 // Rows 由解析层（前端或 P6 的 xlsx 解析）按列映射归一后提供；
@@ -168,8 +186,9 @@ type slotBody struct {
 	EventID   string     `json:"eventId"`
 	Group     string     `json:"group"`
 	Type      string     `json:"type"`
-	TeamIDs   []int64    `json:"teamIds,omitempty"`  // 改派时使用
-	Snapshot  []snapJSON `json:"snapshot,omitempty"` // 加时赛快照
+	Round     int        `json:"round"`              // 轮次 1/2；省略按时段取默认（上午=1、下午=2）
+	TeamIDs   []int64    `json:"teamIds,omitempty"`  // **已废弃**：场次队伍改为派生，字段仅保留以兼容老请求的解析
+	Snapshot  []snapJSON `json:"snapshot,omitempty"` // 独立场次快照
 	Reason    string     `json:"reason,omitempty"`
 }
 
@@ -187,6 +206,18 @@ type screenConfigBody struct {
 	IntervalSec int    `json:"intervalSec"`
 	Pinned      string `json:"pinned"`
 	Reason      string `json:"reason,omitempty"`
+}
+
+// contestRulesBody 赛事级规则的更新请求体。
+//
+// 只收「改成什么 + 为什么」，不收 contestId / updatedAt：
+// 赛事由请求上下文决定，时间由库决定 —— 让客户端传这两样只会造成
+// 「传了但被静默忽略」的误解。
+type contestRulesBody struct {
+	// SubstituteMode 名次编排：none = 不递补（默认）/ rank = 按名次顺延。
+	SubstituteMode string `json:"substituteMode"`
+	// Reason 为什么改。留空时由服务端按新口径生成一条说明（改公示名次必须留痕）。
+	Reason string `json:"reason,omitempty"`
 }
 
 // applyChangeReq 授权改分请求体（成绩字段 + 审批信息）。

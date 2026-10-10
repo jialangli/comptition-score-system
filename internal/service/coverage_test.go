@@ -394,7 +394,8 @@ func TestScheduleServiceBranches(t *testing.T) {
 	}
 
 	t.Run("手动改派与查询", func(t *testing.T) {
-		if err := svc.AssignSlotTeams(ctx, slot.ID, []int64{t1.ID}, "现场手动调整"); err != nil {
+		// 改派一律走「写队伍级归台」——场次队伍是派生的，不再直接写场次
+		if _, err := svc.AssignTeamSeat(ctx, t1.ID, &seat.ID, 1, "现场手动调整"); err != nil {
 			t.Fatalf("改派失败: %v", err)
 		}
 		got := slotTeamIDs(t, svc, seat.ID, ev.ID, slot.ID)

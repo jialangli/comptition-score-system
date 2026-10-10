@@ -66,6 +66,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/events/{id}/teams", s.handleCreateTeam)
 	mux.HandleFunc("GET /api/v1/teams/{id}", s.handleGetTeam)
 	mux.HandleFunc("PUT /api/v1/teams/{id}", s.handleUpdateTeam)
+	mux.HandleFunc("PUT /api/v1/teams/{id}/seat", s.handleAssignTeamSeat)
+	mux.HandleFunc("PUT /api/v1/teams/{id}/session", s.handleSetTeamSession)
 	mux.HandleFunc("DELETE /api/v1/teams/{id}", s.handleDeleteTeam)
 	mux.HandleFunc("POST /api/v1/teams/{id}/withdraw", s.handleWithdrawTeam)
 	mux.HandleFunc("POST /api/v1/teams/{id}/restore", s.handleRestoreTeam)
@@ -98,6 +100,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/slots", s.handleCreateSlot)
 	mux.HandleFunc("DELETE /api/v1/slots/{id}", s.handleDeleteSlot)
 	mux.HandleFunc("POST /api/v1/slots/{id}/auto-assign", s.handleAutoAssignSlot)
+	// 场次队伍：只读派生（本赛台队列）。写入路径已废弃 → 410。
+	mux.HandleFunc("GET /api/v1/slots/{id}/teams", s.handleListSlotTeams)
 	mux.HandleFunc("POST /api/v1/slots/{id}/teams", s.handleAssignSlotTeams)
 	mux.HandleFunc("GET /api/v1/slots/{id}/snapshot", s.handleListSnapshot)
 	mux.HandleFunc("POST /api/v1/slots/{id}/snapshot", s.handleSaveSnapshot)

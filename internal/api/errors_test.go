@@ -68,7 +68,9 @@ func TestHandlerErrorPaths(t *testing.T) {
 		{"改不存在的赛台", http.MethodPut, "/api/v1/seats/999999", map[string]any{"name": "x"}, http.StatusNotFound},
 		{"删不存在的场次", http.MethodDelete, "/api/v1/slots/999999", nil, http.StatusNotFound},
 		{"自动分配不存在的场次", http.MethodPost, "/api/v1/slots/999999/auto-assign", nil, http.StatusNotFound},
-		{"对不存在场次改派（写操作必须报错）", http.MethodPost, "/api/v1/slots/999999/teams", map[string]any{"teamIds": []int64{1}}, http.StatusNotFound},
+		{"归台到不存在的赛台（写操作必须报错）", http.MethodPut, "/api/v1/teams/" + itoa(team.ID) + "/seat",
+			map[string]any{"seatId": 999999, "seatOrder": 1}, http.StatusNotFound},
+		{"读不存在场次的队伍", http.MethodGet, "/api/v1/slots/999999/teams", nil, http.StatusNotFound},
 		{"读不存在队伍的某轮成绩", http.MethodGet, "/api/v1/teams/999999/scores/1", nil, http.StatusNotFound},
 
 		// —— 请求体问题 ——
@@ -87,9 +89,16 @@ func TestHandlerErrorPaths(t *testing.T) {
 		{"改队伍未知字段", http.MethodPut, "/api/v1/teams/" + itoa(team.ID), map[string]any{"oops": 1}, http.StatusBadRequest},
 		{"删队伍未知字段", http.MethodDelete, "/api/v1/teams/" + itoa(team.ID), map[string]any{"oops": 1}, http.StatusBadRequest},
 
+		// —— 已废弃的接口 ——
+		// 写场次队伍（POST /slots/{id}/teams）已废弃：场次队伍改为派生，
+		// 改派走 PUT /teams/{id}/seat。回 410 而不是 404，是为了让老客户端
+		// 拿到可读的替代路径（404 容易被误读成「服务没部署对」）。
+		{"写场次队伍的旧接口已废弃", http.MethodPost, "/api/v1/slots/" + itoa(slotObj.ID) + "/teams",
+			map[string]any{"teamIds": []int64{team.ID}}, http.StatusGone},
+		{"写场次队伍已废弃（独立场次同样 410）", http.MethodPost, "/api/v1/slots/" + itoa(extraObj.ID) + "/teams",
+			map[string]any{"teamIds": []int64{team.ID}}, http.StatusGone},
+
 		// —— 业务约束 ——
-		{"加时赛场次不接受主库改派", http.MethodPost, "/api/v1/slots/" + itoa(extraObj.ID) + "/teams",
-			map[string]any{"teamIds": []int64{team.ID}}, http.StatusBadRequest},
 		{"自动分配不能用于加时赛", http.MethodPost, "/api/v1/slots/" + itoa(extraObj.ID) + "/auto-assign", nil, http.StatusBadRequest},
 		{"加时赛快照编号非法", http.MethodPost, "/api/v1/slots/" + itoa(extraObj.ID) + "/snapshot",
 			map[string]any{"snapshot": []map[string]any{{"no": "abc", "name": "x"}}}, http.StatusBadRequest},

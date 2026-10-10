@@ -335,8 +335,8 @@ func TestExtraSlotSnapshotDoesNotPolluteMainTable(t *testing.T) {
 	if _, err := svc.SaveSnapshot(ctx, normal.ID, snaps, "不该成功"); err == nil {
 		t.Error("正式场次不应接受场内快照")
 	}
-	if err := svc.AssignSlotTeams(ctx, extra.ID, []int64{1}, "不该成功"); err == nil {
-		t.Error("加时赛场次不应接受主库改派")
+	if _, err := svc.AutoAssignSlot(ctx, extra.ID, "不该成功"); err == nil {
+		t.Error("独立场次（加时赛 / 重赛）不应接受自动分台")
 	}
 
 	// 同一赛台同一时段只能排一个场次

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/jialangli/comptition-score-server/internal/model"
 	"github.com/jialangli/comptition-score-server/internal/store"
@@ -68,6 +69,19 @@ func (s *SeatStore) Update(ctx context.Context, seat *model.Seat) error {
 
 // Delete 删除赛台；其下场次与场次内的队伍绑定 / 快照会级联清理。
 func (s *SeatStore) Delete(ctx context.Context, id int64) error {
+	// 先让归到该台的队伍退回「未排台」，且**顺位一并归零**。
+	//
+	// teams.seat_id 的外键是 ON DELETE SET NULL，它只置空 seat_id，
+	// 会把 seat_order 留在原位 —— 库里于是留下「未排台但顺位 3」这种怪状态。
+	// 顺位对未排台的队伍没有意义，在这里一起清掉，好过让每个读点都记住
+	// 「seat_id 为 NULL 时忽略 seat_order」。
+	//
+	// 不带 contest_id 过滤：seats 是全局资源（表里没有赛事维度），
+	// 归到该台的队伍不论属哪场赛事都要退回未排台。
+	if _, err := s.q.Exec(ctx,
+		`UPDATE teams SET seat_order = 0 WHERE seat_id = $1`, id); err != nil {
+		return mapError(err)
+	}
 	tag, err := s.q.Exec(ctx, `DELETE FROM seats WHERE id=$1`, id)
 	return affected(tag, err)
 }
@@ -77,13 +91,13 @@ func (s *SeatStore) Delete(ctx context.Context, id int64) error {
 // SlotStore 场次仓储。
 type SlotStore struct{ q querier }
 
-const slotColumns = `id, seat_id, period, time_range, event_id, group_code, slot_type, created_at`
+const slotColumns = `id, seat_id, period, time_range, event_id, group_code, slot_type, round_no, created_at`
 
 func scanSlot(row interface{ Scan(...any) error }) (*model.Slot, error) {
 	var s model.Slot
 	var typ string
 	if err := row.Scan(&s.ID, &s.SeatID, &s.Period, &s.TimeRange, &s.EventID,
-		&s.GroupCode, &typ, &s.CreatedAt); err != nil {
+		&s.GroupCode, &typ, &s.RoundNo, &s.CreatedAt); err != nil {
 		return nil, notFoundIfNoRows(err)
 	}
 	s.Type = model.SlotType(typ)
@@ -95,24 +109,30 @@ func (s *SlotStore) Create(ctx context.Context, slot *model.Slot) error {
 	if slot.Type == "" {
 		slot.Type = model.SlotNormal
 	}
+	if slot.RoundNo == 0 {
+		slot.RoundNo = model.RoundOfPeriod(slot.Period)
+	}
+	// contest_id 必须显式写：列上有 DEFAULT 'ct_default'，不给就会落到默认赛事，
+	// 而派生队伍是按赛事过滤的 —— 场次的赛事维度错了，队伍一个都派生不出来。
 	return mapError(s.q.QueryRow(ctx, `
-		INSERT INTO slots (seat_id, period, time_range, event_id, group_code, slot_type)
-		VALUES ($1,$2,$3,$4,$5,$6)
+		INSERT INTO slots (seat_id, period, time_range, event_id, group_code, slot_type, round_no, contest_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 		RETURNING id, created_at`,
 		slot.SeatID, slot.Period, slot.TimeRange, slot.EventID,
-		slot.GroupCode, string(slot.Type)).Scan(&slot.ID, &slot.CreatedAt))
+		slot.GroupCode, string(slot.Type), slot.RoundNo,
+		store.CurrentContest(ctx)).Scan(&slot.ID, &slot.CreatedAt))
 }
 
-// Get 读取场次，并带出正式场次的队伍 ID 与加时赛的场内快照。
+// Get 读取场次，并带出正式场次**派生**出的队伍与独立场次的场内快照。
 func (s *SlotStore) Get(ctx context.Context, id int64) (*model.Slot, error) {
 	slot, err := scanSlot(s.q.QueryRow(ctx, `SELECT `+slotColumns+` FROM slots WHERE id=$1`, id))
 	if err != nil {
 		return nil, err
 	}
-	if err := s.loadTeams(ctx, slot); err != nil {
+	if err := s.loadDerivedTeams(ctx, slot); err != nil {
 		return nil, err
 	}
-	if slot.Type == model.SlotExtra {
+	if slot.Type.Extra() {
 		snaps, err := (&SnapshotStore{q: s.q}).List(ctx, id)
 		if err != nil {
 			return nil, err
@@ -144,12 +164,12 @@ func (s *SlotStore) List(ctx context.Context, seatID int64, eventID string) ([]m
 	if err := rows.Err(); err != nil {
 		return nil, mapError(err)
 	}
-	// 列表场景把队伍与快照也带上，避免调用方逐个 Get（赛台页需要一次看到全部）
+	// 列表场景把派生队伍与快照也带上，避免调用方逐个 Get（赛台页需要一次看到全部）
 	for i := range out {
-		if err := s.loadTeams(ctx, &out[i]); err != nil {
+		if err := s.loadDerivedTeams(ctx, &out[i]); err != nil {
 			return nil, err
 		}
-		if out[i].Type == model.SlotExtra {
+		if out[i].Type.Extra() {
 			snaps, err := (&SnapshotStore{q: s.q}).List(ctx, out[i].ID)
 			if err != nil {
 				return nil, err
@@ -160,45 +180,46 @@ func (s *SlotStore) List(ctx context.Context, seatID int64, eventID string) ([]m
 	return out, nil
 }
 
-// UpdateMeta 更新场次元信息（不动队伍绑定）。
+// UpdateMeta 更新场次元信息（不动队伍 —— 队伍只由「队伍级归台」决定）。
 func (s *SlotStore) UpdateMeta(ctx context.Context, slot *model.Slot) error {
 	tag, err := s.q.Exec(ctx, `
 		UPDATE slots SET seat_id=$2, period=$3, time_range=$4, event_id=$5,
-		                 group_code=$6, slot_type=$7
+		                 group_code=$6, slot_type=$7, round_no=$8
 		WHERE id=$1`,
 		slot.ID, slot.SeatID, slot.Period, slot.TimeRange, slot.EventID,
-		slot.GroupCode, string(slot.Type))
+		slot.GroupCode, string(slot.Type), slot.RoundNo)
 	return affected(tag, err)
 }
 
-// Delete 删除场次（队伍绑定与快照级联清理）。
+// Delete 删除场次（场内快照级联清理；slot_teams 已是历史表，同场次的行一并级联）。
 func (s *SlotStore) Delete(ctx context.Context, id int64) error {
 	tag, err := s.q.Exec(ctx, `DELETE FROM slots WHERE id=$1`, id)
 	return affected(tag, err)
 }
 
-// SetTeams 整体替换正式场次的队伍绑定。
-func (s *SlotStore) SetTeams(ctx context.Context, slotID int64, teamIDs []int64) error {
-	if _, err := s.q.Exec(ctx, `DELETE FROM slot_teams WHERE slot_id=$1`, slotID); err != nil {
-		return mapError(err)
+// loadDerivedTeams 派生正式场次的队伍 ID。
+//
+// **唯一事实源是队伍级归台**（`teams.seat_id` / `seat_order` / `session`）：
+// 场次队伍不再存储，`slot_teams` 退化为历史值（本方法不再读它）。
+//
+// 判据与前端 `slotTeams()` 逐字同口径：
+//
+//	同赛台（seat_id）&& 同赛项（event_id）&& 同组别（group_code）
+//	&& 在册（status='active'）&& 该队参赛轮次覆盖本场次轮次
+//
+// 独立场次（加时赛 / 重赛）不走派生 —— 它的队伍来自场内快照。
+func (s *SlotStore) loadDerivedTeams(ctx context.Context, slot *model.Slot) error {
+	if slot.Type.Extra() {
+		return nil
 	}
-	for _, tid := range teamIDs {
-		if _, err := s.q.Exec(ctx,
-			`INSERT INTO slot_teams (slot_id, team_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
-			slotID, tid); err != nil {
-			return mapError(err)
-		}
-	}
-	return nil
-}
-
-// loadTeams 填充场次的队伍 ID（仅正式场次有意义）。
-func (s *SlotStore) loadTeams(ctx context.Context, slot *model.Slot) error {
-	if slot.Type == model.SlotExtra {
-		return nil // 加时赛的队伍来自快照，不引用主库
-	}
-	rows, err := s.q.Query(ctx,
-		`SELECT team_id FROM slot_teams WHERE slot_id=$1 ORDER BY team_id`, slot.ID)
+	rows, err := s.q.Query(ctx, `
+		SELECT id FROM teams
+		WHERE seat_id = $1 AND event_id = $2 AND group_code = $3
+		  AND status = 'active' AND contest_id = $4
+		  AND (session = 'both' OR session = $5)
+		ORDER BY seat_order, id`,
+		slot.SeatID, slot.EventID, slot.GroupCode,
+		store.CurrentContest(ctx), strconv.Itoa(slot.RoundNo))
 	if err != nil {
 		return mapError(err)
 	}

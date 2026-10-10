@@ -32,6 +32,7 @@ const (
 	CodeBadRequest = 40000
 	CodeNotFound   = 40400
 	CodeConflict   = 40900
+	CodeGone       = 41000
 	CodeInternal   = 50000
 )
 
@@ -65,6 +66,15 @@ func NewNotFound(msg string) *AppError {
 // NewConflict 409 状态冲突（如重复、被引用）。
 func NewConflict(msg string) *AppError {
 	return &AppError{Status: http.StatusConflict, Code: CodeConflict, Message: msg}
+}
+
+// NewGone 410 该能力已废弃。
+//
+// 与 404 的区别是刻意的：404 表示「没这个地址」，410 表示「这个地址曾经有、
+// 现在没了，而且别再试」—— 老客户端拿到的是可读的替代路径，而不是一个
+// 容易让人误以为「服务没部署对」的 404。
+func NewGone(msg string) *AppError {
+	return &AppError{Status: http.StatusGone, Code: CodeGone, Message: msg}
 }
 
 func writeJSON(w http.ResponseWriter, status int, body Envelope) {

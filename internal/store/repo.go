@@ -117,6 +117,16 @@ type TeamRepo interface {
 	Update(ctx context.Context, t *model.Team) error
 	SetStatus(ctx context.Context, id int64, status model.TeamStatus) error
 	SetGroup(ctx context.Context, id int64, group string) error
+	// SetSeat 归台：写入赛台与台内顺位；seatID = nil 表示取消归台（回到未排台）。
+	SetSeat(ctx context.Context, id int64, seatID *int64, order int) error
+	// SetSession 设置参赛轮次（1 / 2 / both）。
+	SetSession(ctx context.Context, id int64, session model.TeamSession) error
+	// ListBySeat 某赛台下已归台的在册队伍，按台内顺位排序 ——
+	// 「场次队伍派生」的取数入口（场次 = 赛台 × 赛项 × 组别 × 轮次）。
+	ListBySeat(ctx context.Context, seatID int64) ([]model.Team, error)
+	// ListByIDs 按 ID 批量取队伍（返回顺序不保证，调用方按自己的顺序重排）。
+	// 用于「已派生出 ID 列表、再补队伍详情」的场景，避免逐个 Get 的 N+1。
+	ListByIDs(ctx context.Context, ids []int64) ([]model.Team, error)
 	Delete(ctx context.Context, id int64) error
 	// CountByEvent 统计赛项下队伍数（含弃赛，便于界面提示）。
 	CountByEvent(ctx context.Context, eventID string) (int, error)
@@ -331,14 +341,14 @@ type SeatRepo interface {
 // SlotRepo 场次读写。
 type SlotRepo interface {
 	Create(ctx context.Context, s *model.Slot) error
-	// Get 读取场次，并带出正式场次的队伍 ID 与加时赛的场内快照。
+	// Get 读取场次，并带出正式场次**派生**出的队伍与独立场次的场内快照。
 	Get(ctx context.Context, id int64) (*model.Slot, error)
 	List(ctx context.Context, seatID int64, eventID string) ([]model.Slot, error)
-	// UpdateMeta 只更新场次的元信息，不动队伍绑定。
+	// UpdateMeta 只更新场次的元信息（队伍由队伍级归台决定，场次不存队伍）。
 	UpdateMeta(ctx context.Context, s *model.Slot) error
 	Delete(ctx context.Context, id int64) error
-	// SetTeams 整体替换正式场次的队伍绑定。
-	SetTeams(ctx context.Context, slotID int64, teamIDs []int64) error
+	// 注：`SetTeams`（写场次队伍）已删除 —— 场次队伍改为派生，
+	// 写入路径改为 PUT /teams/{id}/seat（写队伍级归台）。`slot_teams` 退化为历史表。
 }
 
 // SnapshotRepo 加时赛场内快照读写。

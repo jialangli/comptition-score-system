@@ -195,6 +195,136 @@ func (s *Service) RestoreTeam(ctx context.Context, id int64, reason string) (*mo
 	return t, nil
 }
 
+// AssignTeamSeat 归台：把队伍落到某个赛台与台内顺位；seatID = nil 表示取消归台。
+//
+// 与「弃赛」的区别要说清：弃赛是**整队退赛**（软删除、不进榜单、要走「恢复」才回来）；
+// 归台只是换个位置打，成绩与名次一切照旧。
+//
+// 留痕用独立的「调赛台」动作而不是并进「改配置」：排查
+// 「这队怎么跑到 3 号台去了」时，只有独立动作名能一眼定位。
+//
+// 幂等：目标值与当前值相同时直接返回，不写库也不留痕 ——
+// 现场是「点一下看着没反应就再点一下」的环境，重复痕迹会淹没真正的改动。
+func (s *Service) AssignTeamSeat(ctx context.Context, id int64, seatID *int64, order int, reason string) (*model.Team, error) {
+	t, err := s.ro().Teams.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	// 取消归台时顺位必须一并归零，否则会留下「未排台但顺位 5」这种
+	// 没有对应赛台的怪状态（下一个读它的人只能靠猜）。
+	if seatID != nil && *seatID <= 0 {
+		seatID = nil
+	}
+	if seatID == nil {
+		order = 0
+	} else {
+		if order < 1 {
+			return nil, &model.FieldError{Field: "seatOrder", Msg: "台内顺位从 1 起"}
+		}
+		// 先查赛台存在性：外键也会兜底，但那会把「赛台不存在」变成
+		// 一个笼统的约束错误，运营看不出该去建台还是改 id。
+		if _, err := s.ro().Seats.Get(ctx, *seatID); err != nil {
+			return nil, err
+		}
+	}
+	if sameSeat(t.SeatID, seatID) && t.SeatOrder == order {
+		return t, nil
+	}
+	if strings.TrimSpace(reason) == "" {
+		reason = "调整赛台与顺位"
+	}
+	before, after := seatText(t.SeatID, t.SeatOrder), seatText(seatID, order)
+	if err := s.tx(ctx, func(r store.Repos) error {
+		if err := r.Teams.SetSeat(ctx, id, seatID, order); err != nil {
+			return err
+		}
+		return log(ctx, r, model.ActSeat, teamLabel(t), before, after, reason)
+	}); err != nil {
+		return nil, err
+	}
+	t.SeatID, t.SeatOrder = seatID, order
+	return t, nil
+}
+
+// SetTeamSession 设置队伍参赛轮次（仅第 1 轮 / 仅第 2 轮 / 两轮都打）。
+//
+// 这是「某队下午不来」的**正解**，比弃赛轻得多：
+//
+//	改参赛轮次  成绩**全部保留**，榜单在总分下标注「仅第 N 轮」，发布门按新轮次重算
+//	弃赛        整队退赛（软删除），不进榜单，需走「恢复」才能回来
+//
+// 必须说明原因：它会直接改变「发布门是否就位」与取优轮的口径，
+// 事后要能回答「谁把两轮改成一轮的」。
+func (s *Service) SetTeamSession(ctx context.Context, id int64, session model.TeamSession, reason string) (*model.Team, error) {
+	t, err := s.ro().Teams.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if session == "" {
+		session = model.SessionBoth
+	}
+	if !session.Valid() {
+		return nil, &model.FieldError{Field: "session", Msg: "参赛轮次只能是 1 / 2 / both"}
+	}
+	// 弃赛队的参赛轮次不产生任何输出，而「把弃赛队改成 two」极容易被误当成恢复参赛 ——
+	// 明确拒绝并给出正确路径，比默默改掉一个不生效的字段好。
+	if t.Status == model.TeamWithdrawn {
+		return nil, &model.FieldError{
+			Field: "session",
+			Msg:   "该队已弃赛，改参赛轮次不影响任何结果；要恢复参赛请走「恢复」",
+		}
+	}
+	if t.Session == session {
+		return t, nil // 幂等
+	}
+	if err := requireReason(reason); err != nil {
+		return nil, err
+	}
+	if err := s.tx(ctx, func(r store.Repos) error {
+		if err := r.Teams.SetSession(ctx, id, session); err != nil {
+			return err
+		}
+		return log(ctx, r, model.ActConfig, teamLabel(t),
+			"参赛轮次 "+sessionText(t.Session), "参赛轮次 "+sessionText(session), reason)
+	}); err != nil {
+		return nil, err
+	}
+	t.Session = session
+	return t, nil
+}
+
+// sameSeat 判断两个「归台」是否为同一目标（含两者都未排台）。
+func sameSeat(a, b *int64) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
+// seatText 归台的中文描述（审计留痕与提示文案用）。
+func seatText(seatID *int64, order int) string {
+	if seatID == nil {
+		return "未排台"
+	}
+	return fmt.Sprintf("赛台 #%d · 顺位 %d", *seatID, order)
+}
+
+// sessionText 参赛轮次的审计 / 提示文案。
+//
+// 取值由数据库 CHECK（1 / 2 / both）+ NOT NULL DEFAULT 'both' 双重兜底，
+// 从库里读回来的值必然合法。这里仍兜一道：**内存里新构造的 Team 对象**
+// （未经读库）Session 可能为空，那时按默认口径说成「两轮」——
+// 留一个空字符串会让人读成「这队一轮都不打」。
+//
+// 注意不要写成「两轮（默认）」：库里存的就是 both，不是「没设过」，
+// 文案必须与库里的值同口径，否则审计看着像在说另一件事。
+func sessionText(s model.TeamSession) string {
+	if !s.Valid() {
+		return model.SessionBoth.Label()
+	}
+	return s.Label()
+}
+
 // DeleteTeam 物理删除队伍。
 //
 // 已录入成绩的队伍会被数据库外键 RESTRICT 拦下（返回 store.ErrInUse），

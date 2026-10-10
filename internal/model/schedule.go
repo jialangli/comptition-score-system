@@ -61,15 +61,28 @@ type Slot struct {
 	EventID   string     `json:"eventId"`
 	GroupCode string     `json:"group"`
 	Type      SlotType   `json:"type"`
-	TeamIDs   []int64    `json:"teamIds,omitempty"`  // 正式场次：队伍 ID（引用主库）
-	Snapshot  []Snapshot `json:"snapshot,omitempty"` // 加时赛：场内快照
+	RoundNo   int        `json:"round"`              // 轮次 1 / 2（见 RoundOfPeriod）
+	TeamIDs   []int64    `json:"teamIds,omitempty"`  // 正式场次：**派生**出的队伍 ID（不再存储）
+	Snapshot  []Snapshot `json:"snapshot,omitempty"` // 独立场次：场内快照
 	CreatedAt time.Time  `json:"createdAt"`
+}
+
+// RoundOfPeriod 时段 → 轮次的**默认**绑定（上午 = 第 1 轮、下午 = 第 2 轮）。
+//
+// 只是默认值，不是恒等式：赛项只有 1 轮时，那一场完全可能被排在下午，
+// 此时它仍是第 1 轮（属赛程安排，不是赛制）。
+// 调用方要显式给 round 覆盖默认值 —— 所以轮次落列，而不是每次由时段现推。
+func RoundOfPeriod(period string) int {
+	if period == "下午" {
+		return 2
+	}
+	return 1
 }
 
 // Snapshot 加时赛场内快照。
 //
 // 加时赛的队伍编号由运营手动导入、以导入为准；数据以快照形式保存，
-// 绝不写入队伍主库，归档时独立标记为「加时赛场次」。
+// 绝不写入队伍主库，归档时独立标记为「独立场次」。
 type Snapshot struct {
 	ID     int64  `json:"id"`
 	SlotID int64  `json:"slotId"`
@@ -87,6 +100,7 @@ type SlotDraft struct {
 	EventID   string   `json:"eventId"`
 	GroupCode string   `json:"group"`
 	Type      SlotType `json:"type"`
+	RoundNo   int      `json:"round"` // 省略时按 Period 取默认（见 RoundOfPeriod）
 }
 
 // Validate 场次入参校验。
@@ -107,7 +121,15 @@ func (d *SlotDraft) Validate() error {
 		d.Type = SlotNormal
 	}
 	if !d.Type.Valid() {
-		return &FieldError{Field: "type", Msg: "场次类型只能是 normal 或 extra"}
+		return &FieldError{Field: "type", Msg: "场次类型只能是 normal / extra / rematch"}
+	}
+	// 轮次省略时按时段取默认绑定；显式给了就必须是 1 / 2。
+	// 显式覆盖是必要的：1 轮赛项的下午场次仍是第 1 轮（见 RoundOfPeriod）。
+	if d.RoundNo == 0 {
+		d.RoundNo = RoundOfPeriod(d.Period)
+	}
+	if d.RoundNo != 1 && d.RoundNo != 2 {
+		return &FieldError{Field: "round", Msg: "场次轮次只能是 1 或 2"}
 	}
 	return nil
 }

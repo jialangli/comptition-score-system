@@ -112,6 +112,7 @@ func (s *Server) handleCreateSlot(w http.ResponseWriter, r *http.Request) {
 		EventID:   body.EventID,
 		GroupCode: body.Group,
 		Type:      model.SlotType(body.Type),
+		RoundNo:   body.Round,
 	})
 	if err != nil {
 		Fail(w, r, err)
@@ -136,41 +137,57 @@ func (s *Server) handleDeleteSlot(w http.ResponseWriter, r *http.Request) {
 
 // handleAutoAssignSlot POST /api/v1/slots/{id}/auto-assign
 //
-// 就近自动分配：把该「赛项 + 组别 + 时段」下的在册队伍按编号轮流铺到各张赛台，
+// 一键自动分台：把该「赛项 + 组别 + 时段」下的在册队伍按编号升序轮流铺到各张赛台，
 // 各台人数差不超过 1。结果会写「调赛台」审计。
+//
+// **写的是队伍级归台**（`teams.seat_id` / `seat_order`），不再是场次队伍 ——
+// 场次队伍由「赛台 × 赛项 × 组别 × 轮次」派生（见 GET /slots/{id}/teams）。
 func (s *Server) handleAutoAssignSlot(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
 		Fail(w, r, err)
 		return
 	}
-	assigned, err := s.svc.AutoAssignSlot(r.Context(), id, queryReason(r))
+	count, err := s.svc.AutoAssignSlot(r.Context(), id, queryReason(r))
 	if err != nil {
 		Fail(w, r, err)
 		return
 	}
-	OK(w, map[string]any{"slotId": id, "teamIds": assigned, "count": len(assigned)})
+	OK(w, map[string]any{"slotId": id, "count": count})
 }
 
-// handleAssignSlotTeams POST /api/v1/slots/{id}/teams
+// handleListSlotTeams GET /api/v1/slots/{id}/teams
 //
-// 手动改派：运营对自动分配结果不满意时的直接干预手段。
-func (s *Server) handleAssignSlotTeams(w http.ResponseWriter, r *http.Request) {
+// **派生读**：正式场次返回由队伍级归台派生出的队伍（按台内顺位排序）；
+// 独立场次（加时赛 / 重赛）返回场内快照。
+//
+// 这就是平板端「本赛台队列」的权威数据源 —— 场次 = 赛台 × 时段 × 赛项 × 组别 × 轮次，
+// 一个场次的队伍列表恰好就是「这张台这个时段该上场的队伍」。
+func (s *Server) handleListSlotTeams(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
 		Fail(w, r, err)
 		return
 	}
-	var body slotBody
-	if err := decodeJSON(w, r, &body); err != nil {
+	detail, err := s.svc.SlotTeams(r.Context(), id)
+	if err != nil {
 		Fail(w, r, err)
 		return
 	}
-	if err := s.svc.AssignSlotTeams(r.Context(), id, body.TeamIDs, body.Reason); err != nil {
-		Fail(w, r, err)
-		return
-	}
-	OK(w, map[string]any{"slotId": id, "teamIds": body.TeamIDs})
+	OK(w, detail)
+}
+
+// handleAssignSlotTeams POST /api/v1/slots/{id}/teams —— **已废弃（410 Gone）**。
+//
+// 场次队伍改为派生之后，写入场次就等于造出第二套事实源（与「队伍级归台」打架）。
+// 改派一律走 `PUT /api/v1/teams/{id}/seat`。
+//
+// 保留路由并明确回 410 + 替代路径，而不是直接删掉：老客户端（现场平板 / 缓存过的页面）
+// 拿到的是可读指引，而不是一个容易被误读成「服务没部署对」的 404。
+func (s *Server) handleAssignSlotTeams(w http.ResponseWriter, r *http.Request) {
+	Fail(w, r, NewGone("该接口已废弃：场次队伍现在由「队伍级归台」派生，"+
+		"改派请用 PUT /api/v1/teams/{id}/seat（写 seatId 与 seatOrder）；"+
+		"只读场次队伍请用 GET /api/v1/slots/{id}/teams"))
 }
 
 // handleListSnapshot GET /api/v1/slots/{id}/snapshot
