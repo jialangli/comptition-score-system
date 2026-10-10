@@ -402,7 +402,226 @@ var EVENT_TEMPLATES=[  { id:'brain_planet', name:'脑机星球', groups:['小学
 function ckey(cid){return KEY+'::'+cid;}
 function contestById(id){for(var i=0;i<CONTESTS.length;i++){if(CONTESTS[i].id===id)return CONTESTS[i];}return null;}
 function contestName(id){var c=contestById(id);return c?c.name:'';}
-function contestTag(c){return CONTEST_STATUS[c.status]||c.status||'—';}
+/* 顶部「赛事」下拉的状态文案：**与清单同源**（都走 contestDisplayStatus）。
+   原先它直接读 c.status、清单读派生值 —— 同一场赛事会出现
+   「下拉说已结束、清单说筹备中」的自相矛盾，评审时一眼就能看出。 */
+function contestTag(c){return contestDisplayStatus(c);}
+
+/* ==========================================================================
+ * 演示赛事（评审 / 演示用）
+ *
+ * 六场覆盖四种状态 + 三种边界：并行举办、值守冲突、未填赛期。见下表——
+ *   场次                          赛期（相对今天）   状态     清单里看到的
+ *   2026 WRC 中国区总决赛         -1 ~ +1           进行中   并行 1 场 · 当前赛事
+ *   2026 WRC 华东区选拔赛          0 ~ +2           进行中   并行 1 场
+ *   2026 WRC 华南区选拔赛        +45 ~ +46          筹备中   赛期未到
+ *   2026 WRC 衢州选拔赛         -118               已结束   赛期已过、未归档
+ *   2026 粤港澳青少年科技杯     -205 ~ -204        已归档   只读 · 操作列变「解档」
+ *   2026 WRC 盘锦选拔赛         （未填）            筹备中   （未填赛期）· 未登记值守人
+ * 值守冲突：总决赛与华东区都登记了「钱工作人员」，且两场赛期重叠 → 页面顶部出冲突卡。
+ *
+ * 这份定义**两处共用**：首次启动的种子 + 「载入演示赛事」按钮 —— 一处定义，不会漂移。
+ * ========================================================================== */
+/* 演示赛事 id 一律带**专属前缀**，且**不复用任何既有赛事的 id**。
+   ⚠️ 曾经的写法是「白名单列出六个 id，其中 ct_final / ct_quzhou 与旧版种子同名」——
+   结果：用户浏览器里那两场旧种子被 demoLoaded() 判成「演示数据」，
+   按钮显示成「清除演示赛事」，**一点就把用户自己的赛事删了**（2026-10-10 真实踩到）。
+   前缀判据不可能与既有数据撞，且载入时纯新增、永不覆盖。 */
+var DEMO_PREFIX='ct_demo_';
+var DEMO_IDS=['ct_demo_live','ct_demo_live2','ct_demo_prep',
+              'ct_demo_done','ct_demo_arch','ct_demo_nodate'];
+
+/* 是否已有演示赛事（按前缀，而不是"id 在白名单里"） */
+function isDemoContest(c){return !!(c&&String(c.id).indexOf(DEMO_PREFIX)===0);}
+function demoCount(){return CONTESTS.filter(isDemoContest).length;}
+
+function demoContests(){
+  var t=nowStr();
+  return [
+    {id:'ct_demo_live',name:'2026 WRC 华东区选拔赛',season:'2026 赛季',start:dayShift(-1),end:dayShift(1),
+     venue:'上海世博展览馆',host:'上海市科协 · BrainCo',status:'live',
+     staff:['赵工作人员','钱工作人员'],createdAt:'2026-09-10 09:00',updatedAt:'',archivedAt:'',
+     note:'演示：赛期含今天 → 进行中；与西南区重叠 → 显示「并行 1 场」'},
+    {id:'ct_demo_live2',name:'2026 WRC 西南区选拔赛',season:'2026 赛季',start:dayShift(0),end:dayShift(2),
+     venue:'成都世纪城新国际会展中心',host:'四川省科协 · BrainCo',status:'live',
+     staff:['钱工作人员'],createdAt:'2026-09-28 10:30',updatedAt:'',archivedAt:'',
+     note:'演示：与华东区赛期重叠 → 两行都显示「并行 1 场」；值守人也是钱 → 触发值守冲突卡'},
+    {id:'ct_demo_prep',name:'2026 WRC 华北区选拔赛',season:'2026 赛季',start:dayShift(45),end:dayShift(46),
+     venue:'北京亦创国际会展中心',host:'北京市科协 · BrainCo',status:'prep',
+     staff:['孙工作人员'],createdAt:'2026-10-08 16:05',updatedAt:'',archivedAt:'',
+     note:'演示：赛期未到 → 筹备中；队伍与成绩从零开始，裁判码待赛前发放'},
+    {id:'ct_demo_done',name:'2026 WRC 三亚选拔赛',season:'2026 赛季',start:dayShift(-118),end:dayShift(-118),
+     venue:'三亚市青少年活动中心',host:'三亚市科协 · BrainCo',status:'done',
+     staff:['赵工作人员'],createdAt:'2026-06-01 14:20',updatedAt:'',archivedAt:'',
+     note:'演示：赛期已过、尚未归档 → 已结束（仍可改分 / 补录；归档后转只读快照）'},
+    {id:'ct_demo_arch',name:'2026 粤港澳青少年科技杯',season:'2026 赛季',start:dayShift(-205),end:dayShift(-204),
+     venue:'深圳国际会展中心',host:'广东省青少年科技教育协会 · BrainCo',status:'archived',
+     staff:['李工作人员'],createdAt:'2026-03-05 09:15',updatedAt:t,archivedAt:t,
+     note:'演示：已归档 → 只读历史快照，仅用于追溯与导出（进入时会提示，操作列变「解档」）'},
+    {id:'ct_demo_nodate',name:'2026 WRC 盘锦选拔赛',season:'2026 赛季',start:'',end:'',
+     venue:'盘锦市科技馆',host:'盘锦市科协 · BrainCo',status:'prep',
+     staff:[],createdAt:'2026-10-02 11:40',updatedAt:'',archivedAt:'',
+     note:'演示：赛期未定 → 不参与赛期重叠判断；值守人未登记 → 显示「未登记值守人」'}
+  ];
+}
+
+/* 演示数据规模：各场不同，清单里「赛项 / 队伍 / 已签字 / 已公示」才有层次。
+   published 是**赛项下标**（0-based），不是赛项 id —— 免得写错 id 又静默失效。 */
+var DEMO_SPECS={
+  ct_demo_live:{key:'live',ev:3,teams:12,signed:8,published:[0]},
+  ct_demo_live2:{key:'live2',ev:2,teams:8,signed:8,published:[]},
+  ct_demo_prep:{key:'prep',ev:3,teams:0,signed:0,published:[]},
+  ct_demo_done:{key:'done',ev:3,teams:20,signed:20,published:[0,1,2]},
+  ct_demo_arch:{key:'arch',ev:2,teams:16,signed:16,published:[0,1]},
+  ct_demo_nodate:{key:'nd',ev:3,teams:0,signed:0,published:[]}
+};
+
+/* 单场演示数据：只造「够清单统计 + 切进去能正常渲染」的最小合法结构。
+   events 一律取自 EVENT_TEMPLATES（真实规则，不另造一套）；队伍 / 成绩按 spec 规模生成。
+   ⚠️ 写盘走 localStorage.setItem 而**不是** save()：归档赛事的数据层拒绝写入（只读 gate），
+   而演示数据必须能写进已归档那一场。 */
+function demoContestData(spec){
+  var d=blankContestData();
+  var evs=clone(EVENT_TEMPLATES);
+  d.events=evs.slice(0,Math.max(1,Math.min(evs.length,spec.ev||evs.length)));
+  var names=['星河队','追光队','极光队','凌云队','破晓队','星火队','启航队','逐风队','点石队','拓荒队',
+             '青松队','远山队','灵动队','驰骋队','磐石队','无界队','问天队','拾光队','越岭队','听涛队'];
+  var schools=['杭州市第二中学','宁波市实验小学','温州市少年宫','绍兴市第一中学',
+               '嘉兴市实验小学','金华市外国语学校','台州市实验学校','湖州市第五中学'];
+  var groups=['小学组','初中组'];
+  var n=spec.teams||0,i,r;
+  for(i=0;i<n;i++){
+    var ev=d.events[i%d.events.length];
+    var tid='dm_'+spec.key+'_'+i;
+    d.teams.push({
+      id:tid,no:String(1001+i),
+      name:names[i%names.length]+((i>=names.length)?(' · '+(Math.floor(i/names.length)+1)+'队'):''),
+      school:schools[i%schools.length],coach:'教'+(i%9+1),
+      eventId:ev.id,group:groups[i%groups.length],
+      members:'选手'+(i%6+1)+' / 选手'+(i%6+2),
+      status:'active',source:'excel',session:'both'
+    });
+    if(i<(spec.signed||0)){
+      var rds=expectedRounds(ev),recs={},tasks={};
+      (ev.tasks||[]).forEach(function(t){tasks[t.id]=(t.type==='count')?2:60;});
+      for(r=0;r<rds.length;r++){
+        recs[rds[r]]={tasks:clone(tasks),time:60+i*3,yellow:0,red:0,signed:true,state:'submitted'};
+      }
+      d.scores[tid]=recs;
+    }
+  }
+  (spec.published||[]).forEach(function(k){
+    var e=d.events[k];if(e)d.published[e.id]={at:nowStr(),count:1};
+  });
+  return d;
+}
+
+/* 判据见 isDemoContest：用前缀，不用 id 白名单 —— 白名单会把「恰好同名的既有赛事」
+   也算成演示数据，按钮于是显示成「清除演示赛事」，一点就把用户自己的赛事删了。 */
+function demoLoaded(){return demoCount()>0;}
+
+/* 索引整份落盘（不走 saveContests 的合并逻辑）：
+   载入 / 清除都是本标签主动操作、紧接着把整份写盘，不存在「别的标签新建的赛事被覆盖」；
+   而合并式写入反而会把刚清掉的演示赛事从盘上「收编」回来。 */
+function writeContestIndex(){
+  try{localStorage.setItem(CKEY,JSON.stringify({cur:CUR_CONTEST,list:CONTESTS}));}catch(e){}
+}
+/* 把 id 从删除墓碑里摘掉：演示赛事若曾被删过，合并式写入会一直把它当「已删除」剔掉 */
+function dropTomb(ids){
+  var t=loadTomb().filter(function(x){return ids.indexOf(x)<0;});
+  try{
+    if(t.length)localStorage.setItem(removedKey(),JSON.stringify(t));
+    else localStorage.removeItem(removedKey());
+  }catch(e){}
+}
+
+/* silent=true 供「首次进本页自动兜底」使用：不弹确认、不弹结果提示、不自己 render
+   （调用方正在渲染中，改完 CONTESTS 让它接着渲染即可 —— 在里面 render 会递归）。 */
+function loadDemoContests(silent){
+  if(!silent&&!confirm('载入演示赛事\n\n将新增 6 场演示赛事，覆盖「筹备中 / 进行中 / 已结束 / 已归档」四种状态，\n并带并行举办、值守冲突、未填赛期三种边界样例；其中几场会写入演示队伍与成绩，\n让「赛项 / 队伍 / 已签字 / 已公示」四列有数字。\n\n① 你已有的赛事一律不动（演示赛事 id 带专属前缀 '+DEMO_PREFIX+'，与既有 id 不会撞）；\n② 可用同一处的「清除演示赛事」一键移除这 6 场。\n\n继续？'))return false;
+  dropTomb(DEMO_IDS);
+  var list=demoContests(),fail=[];
+  list.forEach(function(c){
+    try{localStorage.setItem(ckey(c.id),JSON.stringify(demoContestData(DEMO_SPECS[c.id])));}
+    catch(e){fail.push(c.name);}
+  });
+  var mem={};CONTESTS.forEach(function(c){mem[c.id]=c;});
+  list.forEach(function(c){mem[c.id]=c;});          /* 同 id 覆盖：演示数据以本次为准 */
+  CONTESTS=Object.keys(mem).map(function(k){return mem[k];});
+  if(!contestById(CUR_CONTEST))CUR_CONTEST=CONTESTS[0].id;
+  writeContestIndex();
+  if(!silent){
+    alert('演示赛事已载入：'+list.length+' 场（当前清单共 '+CONTESTS.length+' 场）。'+
+      (fail.length?('\n\n⚠ 以下赛事的演示数据写入失败（浏览器存储可能已满）：'+fail.join(' / ')):'')+
+      '\n\n四种状态齐了；你已有的赛事没有被改动。');
+    render();
+  }
+  return {added:list.length,total:CONTESTS.length,fail:fail};
+}
+
+/* 首次进入「赛事管理」页时兜底载入一次。
+   为什么需要：老浏览器里早就存过赛事索引 → 首启种子（只在 localStorage 为空时写）
+   根本不会生效，用户打开只看到自己那两场旧数据，而他要看的恰恰是「全部状态」。
+   标记位保证只自动做一次 —— 用户手动清除演示赛事后，再进本页不会被反复塞回来。 */
+function maybeAutoLoadDemo(){
+  if(demoLoaded())return false;
+  var k=CKEY+'_demo_seen';
+  try{if(localStorage.getItem(k))return false;}catch(e){return false;}
+  try{localStorage.setItem(k,'1');}catch(e){}
+  loadDemoContests(true);
+  return true;
+}
+
+function clearDemoContests(){
+  if(!confirm('清除演示赛事\n\n将移除 6 场演示赛事（ct_ 开头）及其演示数据，你已建的其它赛事不受影响。\n\n继续？'))return;
+  /* 按**前缀**筛，而不是按 id 白名单 —— 语义与 isDemoContest 一致，
+     将来演示赛事增删也不会漏（白名单漏一个就会留下孤儿数据空间）。 */
+  var drop=CONTESTS.filter(isDemoContest).map(function(c){return c.id;});
+  drop.forEach(function(id){try{localStorage.removeItem(ckey(id));}catch(e){}});
+  CONTESTS=CONTESTS.filter(function(c){return !isDemoContest(c);});
+  if(!CONTESTS.length){
+    /* 至少留一场（与 removeContest 同口径）：否则顶部「赛事」下拉会空掉 */
+    CONTESTS=[{id:uid('ct_'),name:'本机赛事（待完善）',season:'',start:'',end:'',
+      venue:'',host:'',staff:[],status:'prep',createdAt:nowStr(),updatedAt:'',archivedAt:'',
+      note:'清除演示赛事后自动保留的一场比赛，可改名、编辑或删除'}];
+  }
+  if(!contestById(CUR_CONTEST)){
+    /* 当前赛事被清掉了：必须连数据空间一起换 ——
+       只改 CUR_CONTEST 而不重载 S，页面会继续渲染上一场的数据（脏读）。 */
+    CUR_CONTEST=CONTESTS[0].id;
+    S=loadContest(CUR_CONTEST);
+    var e0=(S.events[0]||{}).id||'';
+    CUR_EVENT=e0;SCORE_EVENT=e0;RANK_EVENT=e0;PUB_EVENT=e0;
+    if(SCREEN){SCREEN.eventId=e0;SCREEN.page=0;}
+    writeTabCur(CUR_CONTEST);
+  }
+  writeContestIndex();
+  alert('演示赛事已清除。当前清单剩 '+CONTESTS.length+' 场。');
+  render();
+}
+
+function demoToggle(){if(demoLoaded())clearDemoContests();else loadDemoContests();}
+
+/* 演示态说明条：只在清单里确实有演示赛事时出现。
+   它同时承担「告知」与「指向出口」—— 光有按钮不够：用户看到凭空多出 6 场，
+   第一反应是"这些哪来的、会不会动到我的数据"。 */
+function demoNoteHtml(){
+  if(!demoLoaded())return '';
+  return '<div class="note" style="border-left-color:#185FA5">当前清单里有 <b>'+demoCount()+' 场演示赛事</b>'+
+    '（覆盖筹备中 / 进行中 / 已结束 / 已归档四种状态，另含并行举办、值守冲突、未填赛期三种边界）。'+
+    '它们是<b>独立新增</b>的，id 带 '+DEMO_PREFIX+' 前缀，与你自建的赛事<b>互不影响</b> —— '+
+    '点标题行右侧「清除演示赛事」可一键移除，也可以直接切进去看各页面。<br>'+
+    '赛事状态是按赛期<b>派生</b>的：已归档（人工）＞ 赛期已过未归档＝已结束 ＞ 赛期含今天＝进行中 ＞ 其余＝筹备中。</div>';
+}
+
+/* 清单标题行右侧的按钮：载入 ↔ 清除（双态，同一处）。 */
+function demoBtnHtml(){
+  var on=demoLoaded();
+  return '<button class="btn sm" style="float:right;margin:-2px 0 0 8px" onclick="demoToggle()" title="'+
+    (on?'移除 6 场演示赛事及其演示数据（你已建的其它赛事不受影响）'
+       :'写入 6 场演示赛事：覆盖筹备中 / 进行中 / 已结束 / 已归档四种状态，含并行举办、值守冲突、未填赛期样例')+
+    '">'+(on?'清除演示赛事':'载入演示赛事')+'</button>';
+}
 /* 归档 = 只读快照：数据层直接拒绝写入（不是只在界面上提示） */
 var READONLY_WARNED=false;
 function isReadOnly(){var c=contestById(CUR_CONTEST);return !!(c&&c.status==='archived');}
@@ -469,16 +688,9 @@ function loadContests(){
       writeTabCur(CUR_CONTEST);
       return;}}
   }catch(e){}
-  CONTESTS=[
-    {id:'ct_final',name:'2026 WRC 中国区总决赛',season:'2026 赛季',start:'2026-09-17',end:'2026-09-18',
-     venue:'杭州国际博览中心',host:'中国电子学会 · BrainCo',status:'live',staff:['赵工作人员'],
-     createdAt:'2026-09-10 09:00',updatedAt:'',archivedAt:'',
-     note:'主赛事：三赛项同场（脑机星球 / 火星救援 / 未来之城）'},
-    {id:'ct_quzhou',name:'2026 WRC 衢州选拔赛',season:'2026 赛季',start:'2026-06-13',end:'2026-06-13',
-     venue:'衢州市青少年宫',host:'衢州市科协 · BrainCo',status:'done',staff:['赵工作人员'],
-     createdAt:'2026-06-01 14:20',updatedAt:'',archivedAt:'',
-     note:'晋级通道之一：两个赛项，前 3 名晋级中国区总决赛'}
-  ];
+  /* 首启的演示清单 = demoContests()（六场，赛期相对今天生成，覆盖四种状态）——
+     与「载入演示赛事」按钮**同一份定义**，改一处两处都变。 */
+  CONTESTS=demoContests();
   CONTESTS.forEach(function(c){if(!c.staff)c.staff=[];});
   CUR_CONTEST=readTabCur()||'ct_final';
   if(!contestById(CUR_CONTEST))CUR_CONTEST='ct_final';
@@ -486,9 +698,16 @@ function loadContests(){
   saveContests();
   /* 首启只建「空赛事骨架」：赛项规则来自 EVENT_TEMPLATES，队伍与成绩从零开始。
      原先这里会灌入 24 支演示队伍 + 两场完整成绩，导致「打开就是满数据」，
-     评审时反而看不出哪些是本次真正配出来的。 */
-  try{localStorage.setItem(ckey('ct_final'),JSON.stringify(legacy||blankContestData()));}catch(e){}
-  try{localStorage.setItem(ckey('ct_quzhou'),JSON.stringify(blankContestData()));}catch(e){}
+     评审时反而看不出哪些是本次真正配出来的 —— 这条意图保留：
+     要饱满数字时点清单右上角「载入演示赛事」。
+     六场都写一份骨架（而不是只写两场）：否则清单里「赛项」列会是 0，
+     而实际上建赛时勾选赛项就已带入规则。 */
+  demoContests().forEach(function(c){
+    var sp=DEMO_SPECS[c.id]||{ev:3};
+    var seed=(c.id==='ct_final'&&legacy)?legacy
+             :demoContestData({key:sp.key||c.id,ev:sp.ev||3,teams:0,signed:0,published:[]});
+    try{localStorage.setItem(ckey(c.id),JSON.stringify(seed));}catch(e){}
+  });
   if(legacy){try{localStorage.removeItem(KEY);}catch(e){}}   /* 旧单赛事库已收编，移除避免重复读 */
 }
 
@@ -663,20 +882,40 @@ function setContestStatus(id,st){
   c.status=st;c.updatedAt=nowStr();c.archivedAt=(st==='archived')?nowStr():'';
   saveContests();render();
 }
-/* 赛事状态：不再用手动下拉，改为按规则固定的展示文案
-   - 已归档：本场成绩已归档（c.status==='archived'，即只读快照）
+/* 赛事状态：不再用手动下拉，改为按规则**派生** —— 四种状态全部出得来
+   - 已归档：本场成绩已归档（c.status==='archived'，只读快照）。人工动作，优先于赛期
+   - 已结束：赛期已过、且尚未归档（仍可改分 / 补录；归档后转只读）
    - 进行中：赛期包含今天（开始日期 <= 今天 <= 结束日期）
-   - 筹备中：其余（赛期未到 / 未填赛期） */
-function contestDisplayStatus(c){
-  if(c.status==='archived')return '已归档';
-  var d=new Date(),t=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  if(c.start && t>=c.start && t<=(c.end||c.start))return '进行中';
-  return '筹备中';
+   - 筹备中：赛期未到 / 未填赛期
+
+   ⚠️ 「已结束」这一档原先**缺失**：旧判据只有「已归档 / 进行中 / 其余=筹备中」，
+   于是打完但还没归档的比赛会被显示成「筹备中」；而顶部「赛事」下拉是直接读 c.status 的，
+   同一场赛事**在下拉里说「已结束」、在清单里说「筹备中」**。现在两处同源。 */
+function contestDisplayCode(c){
+  if(!c||!c.id)return '';
+  if(c.status==='archived')return 'archived';
+  if(!c.start)return 'prep';
+  var t=dayShift(0),e=c.end||c.start;
+  if(t>e)return 'done';        /* YYYY-MM-DD 字典序 = 时间序，可直接比字符串 */
+  if(t>=c.start)return 'live';
+  return 'prep';
 }
+function contestDisplayStatus(c){return CONTEST_STATUS[contestDisplayCode(c)]||'—';}
+
+/* 今天的 n 天之后（负数 = 之前），返回 YYYY-MM-DD。
+   演示赛事的赛期一律**相对今天**生成：写死日期的话，过几天「进行中」就变成「已结束」，
+   演示价值全无。 */
+function dayShift(n){
+  var d=new Date();d.setDate(d.getDate()+(Number(n)||0));
+  function p(x){return x<10?'0'+x:''+x;}
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+/* 四态配色：不给「已结束」单独一档的话，它和「筹备中」同为灰色，
+   四态在清单里其实只看得出三种 —— 评审时正是这一点最容易被追问。 */
 function contestStatusTag(st){
-  var ok=st==='进行中',arch=st==='已归档';
-  var color=arch?'#c53030':(ok?'#2f855a':'#718096');
-  var bg=arch?'#fcebeb':(ok?'#e6fffa':'#f7fafc');
+  var ok=st==='进行中',arch=st==='已归档',done=st==='已结束';
+  var color=arch?'#c53030':(ok?'#2f855a':(done?'#2b6cb0':'#718096'));
+  var bg=arch?'#fcebeb':(ok?'#e6fffa':(done?'#ebf4ff':'#f7fafc'));
   return '<span class="tag" style="border-color:'+color+';color:'+color+';background:'+bg+'">'+st+'</span>';
 }
 function archiveContest(id){setContestStatus(id,'archived');}
@@ -1262,6 +1501,9 @@ c.note='按勾选赛项模板新建（已带入 '+data.events.length+' 个赛项
 }
 
 function viewContests(){
+  /* 先兜底：老浏览器里早存过赛事索引 → 首启种子不会再生效 → 打开只看到旧数据。
+     只在本页、只在没有演示赛事、且从未自动载入过时执行一次；改完 CONTESTS 直接往下渲染。 */
+  maybeAutoLoadDemo();
   var live=CONTESTS.filter(function(c){return contestDisplayStatus(c)==='进行中';}).length;
   var arch=CONTESTS.filter(function(c){return c.status==='archived';}).length;
   var conf=staffConflicts();
@@ -1286,7 +1528,7 @@ function viewContests(){
       '<td class="num">'+s.published+' / '+s.events+'</td>'+
       '<td>'+(ov.length?'<span class="tag warn" title="赛期与其他赛事重叠（并行举办）">并行 '+ov.length+' 场</span> ':'')+
         contestStatusTag(contestDisplayStatus(c))+'</td>'+
-      '<td>'+(isCur?'<span class="small muted">正在使用</span>'
+      '<td style="white-space:nowrap">'+(isCur?'<span class="small muted">正在使用</span>'
                  :'<button class="btn sm primary" onclick="switchContest(\''+c.id+'\')">进入</button>')+
         ' <button class="btn sm" onclick="ecLoad(\''+c.id+'\')">编辑</button>'+
         ' <button class="btn sm" onclick="'+(c.status==='archived'?'unarchiveContest':'archiveContest')+'(\''+c.id+'\')">'+(c.status==='archived'?'解档':'归档')+'</button>'+
@@ -1306,9 +1548,9 @@ function viewContests(){
       return '<div class="note" style="border-left-color:#a32d2d"><b>'+esc(x.names.join(' / '))+'</b> 同时登记在「'+esc(x.a.name)+'」与「'+esc(x.b.name)+'」两场，'+
         '而这两场赛期重叠（'+esc(x.a.start||'—')+' ~ '+esc(x.a.end||x.a.start||'—')+'）。<b>一个人不可能同时在两个场地</b>，请在本页改其中一场的值守人。</div>';
     }).join('')+'</div>'):'')+
-  '<div class="card" style="margin-top:16px"><h2>赛事清单 <small>每场赛事一份独立数据空间：队伍 / 成绩 / 规则 / 锁 / 工单 / 留底 / 审计 / 裁判码</small></h2>'+
-    '<table><thead><tr><th>赛事</th><th>场馆 / 主办</th><th>值守人</th><th class="num">赛项</th><th class="num">队伍</th><th class="num">已签字</th><th class="num">已公示</th><th>状态</th><th>操作</th></tr></thead>'+
-    '<tbody>'+rows+'</tbody></table>'+
+  '<div class="card" style="margin-top:16px"><h2>赛事清单 <small>每场赛事一份独立数据空间：队伍 / 成绩 / 规则 / 锁 / 工单 / 留底 / 审计 / 裁判码</small>'+demoBtnHtml()+'</h2>'+demoNoteHtml()+
+    '<div style="overflow:auto"><table><thead><tr><th>赛事</th><th>场馆 / 主办</th><th>值守人</th><th class="num">赛项</th><th class="num">队伍</th><th class="num">已签字</th><th class="num">已公示</th><th>状态</th><th style="white-space:nowrap">操作</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table></div>'+
     '<div class="hint" style="margin-top:10px">顶部「赛事」下拉可随时切换；切换后<b>整套数据随之切换</b>，上一场的队伍、成绩、工单、留底不会出现在本场里。'+
       '「并行 <b>N</b> 场」= 该赛事赛期与其他未收官赛事重叠 —— <b>并行不冲突</b>（各有独立数据空间，各写各的），值守建议每场单独一个标签页。'+
       '</div>'+
@@ -1643,7 +1885,9 @@ function xrMAll(on){
 /* ---------- 比赛结果总览 · 筛选条件（字段式：条件推导范围 + 搜索 / 重置） ---------- */
 function xrFilterCardHtml(fo){
   
-  var stOpts=[['all','全部状态'],['筹备中','筹备中'],['进行中','进行中'],['已归档','已归档']];
+  /* 状态档位与赛事清单同源（contestDisplayStatus 的四种派生态）——
+     少了「已结束」就筛不出这一档：用户在清单里看到四态、到这里只能选三态。 */
+  var stOpts=[['all','全部状态'],['筹备中','筹备中'],['进行中','进行中'],['已结束','已结束'],['已归档','已归档']];
   var act=xrActive(fo);
   return '<div class="card" style="margin-top:10px"><h2>筛选条件 <small>条件决定纳入对照的场次范围</small></h2>'+
     '<div class="row" style="gap:12px 18px">'+
