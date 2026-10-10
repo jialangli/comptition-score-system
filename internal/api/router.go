@@ -107,6 +107,15 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/slots/{id}/snapshot", s.handleSaveSnapshot)
 
 	// ---------------------------------------------------------------------
+	// 赛事级规则（0019：名次编排 / 递补）
+	//
+	// 挂在顶层 /contest 下而不是 /events/{id} 下：作用域是**赛事**。
+	// 现有路由里 {id} 一律指赛项，混在一起会让人以为递补规则是逐赛项配的。
+	// ---------------------------------------------------------------------
+	mux.HandleFunc("GET /api/v1/contest/rules", s.handleGetContestRules)
+	mux.HandleFunc("PUT /api/v1/contest/rules", s.handleUpdateContestRules)
+
+	// ---------------------------------------------------------------------
 	// 大屏（返回的姓名已脱敏）
 	// ---------------------------------------------------------------------
 	mux.HandleFunc("GET /api/v1/screen/{eventId}", s.handleScreenPage)

@@ -448,6 +448,15 @@ func dqNos(rows []model.StandingRow) []string {
 	return out
 }
 
+// dqRanks 取榜单行的名次序列（用于断言"留空 / 连续"两档口径）。
+func dqRanks(rows []model.StandingRow) []int {
+	out := make([]int, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.Rank)
+	}
+	return out
+}
+
 // TestStandingsExcludeDisqualifiedTeam 裁定「取消资格」→ 该队整行不进榜单（成绩作废），改判后自动恢复。
 //
 // 补的是后端此前的断点：DecideDispute 只把结论写进工单，榜单根本不读争议 →
@@ -506,10 +515,28 @@ func TestStandingsExcludeDisqualifiedTeam(t *testing.T) {
 	if got := dqNos(rows); !reflect.DeepEqual(got, []string{"9101", "9103"}) {
 		t.Fatalf("被裁定作废的乙队应整行不进榜单，实际 %v", got)
 	}
-	for i, r := range rows {
-		if r.Rank != i+1 {
-			t.Errorf("第 %d 行名次 = %d，应连续发放（作废不留空洞）", i+1, r.Rank)
-		}
+	// 名次：口径由赛事级「递补规则」决定（默认 = 不递补 → 作废队的位置留空）。
+	//
+	// 两档都要断言。这个用例原先写死「应连续发放（作废不留空洞）」，
+	// 把当时唯一的实现当成了规格 —— 0019 补上另一档之后它就假红了。
+	// 名次编号本身不是本用例的主题（主题是"作废队整行不进榜单"），
+	// 但那句话若只写一档，就分不清"规则接对了"与"规则根本没接"。
+	if got := dqRanks(rows); !reflect.DeepEqual(got, []int{1, 3}) {
+		t.Errorf("默认「不递补」时名次应为 1 / 3（第 2 名空缺 = 被作废的乙队），实际 %v", got)
+	}
+	if _, err := svc.SetSubstituteMode(ctx, model.SubstituteRank, "用例：切到按名次顺延"); err != nil {
+		t.Fatalf("切换递补规则失败: %v", err)
+	}
+	resRank, err := svc.Standings(ctx, ev.ID, service.StandingsOptions{})
+	if err != nil {
+		t.Fatalf("取榜单失败: %v", err)
+	}
+	if got := dqRanks(dqRowsOf(t, resRank, "小学组")); !reflect.DeepEqual(got, []int{1, 2}) {
+		t.Errorf("按名次顺延时应连续发放 1 / 2，实际 %v", got)
+	}
+	// 复位（后续断言按默认口径读榜）
+	if _, err := svc.SetSubstituteMode(ctx, model.SubstituteNone, "用例：复位"); err != nil {
+		t.Fatalf("复位递补规则失败: %v", err)
 	}
 	if len(res.VoidedTeamIDs) != 1 || res.VoidedTeamIDs[0] != teams["9102"] {
 		t.Errorf("榜单要能解释「为什么少了一队」，voidedTeamIds = %v", res.VoidedTeamIDs)

@@ -50,6 +50,21 @@ type RankOptions struct {
 	// 改判（disqualify → uphold）时榜单自动恢复，无需任何回滚维护。
 	VoidedTeams map[int64]bool
 
+	// KeepGap 名次是否保留「作废队」留下的空缺（= 赛事级递补规则里的「不递补」）。
+	//
+	//	true （不递补，产品默认）作废队的位置**留空**：第 5 名被取消资格，
+	//	     第 6 名**仍是第 6 名** —— 公示表上就是 4 → 6 这种空洞。
+	//	     这样一次裁定不会让后面所有人的名次都变，且"第 5 名被取消资格"对外可见。
+	//	false（按名次顺延）编号连续，第 6 名前移成第 5 名。
+	//
+	// ⚠️ 只在 VoidedTeams 里有队伍时才看得出区别：**红牌取消比赛资格不产生空洞**
+	// （它们留在榜内、名次 0、排在最后），弃赛队也不产生（压根不进原榜）。
+	// 而且空缺是按**组别**算的（RankAllGroups 逐组调用本函数），
+	// 一个组别的空缺不会挪到另一个组别去。
+	//
+	// 值由 model.SubstituteMode.KeepGap() 给出 —— 不要在各调用点自己判断字符串。
+	KeepGap bool
+
 	// OnlySigned 是否只统计选手代表已签字的轮次。
 	// 默认 false：与前端原型一致，未签字也先参与试排名（现场需要实时看名次）。
 	// 正式公示前应置为 true。
@@ -92,9 +107,10 @@ func Rank(in RankInput, opts RankOptions) []model.StandingRow {
 		if t.EventID != "" && t.EventID != ev.ID {
 			continue // 防御：传入了不属于本赛项的队伍
 		}
-		if opts.VoidedTeams[t.ID] {
-			continue // 裁定取消资格：成绩作废，整行不进榜单
-		}
+		// ⚠️ 裁定取消资格的队伍**先入列、最后再整行剔除**（见函数末尾）。
+		// 它不参与名次与奖项，但当 KeepGap（不递补）时它必须**占住**原来的名次位置 ——
+		// 一上来就 continue，就算不出「第 5 名空缺、第 6 名还是第 6 名」这种结果，
+		// 而前端公示表正是那么显示的（它用含作废队的 origRank 发名次）。
 		if !opts.IncludeWithdrawn && t.Status == model.TeamWithdrawn {
 			continue
 		}
@@ -125,11 +141,23 @@ func Rank(in RankInput, opts RankOptions) []model.StandingRow {
 
 	sortRows(rows, ev.RankRule.TieBreak, opts.NameLess)
 
-	// 名次只发给「有资格」的队伍：被取消比赛资格的不占名次序号，
-	// 否则第 3 名被取消后留出一个空洞、后面的队伍全部少一名。
-	// 它们仍留在 rows 里（成绩与判罚要可查、公示要能说明），只是 Rank = 0。
-	rank := 0
+	// 名次怎么发：两档，由 opts.KeepGap 选（= 赛事级「递补规则」，见 model.SubstituteMode）。
+	//
+	//	pos  在**当前这堆行**里的位置（含作废行与取消资格行）—— 等价于前端的 origRank
+	//	rank 只在「有资格的队伍」之间连续递增
+	//
+	//   - KeepGap（不递补，默认）：Rank = pos → 作废队留下的空洞被保留下来
+	//   - 否则（按名次顺延）：Rank = rank → 编号连续，后面队伍前移
+	//
+	// 被取消比赛资格（红牌）的队伍**不产生空洞**：它们排在最后、名次恒为 0，
+	// 因此前面的队伍不受影响 —— 这一条两端一致，别把它和"作废留空"混在一起。
+	rank, pos := 0, 0
+	var prevLiveTotal *float64
 	for i := range rows {
+		pos++
+		if opts.VoidedTeams[rows[i].Team.ID] {
+			continue // 作废行：只占位（pos 已前进），不发名次、不参评奖项
+		}
 		if rows[i].Disqualified {
 			rows[i].Rank = 0
 			rows[i].Award = ""
@@ -137,8 +165,42 @@ func Rank(in RankInput, opts RankOptions) []model.StandingRow {
 			continue
 		}
 		rank++
-		rows[i].Rank = rank
-		rows[i].Tie = rank > 1 && rows[i-1].Result.Total == rows[i].Result.Total
+		if opts.KeepGap {
+			rows[i].Rank = pos
+		} else {
+			rows[i].Rank = rank
+		}
+		// 并列标记 = 与**前一支有资格的队伍**同分（前端是在 live 数组里跟上一项比）。
+		// 不能直接拿 rows[i-1]：它可能是一支作废队 —— 那样会把"并列"错判成不并列。
+		rows[i].Tie = prevLiveTotal != nil && *prevLiveTotal == rows[i].Result.Total
+		total := rows[i].Result.Total
+		prevLiveTotal = &total
+	}
+
+	// 作废行整行剔除：成绩作废 = 不进榜单，连 Result 都不再给出。
+	//
+	// 位置**必须**在 assignAwards 之前 —— 2026-10-10 定案：**作废队不占奖项名额**，
+	// 让出的名额由后面的队伍顶上。于是它既不参与名额的分母（名额按**在榜**队数算），
+	// 也不当获奖人：10 队里作废 1 队、三等奖 30%，名额由 3 个变 2 个 —— 这是剔除的正常结果。
+	//
+	// 与默认的「不递补」（KeepGap）不矛盾，两条规则各管一件事：
+	//
+	//	名次留空  名次是**身份标识**。「第 5 名被取消资格」这句话要能对上号，
+	//	         所以空缺必须留着、后面的队伍不许改号 —— 空缺**不允许被填补**。
+	//	奖项剔除  奖项是**名额分配**（按在榜队数 × 占比，见 assignAwards）。
+	//	         作废队既然不在榜上，就不占名额 —— 名额**不允许被占用**。
+	//
+	// 一句话：名次上的空洞保留，奖项上的名额不留。两者都让「被取消资格」看得见，
+	// 只是一个靠空缺、一个靠名额顺延。
+	if len(opts.VoidedTeams) > 0 {
+		kept := rows[:0]
+		for i := range rows {
+			if opts.VoidedTeams[rows[i].Team.ID] {
+				continue
+			}
+			kept = append(kept, rows[i])
+		}
+		rows = kept
 	}
 
 	assignAwards(rows, ev.RankRule.AwardTiers, opts.AwardOnlyComplete)
@@ -292,6 +354,15 @@ func orderedTiers(tiers map[string]float64) []tierRatio {
 //
 // onlyComplete 为 true 时，未完成录入的队伍会**占用名次但不占名额**：
 // 名额总数仍按榜单总数算，跳过不合格者继续往下发。
+//
+// 归结成一句话：**只有「在榜且有资格」的队伍占名额**。三类都不占名额、名额一律顺延 ——
+//
+//	作废队    调用前已整行剔除，连分母都不参与（see Rank 里剔除的位置）
+//	红牌队    在榜内、名次 0、排在最后，但不当获奖人
+//	未完成队  在榜内、有名次（占位），但不出现在获奖名单里
+//
+// ⚠️ 前两者的差别要注意：作废队**不参与分母**，未完成队**参与分母**（名额总数照旧）。
+// 这是刻意的 —— 作废 = 这支队伍不存在了；未完成 = 它还在，只是还没录完。
 func assignAwards(rows []model.StandingRow, tiers map[string]float64, onlyComplete bool) {
 	n := len(rows)
 	if n == 0 {

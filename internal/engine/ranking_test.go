@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -463,13 +464,15 @@ func TestRankAwardsUseFloorNotCeil(t *testing.T) {
 func TestRankVoidedTeams(t *testing.T) {
 	f := newRankFixture()
 
-	t.Run("整行剔除且名次连续", func(t *testing.T) {
+	t.Run("整行剔除（KeepGap=false 时名次连续）", func(t *testing.T) {
+		// 这一档是「按名次顺延」；产品默认是「不递补」（KeepGap=true，名次留空），
+		// 见 TestRankKeepGap。默认值由 model.SubstituteMode.KeepGap() 决定。
 		rows := Rank(f.input(), RankOptions{Group: "小学组", VoidedTeams: map[int64]bool{2: true}})
 		if got := nos(rows); !reflect.DeepEqual(got, []string{"1001"}) {
 			t.Fatalf("乙队被裁定作废后小学组应只剩甲队，实际 %v", got)
 		}
 		if rows[0].Rank != 1 {
-			t.Errorf("名次应连续发放（作废不是留空洞），实际 %d", rows[0].Rank)
+			t.Errorf("按名次顺延时名次前移，实际 %d", rows[0].Rank)
 		}
 		if rows[0].Result.Total == 0 {
 			t.Errorf("在榜队伍的成绩应照常给出")
@@ -498,6 +501,172 @@ func TestRankVoidedTeams(t *testing.T) {
 		rows := Rank(f.input(), RankOptions{Group: "初中组", VoidedTeams: map[int64]bool{2: true}})
 		if got := nos(rows); !reflect.DeepEqual(got, []string{"1003"}) {
 			t.Errorf("初中组不应受影响，实际 %v", got)
+		}
+	})
+}
+
+// TestRankKeepGap 名次编排两档：不递补（保留空缺）vs 按名次顺延。
+//
+// 守的是 2026-10-10 对出来的一处两端不一致：前端 `substituteRule.mode` 默认 'none'
+// （不递补）→ 公示表上会出现 4 → 6 这种空洞；而后端原先只有「连续编号」一种行为，
+// 于是同一场比赛两边给出的名次不同（前端说第 5 名空缺、后端说第 5 名另有其人）。
+//
+// 素材：小学组 甲(90 分 / 100 秒)、乙(90 分 / 90 秒) —— 两人同分，乙用时更少。
+// 排序后乙在第 1 位、甲在第 2 位；**让乙被裁定取消资格**，
+// 于是"不递补"时甲的名次应**仍是 2**（第 1 名空缺）。
+// 这也正好是那个容易写错的组合：甲的前一行（乙）与它同分，但已作废。
+func TestRankKeepGap(t *testing.T) {
+	f := newRankFixture()
+	voided := map[int64]bool{2: true}
+
+	t.Run("不递补：作废队的位置留空", func(t *testing.T) {
+		rows := Rank(f.input(), RankOptions{Group: "小学组", VoidedTeams: voided, KeepGap: true})
+		if got := nos(rows); !reflect.DeepEqual(got, []string{"1001"}) {
+			t.Fatalf("作废队应整行不进榜单，实际 %v", got)
+		}
+		if rows[0].Rank != 2 {
+			t.Errorf("不递补时甲队应保留原位置（第 2 名，第 1 名空缺），实际 %d", rows[0].Rank)
+		}
+		if rows[0].Tie {
+			t.Error("甲队是唯一有资格的队伍，不该被判为并列 —— " +
+				"并列要与「上一支有资格的队伍」比，不是与上一行比（上一行可能是作废队）")
+		}
+	})
+
+	t.Run("按名次顺延：编号连续", func(t *testing.T) {
+		rows := Rank(f.input(), RankOptions{Group: "小学组", VoidedTeams: voided})
+		if rows[0].Rank != 1 {
+			t.Errorf("按名次顺延时应前移为第 1 名，实际 %d", rows[0].Rank)
+		}
+	})
+
+	t.Run("没有作废队时两档结果完全一样", func(t *testing.T) {
+		a := Rank(f.input(), RankOptions{Group: "小学组", KeepGap: true})
+		b := Rank(f.input(), RankOptions{Group: "小学组"})
+		if !reflect.DeepEqual(a, b) {
+			t.Error("没有作废队时递补规则不该产生任何差异 —— " +
+				"这条能挡住「默认值接错」与「不该留空洞时却留了」")
+		}
+	})
+
+	t.Run("红牌不产生空洞（与作废是两条路径）", func(t *testing.T) {
+		// 甲队红牌 → 留在榜内、名次 0、排在最后；乙队的名次不受影响。
+		ff := newRankFixture()
+		ff.Score[1] = []model.ScoreRecord{rec(map[string]any{"t": 90.0}, 90, 0, 1)}
+		rows := Rank(ff.input(), RankOptions{Group: "小学组", KeepGap: true})
+		if got := nos(rows); !reflect.DeepEqual(got, []string{"1002", "1001"}) {
+			t.Fatalf("红牌队应留在榜内并排最后，实际 %v", got)
+		}
+		if rows[0].Rank != 1 {
+			t.Errorf("红牌队不占名次序号，乙队应仍是第 1 名，实际 %d", rows[0].Rank)
+		}
+		if !rows[1].Disqualified || rows[1].Rank != 0 {
+			t.Errorf("红牌队应为「留在榜内、名次 0」，实际 dq=%v rank=%d",
+				rows[1].Disqualified, rows[1].Rank)
+		}
+	})
+
+	t.Run("空缺按组别算，不跨组挪动", func(t *testing.T) {
+		gs := RankAllGroups(f.input(), RankOptions{VoidedTeams: voided, KeepGap: true})
+		byGroup := map[string][]int{}
+		for _, g := range gs {
+			for i := range g.Rows {
+				byGroup[g.Group] = append(byGroup[g.Group], g.Rows[i].Rank)
+			}
+		}
+		if got := byGroup["小学组"]; !reflect.DeepEqual(got, []int{2}) {
+			t.Errorf("小学组应为第 2 名（第 1 名空缺），实际 %v", got)
+		}
+		if got := byGroup["初中组"]; !reflect.DeepEqual(got, []int{1}) {
+			t.Errorf("初中组的名次不该被别组的空缺挤走，实际 %v", got)
+		}
+	})
+}
+
+// TestRankVoidedTeamFreesAwardSlot 作废队不占奖项名额（2026-10-10 定案）。
+//
+// 口径：被裁定「取消资格」的队伍**整行剔除**，因此既不参与名额的分母
+// （名额 = floor(在榜队数 × 占比)），也不当获奖人 —— 让出的名额由后面的队伍顶上。
+// 与默认的「不递补」（名次留空）不矛盾：名次是身份标识（空缺要留着、后面的队伍不许改号），
+// 奖项是名额分配（作废队不在榜上，就不占名额）。**名次上的空洞保留、奖项上的名额不留**。
+//
+// ⚠️ 素材必须够大，否则分不清两种口径：现有 rankFixture 只有 2 支在榜队，
+// floor + 每档保底 1 会把「按剔除后榜数算」与「按原榜数算」算出同一个结果
+// （floor(0.1×1)=0→保底 1，floor(0.1×2)=0→保底 1）——
+// "断言在、却分不清两档"的用例只给虚假的安心，所以这里用 10 支队伍。
+func TestRankVoidedTeamFreesAwardSlot(t *testing.T) {
+	ev := newEvent(numTask("t", 100, 1.0))
+	ev.ID = "ev1"
+	ev.Groups = []string{"小学组"}
+	ev.RankRule = model.RankRule{
+		TieBreak:   []string{"score", "time"},
+		AwardTiers: map[string]float64{"一等奖": 0.1, "二等奖": 0.2, "三等奖": 0.3},
+	}
+
+	const total = 10
+	teams := make([]model.Team, 0, total)
+	scores := make(map[int64][]model.ScoreRecord, total)
+	for i := 1; i <= total; i++ {
+		id := int64(i)
+		teams = append(teams, model.Team{
+			ID: id, EventID: "ev1",
+			TeamNo:    fmt.Sprintf("10%02d", i),
+			Name:      fmt.Sprintf("第%d队", i),
+			GroupCode: "小学组", Status: model.TeamActive,
+		})
+		// 分数递减：名次顺序 = 队序，便于逐位断言
+		scores[id] = []model.ScoreRecord{rec(map[string]any{"t": float64(101 - i)}, 100, 0, 0)}
+	}
+	in := RankInput{Event: ev, Teams: teams, Scores: scores}
+
+	t.Run("基准：10 队在榜 → 1 / 2 / 3 个名额", func(t *testing.T) {
+		want := []string{"一等奖", "二等奖", "二等奖", "三等奖", "三等奖", "三等奖",
+			"", "", "", ""}
+		if got := awards(Rank(in, RankOptions{})); !reflect.DeepEqual(got, want) {
+			t.Fatalf("无作废队时奖项分布 = %v，期望 %v", got, want)
+		}
+	})
+
+	t.Run("作废 1 队 → 名额按剔除后的榜数算（分母也剔除）", func(t *testing.T) {
+		rows := Rank(in, RankOptions{VoidedTeams: map[int64]bool{3: true}, KeepGap: true})
+
+		// 作废队整行不进榜单：连成绩都不再给出
+		wantNos := []string{"1001", "1002", "1004", "1005", "1006", "1007", "1008", "1009", "1010"}
+		if got := nos(rows); !reflect.DeepEqual(got, wantNos) {
+			t.Fatalf("作废队应整行剔除，实际 %v", got)
+		}
+
+		// 名额 = floor(在榜队数 9 × 占比)：一等奖 0.9 → 0（保底 1）、二等奖 1.8 → 1、三等奖 2.7 → 2。
+		// 若分母仍按 10 队算，会发出 6 个名额 —— 这条断言正是用来分清这两档的。
+		want := []string{"一等奖", "二等奖", "三等奖", "三等奖", "", "", "", "", ""}
+		if got := awards(rows); !reflect.DeepEqual(got, want) {
+			t.Fatalf("奖项分布 = %v，期望 %v（名额按在榜队数 9 算，不是 10）", got, want)
+		}
+	})
+
+	t.Run("名次的空洞不传递到奖项（名额按榜内顺序数）", func(t *testing.T) {
+		rows := Rank(in, RankOptions{VoidedTeams: map[int64]bool{3: true}, KeepGap: true})
+
+		ranks := make([]int, 0, len(rows))
+		for i := range rows {
+			ranks = append(ranks, rows[i].Rank)
+		}
+		if want := []int{1, 2, 4, 5, 6, 7, 8, 9, 10}; !reflect.DeepEqual(ranks, want) {
+			t.Fatalf("名次 = %v，期望 %v（不递补：第 3 名空缺）", ranks, want)
+		}
+		// 奖项仍从榜内第 1 位起连续数名额：第 4 名照常拿到三等奖 —— 空缺不占名额。
+		if rows[2].Team.TeamNo != "1004" || rows[2].Award != "三等奖" {
+			t.Errorf("第 4 名应照常拿到三等奖（空缺不占名额），实际 %s award=%q",
+				rows[2].Team.TeamNo, rows[2].Award)
+		}
+	})
+
+	t.Run("递补规则只影响名次编号，不影响奖项名额", func(t *testing.T) {
+		voided := map[int64]bool{3: true}
+		gap := awards(Rank(in, RankOptions{VoidedTeams: voided, KeepGap: true}))
+		seq := awards(Rank(in, RankOptions{VoidedTeams: voided}))
+		if !reflect.DeepEqual(gap, seq) {
+			t.Errorf("两档的奖项名额应完全一致（只差名次编号）：%v / %v", gap, seq)
 		}
 	})
 }

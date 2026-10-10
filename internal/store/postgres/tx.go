@@ -37,7 +37,10 @@ type querier interface {
 // newRepos 用同一个 querier 装配全部仓储。
 func newRepos(q querier) store.Repos {
 	return store.Repos{
-		Contests:  &ContestStore{q: q},
+		Contests: &ContestStore{q: q},
+		// Rules 是**赛事级**规则（一个赛事一份），放在 Contests 旁边而不是 Events 旁边：
+		// 它的作用域是赛事，不是某个赛项（递补规则对所有赛项一视同仁）。
+		Rules:     &ContestRulesStore{q: q},
 		Events:    &EventStore{q: q},
 		Teams:     &TeamStore{q: q},
 		Scores:    &ScoreStore{q: q},

@@ -41,7 +41,8 @@ type Store interface {
 
 // Repos 一组业务域仓储。事务内外拿到的是同一个类型，业务代码无需区分。
 type Repos struct {
-	Contests  ContestRepo // 赛事（0004 多赛事分区根）
+	Contests  ContestRepo      // 赛事（0004 多赛事分区根）
+	Rules     ContestRulesRepo // 赛事级规则（0019：名次递补编排）
 	Events    EventRepo
 	Teams     TeamRepo
 	Scores    ScoreRepo
@@ -57,6 +58,21 @@ type Repos struct {
 	Referees  RefereeCodeRepo    // 裁判码（0007）
 	Locks     WriteLockRepo      // 赛台-队伍可写锁（0008）
 	Evidence  EvidenceRepo       // 留底证据库（0009）
+}
+
+// ---------------------------------------------------------------------------
+// 赛事级规则
+// ---------------------------------------------------------------------------
+
+// ContestRulesRepo 赛事级规则读写（0019）。
+//
+// 作用域是**赛事**而不是赛项：递补规则对所有赛项一视同仁。
+type ContestRulesRepo interface {
+	// Get 读取当前赛事的规则；**没有记录时返回默认值而不是 ErrNotFound** ——
+	// 规则表是「可选覆盖」，没有行就等于用代码里的默认口径（不递补）。
+	Get(ctx context.Context) (*model.ContestRules, error)
+	// Upsert 写入当前赛事的规则。
+	Upsert(ctx context.Context, r *model.ContestRules) error
 }
 
 // ---------------------------------------------------------------------------

@@ -49,6 +49,12 @@ type StandingsResult struct {
 	// 必须回给前端：否则榜上凭空少一队却没有任何解释。对外公示要能说出
 	// 「本组别存在被取消资格队伍，其成绩不计入名次」——这句话得有数据支撑。
 	VoidedTeamIDs []int64 `json:"voidedTeamIds,omitempty"`
+
+	// SubstituteMode 本次出榜用的名次编排口径（赛事级规则）。
+	//
+	// 同样必须回给前端：名次带空洞（4 → 6）时，看榜的人第一反应是"是不是漏了一队"。
+	// 把口径一并给出，公示页才能自己解释「第 5 名空缺 = 该名次队伍被取消资格，本场不递补」。
+	SubstituteMode model.SubstituteMode `json:"substituteMode"`
 }
 
 // Standings 计算榜单。
@@ -82,6 +88,17 @@ func (s *Service) Standings(ctx context.Context, eventID string, opts StandingsO
 		voided[id] = true
 	}
 
+	// 名次编排口径（赛事级「递补规则」）：
+	//   不递补（默认）作废队的位置留空 → 名次出现 4 → 6 这种空洞
+	//   按名次顺延      后面队伍前移、编号连续
+	// 与 VoidedTeams 一起读：没有作废队时两种口径的结果完全一样，
+	// 所以这条规则只有"有人被裁定取消资格"时才看得出效果。
+	rules, err := s.ro().Rules.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	mode := rules.SubstituteMode.OrDefault()
+
 	rankOpts := engine.RankOptions{
 		Group:             opts.Group,
 		RefTime:           engine.RefTimeFor(ev, 0),
@@ -89,6 +106,7 @@ func (s *Service) Standings(ctx context.Context, eventID string, opts StandingsO
 		OnlySigned:        opts.OnlySigned,
 		AwardOnlyComplete: opts.AwardOnlyComplete,
 		VoidedTeams:       voided,
+		KeepGap:           mode.KeepGap(),
 	}
 	in := engine.RankInput{Event: ev, Teams: teams, Scores: scores}
 
@@ -100,6 +118,8 @@ func (s *Service) Standings(ctx context.Context, eventID string, opts StandingsO
 		Validation: engine.ValidateEvent(ev),
 
 		VoidedTeamIDs: voidedIDs,
+
+		SubstituteMode: mode,
 	}
 	if opts.Group != "" {
 		res.Groups = []model.GroupStandings{{Group: opts.Group, Rows: engine.Rank(in, rankOpts)}}
