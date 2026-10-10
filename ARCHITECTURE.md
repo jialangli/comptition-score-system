@@ -151,7 +151,7 @@ comptition-score-server/
 | 表 | 说明 |
 |---|---|
 | `events` | 赛项：id / name / groups / **phases** / score_rule / bonus_rules / penalty_rule / rank_rule / custom_formula（规则部分存 **JSONB**，字段名与前端 Schema v1 完全一致）。`phases` = 阶段配置（迁移 `0018`）：多阶段赛项（未来之城 自动 120s + 手动 105s）的**时间奖励基准时长 = 各阶段之和**，与前端 `eventTotalSec` 同口径；它必须**落列**，否则配置经后端保存一次就被静默丢掉，且后端会按 120s 算时间奖励 |
-| `tasks` | 任务项：event_id / id / name / type / max_score / weight / control / enum_map |
+| `tasks` | 任务项：event_id / id / name / type / max_score / weight / **unit** / control / enum_map。`unit` = **量词**（迁移 `0020`）：题卡上的「每颗 +100」里那个「颗」，只对 `type=count` 有意义；**可空，空 = 界面回落「每单位 N 分」**。刻意**不建 CHECK / 不枚举** —— 量词是文案，穷举必然漏（个/颗/块/堆/轮…），漏了就把现场配置挡在数据库外；合法性交 `engine.ValidateEvent`（非计数项填了量词 → 警告；超过 4 字或首尾有空白 → 拦下）。**它不参与任何算分**：`weight` 才是每单位分，量词只影响题卡文案 |
 | `teams` | 队伍：**event_id / team_no（唯一）/ name / school / coach / group_code / status(active/withdrawn) / source(excel/manual/api) / seat_id(归台，NULL=未排台) / seat_order(台内顺位，从 1 起) / session(参赛轮次 1/2/both)** |
 | `scores` | 打分记录：team_id / round_no / task_values(JSONB) / duration_sec / yellow（**黄牌计数，0..阈值-1**）/ upgraded_red（**已升级出的红牌数**）/ red / signed / operator / created_at |
 | `seats` | 赛台：event_id / name / sort_order |
@@ -207,6 +207,7 @@ comptition-score-server/
     红牌队（在榜、名次 0）、未完成录入队（在榜、有名次）都不占名额，名额一律顺延。
     守它的是 `TestRankVoidedTeamFreesAwardSlot`（10 支队素材 —— 2 队的素材配 floor + 保底
     会把两种口径算成同一结果，分不清）。
+- **量词（`tasks.unit`）不参与算分**：它是文案，不是参数 —— 加字段时最容易顺手写进公式，所以有一条断言直接钉着「带量词与不带量词算出来的总分必须一模一样」（`TestTaskUnitRoundTrip`），另有一条断言 `engine/scoring.go` 里根本不出现 `.Unit`。
 - `events.phases` 与 `groups` 同为 `JSONB NOT NULL DEFAULT '[]'`：**空态只有一种**。
   ⚠️ 写 JSONB 集合列一律走 `postgres.jsonArg`，它用**反射**把空/nil 集合归一成 `[]` / `{}`
   —— 因为 Go 的 nil slice 经 pgx 会被当作 SQL NULL，直接撞 NOT NULL；

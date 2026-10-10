@@ -2,12 +2,12 @@
   "source": "赛事统分后台管理_demo.html",
   "sourceInfo": {
     "name": "赛事统分后台管理_demo.html",
-    "bytes": 381949,
-    "sha256": "c128dc5de77716424b42c436eeb3c0966e735644bbb129f5142ec7dffb7443e2",
-    "mtime": "2026-10-10T03:30:00.932Z"
+    "bytes": 382933,
+    "sha256": "21c61bcfb2bf45f3dd3f8ebd6813b291f5c9ea8c50e6152b13babfbdd82cff4f",
+    "mtime": "2026-10-10T08:14:00.171Z"
   },
   "note": "由 scripts/gen_frontend_golden.js 从 demo 前端实现自动生成，请勿手工编辑。赛项配置取自 demo 的 EVENT_TEMPLATES；队伍与成绩为脚本内显式 fixture（覆盖分支用）",
-  "generatedAt": "2026-10-10T06:57:08.610Z",
+  "generatedAt": "2026-10-10T08:14:55.644Z",
   "refTime": 120,
   "closure": {
     "entrypoints": [
@@ -40,11 +40,13 @@
       "standings",
       "substituteMode",
       "taskRawScore",
+      "taskTypeName",
       "validateEvent"
     ],
     "vars": [
       "REF_TIME",
-      "EVENT_TEMPLATES"
+      "EVENT_TEMPLATES",
+      "TASK_TYPES"
     ]
   },
   "scenarios": [
@@ -2073,6 +2075,7 @@
             "type": "count",
             "maxScore": 160,
             "weight": 20,
+            "unit": "颗",
             "control": "stepper",
             "phase": "auto",
             "source": "colorcard"
@@ -2083,6 +2086,7 @@
             "type": "count",
             "maxScore": 90,
             "weight": 15,
+            "unit": "颗",
             "control": "stepper",
             "phase": "auto",
             "source": "colorcard"
@@ -2093,6 +2097,7 @@
             "type": "count",
             "maxScore": 100,
             "weight": 25,
+            "unit": "颗",
             "control": "stepper",
             "phase": "manual",
             "source": "gamepad"
@@ -2103,6 +2108,7 @@
             "type": "count",
             "maxScore": 90,
             "weight": 30,
+            "unit": "块",
             "control": "stepper",
             "phase": "manual",
             "source": "gamepad"

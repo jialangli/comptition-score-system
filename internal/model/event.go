@@ -64,11 +64,17 @@ const (
 
 // Task 任务项，是计分的最小单元。
 type Task struct {
-	ID        string             `json:"id"`
-	Name      string             `json:"name"`
-	Type      TaskType           `json:"type"`
-	MaxScore  *float64           `json:"maxScore,omitempty"` // numeric 满分；count 可空表示无上限
-	Weight    float64            `json:"weight"`             // numeric 为归一化权重；count 为每单位分
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Type     TaskType `json:"type"`
+	MaxScore *float64 `json:"maxScore,omitempty"` // numeric 满分；count 可空表示无上限
+	Weight   float64  `json:"weight"`             // numeric 为归一化权重；count 为每单位分
+	// Unit 计数项的量词（个 / 颗 / 块 / 堆…），仅 Type=count 有意义；空 = 界面回落「每单位」。
+	//
+	// 它**不参与任何算分**：量词纯粹是给裁判看的文案（题卡上的「每颗 +100」）。
+	// 之所以落库而不是各端写死：量词逐赛项不同（火星救援=个/块、未来之城=颗），
+	// 而册内 13 个页面都在用它 —— 写死就要在每个渲染点各维护一遍。
+	Unit      string             `json:"unit,omitempty"`
 	Control   Control            `json:"control,omitempty"`
 	EnumMap   map[string]float64 `json:"enumMap,omitempty"` // 仅 enum：等级 → 分值
 	SortOrder int                `json:"sortOrder"`

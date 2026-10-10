@@ -328,3 +328,49 @@ func containsSub(list []string, sub string) bool {
 
 // boolPtr 取布尔指针，用于构造「显式关闭」的牌面规则（nil 表示未配置）。
 func boolPtr(b bool) *bool { return &b }
+
+// TestValidateTaskUnit 量词（题卡上的「每颗 +100」）的三条底线。
+//
+// 量词不参与算分，所以校验只该管两件事：**别静默无效**（非计数项填了量词，
+// 界面根本不会显示 → 与其让人以为配了没生效，不如当场提醒）、
+// **别撑坏版式**（它是「个 / 颗 / 块」这一档的计量字，不是说明文字）。
+//
+// 反例与正例都要有：只写反例的话，一条「有没有量词就报警」的错实现也能过。
+func TestValidateTaskUnit(t *testing.T) {
+	cases := []struct {
+		name      string
+		task      model.Task
+		wantErrs  int
+		wantWarns int
+	}{
+		{"计数项 · 量词合法",
+			model.Task{ID: "ball", Name: "能源球运输", Type: model.TaskCount, Weight: 20, Unit: "颗"}, 0, 0},
+		{"计数项 · 未配量词（允许：界面回落「每单位」）",
+			model.Task{ID: "ball", Name: "能源球运输", Type: model.TaskCount, Weight: 20}, 0, 0},
+		{"四个字是上限（刚好合法）",
+			model.Task{ID: "ball", Name: "能源球运输", Type: model.TaskCount, Weight: 20, Unit: "颗颗颗颗"}, 0, 0},
+		{"量词过长 → 拦下",
+			model.Task{ID: "ball", Name: "能源球运输", Type: model.TaskCount, Weight: 20, Unit: "颗颗颗颗颗"}, 1, 0},
+		{"量词首尾有空格 → 拦下（会被当成另一个值）",
+			model.Task{ID: "ball", Name: "能源球运输", Type: model.TaskCount, Weight: 20, Unit: " 颗"}, 1, 0},
+		{"非计数项填了量词 → 提醒（界面不会显示）",
+			model.Task{ID: "focus", Name: "专注力任务", Type: model.TaskNumeric, MaxScore: f64ptr(100), Weight: 1, Unit: "颗"}, 0, 1},
+		{"是否完成填了量词 → 同样提醒",
+			model.Task{ID: "tower", Name: "能源塔激活", Type: model.TaskToggle, MaxScore: f64ptr(500), Weight: 1, Unit: "座"}, 0, 1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ev := validEvent()
+			ev.ScoreRule.Template = model.TplSum // 单任务时避开「权重之和 = 1」那条与本用例无关的提醒
+			ev.Tasks = []model.Task{c.task}
+
+			res := ValidateEvent(ev)
+			if len(res.Errors) != c.wantErrs {
+				t.Errorf("errors = %d（期望 %d）：%v", len(res.Errors), c.wantErrs, res.ErrorMessages())
+			}
+			if len(res.Warnings) != c.wantWarns {
+				t.Errorf("warnings = %d（期望 %d）：%v", len(res.Warnings), c.wantWarns, res.WarningMessages())
+			}
+		})
+	}
+}

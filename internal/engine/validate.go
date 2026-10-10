@@ -5,6 +5,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/jialangli/comptition-score-server/internal/model"
 )
@@ -184,6 +185,23 @@ func ValidateEvent(ev *model.Event) ValidationResult {
 			if numOr0(t.Weight) == 0 {
 				warn(field+".weight", "计数任务「%s」每单位分为 0，将不产生任何得分", t.Name)
 			}
+		}
+
+		// —— 量词（题卡上的「每颗 +100」）——
+		//
+		// 它不参与算分，所以除了「写给谁看」之外只有两条底线：
+		//   ① 只对计数得分有意义 —— 数值/是否完成没有「每单位」的概念，填了会被界面忽略，
+		//      与其让人以为配了没生效，不如当场说清楚（警告而非拦下：存量配置不该因它变红）。
+		//   ② 过长会撑坏题卡版式 —— 量词是「个/颗/块」这一档的字，写成一整句说明就变味了。
+		if strings.TrimSpace(t.Unit) != t.Unit {
+			fail(field+".unit", "量词「%s」首尾有空白（会被当成另一个值）", t.Unit)
+		}
+		if n := utf8.RuneCountInString(t.Unit); n > 4 {
+			fail(field+".unit", "量词「%s」过长（%d 个字，最多 4 个）—— 它是「个 / 颗 / 块」这一档的计量字，不是说明文字", t.Unit, n)
+		}
+		if t.Type != model.TaskCount && t.Unit != "" {
+			warn(field+".unit", "任务「%s」是%s，量词「%s」不会出现在题卡上（量词只对「计数得分」有意义）",
+				t.Name, t.Type.Display(), t.Unit)
 		}
 	}
 	// 界面已不再提供「加权求和」；这条校验只为历史赛项的配置健康度保留。

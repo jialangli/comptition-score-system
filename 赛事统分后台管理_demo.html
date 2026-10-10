@@ -371,11 +371,11 @@ var EVENT_TEMPLATES=[  { id:'brain_planet', name:'脑机星球', groups:['小学
   tasks:[
   /* 自动阶段（刷色卡触发） */
   {id:'fc_auto_tower', name:'能源塔激活（专注力）', type:'toggle', maxScore:500, weight:1, control:'toggle', phase:'auto', source:'colorcard'},
-  {id:'fc_auto_ball', name:'能源球运输', type:'count', maxScore:160, weight:20, control:'stepper', phase:'auto', source:'colorcard'},
-  {id:'fc_auto_mine', name:'矿石运输入仓', type:'count', maxScore:90, weight:15, control:'stepper', phase:'auto', source:'colorcard'},
+  {id:'fc_auto_ball', name:'能源球运输', type:'count', maxScore:160, weight:20, unit:'颗', control:'stepper', phase:'auto', source:'colorcard'},
+  {id:'fc_auto_mine', name:'矿石运输入仓', type:'count', maxScore:90, weight:15, unit:'颗', control:'stepper', phase:'auto', source:'colorcard'},
   /* 手动阶段（手柄操控） */
-  {id:'fc_man_synth', name:'矿石合成', type:'count', maxScore:100, weight:25, control:'stepper', phase:'manual', source:'gamepad'},
-  {id:'fc_man_bridge', name:'桥梁搭建', type:'count', maxScore:90, weight:30, control:'stepper', phase:'manual', source:'gamepad'},
+  {id:'fc_man_synth', name:'矿石合成', type:'count', maxScore:100, weight:25, unit:'颗', control:'stepper', phase:'manual', source:'gamepad'},
+  {id:'fc_man_bridge', name:'桥梁搭建', type:'count', maxScore:90, weight:30, unit:'块', control:'stepper', phase:'manual', source:'gamepad'},
   /* 整体（主观分 · 按队评，不按阶段） */
   {id:'fc_subj_innov', name:'搭建创新性', type:'numeric', maxScore:10, weight:1, control:'slider', phase:'overall', source:'judge'},
   {id:'fc_subj_code', name:'编程规范性', type:'numeric', maxScore:10, weight:1, control:'slider', phase:'overall', source:'judge'},
@@ -1077,7 +1077,7 @@ function validateEvent(ev){
     if(seen[t.id])errs.push('任务 id 重复：'+t.id);
     seen[t.id]=1;
     if(!t.name)errs.push('存在未命名的任务');
-    if(t.type==='enum'&&(!t.enumMap||!Object.keys(t.enumMap).length))errs.push('enum 任务「'+t.name+'」缺少等级映射 enumMap');
+    if(t.type==='enum'&&(!t.enumMap||!Object.keys(t.enumMap).length))errs.push('enum 任务「'+t.name+'」缺少等级映射 enumMap'); /* 量词（题卡上的「每颗 +100」）：只做两条底线 —— 别静默无效、别撑坏版式，与 Go 侧 engine/validate.go 同口径 */ if(t.unit&&String(t.unit).trim()!==String(t.unit))errs.push('任务「'+t.name+'」的量词首尾有空白（会被当成另一个值）'); if(t.unit&&String(t.unit).length>4)errs.push('任务「'+t.name+'」的量词「'+t.unit+'」过长（最多 4 个字）'); if(t.unit&&t.type!=='count')warns.push('任务「'+t.name+'」是'+taskTypeName(t.type)+'，量词「'+t.unit+'」不会出现在题卡上（量词只对计数得分有意义）');
   });
   (ev.bonusRules||[]).forEach(function(b,i){
     if(b.template==='count_bonus'){
@@ -2003,7 +2003,7 @@ function eventForm(ev){
     var _unit=_isCount&&t.weight!=null?Number(t.weight):0;
     var wCell;
     if(_isCount){
-      wCell='<td><div class="small muted" style="margin-bottom:3px">每单位分</div><input type="number" step="0.05" value="'+(t.weight==null?'':t.weight)+'" oninput="updTask('+i+',\'weight\',this.value)"><div class="small muted">×'+_cap+' 每单位 +'+_unit+'</div></td>';
+      wCell='<td><div class="small muted" style="margin-bottom:3px">每单位分</div><input type="number" step="0.05" value="'+(t.weight==null?'':t.weight)+'" oninput="updTask('+i+',\'weight\',this.value)"><div class="small muted" style="margin:6px 0 3px">量词</div><input value="'+esc(t.unit||'')+'" maxlength="4" placeholder="个 / 颗 / 块" oninput="updTask('+i+',\'unit\',this.value)"><div class="small muted">×'+_cap+' 每'+(t.unit||'单位')+' +'+_unit+'</div></td>';
     }else if(t.type==='numeric'){
       wCell=isWS?'<td><div class="small muted" style="margin-bottom:3px">权重</div><input type="number" step="0.05" value="'+(t.weight==null?'':t.weight)+'" oninput="updTask('+i+',\'weight\',this.value)"></td>':'<td class="muted">—（不使用）</td>';
     }else{
@@ -2116,7 +2116,7 @@ function eventForm(ev){
       '<button class="btn sm" onclick="addTask()">+ 添加任务</button></div>'+
     '<table style="margin-top:8px"><thead><tr><th>任务名</th><th>评分方式</th><th>满分</th><th>分值参数</th><th>阶段</th><th>裁判录入控件</th><th></th></tr></thead>'+
       '<tbody>'+(taskRows||'<tr><td colspan="6" class="muted">暂无任务</td></tr>')+'</tbody></table>'+
-    '<div class="hint">'+(isWS?'数值评分 = 得分 ÷ 满分 × 权重；计数得分 = 数量 × 每单位分。':'数值评分 = 裁判给分直接计入（满分即该任务分值）；计数得分 = 数量 × 每单位分。')+'</div>'+
+    '<div class="hint">'+(isWS?'数值评分 = 得分 ÷ 满分 × 权重；计数得分 = 数量 × 每单位分（量词只改题卡文案，如「每颗 +20 分」，不参与算分）。':'数值评分 = 裁判给分直接计入（满分即该任务分值）；计数得分 = 数量 × 每单位分（量词只改题卡文案，不参与算分）。')+'</div>'+
     '<hr class="sep">'+
     '<div class="grid g2">'+
       '<div class="fld"><label>计分规则</label><div class="ro">'+esc(tplText(ev))+'</div></div>'+
@@ -3883,7 +3883,7 @@ function scoreForm(ev){
           '<span class="thumb" style="flex:1;justify-content:space-between"><i>0</i><i>'+mx+'</i></span><b>'+(v==null?0:esc(v))+'</b></div>';
     }
     return '<div class="fld"><label>'+esc(it.name)+' <span class="tag">'+esc(taskTypeName(it.type))+'</span>'+
-      (it.type==='count'?'<span class="small muted"> 每单位 '+(it.weight||0)+' 分</span>':'')+'</label>'+ctl+'</div>';
+      (it.type==='count'?'<span class="small muted"> 每'+(it.unit||'单位')+' +'+(it.weight||0)+'</span>':'')+'</label>'+ctl+'</div>';
   }
   var phaseList=(ev.phases||[]).map(function(p){return {id:p.id,name:p.name,desc:p.desc||''};})
     .concat([{id:'overall',name:'整体（主观分 · 不按阶段）',desc:''}]);

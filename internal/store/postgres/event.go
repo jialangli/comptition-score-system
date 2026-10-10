@@ -85,7 +85,7 @@ func (s *EventStore) List(ctx context.Context) ([]model.Event, error) {
 
 	trows, err := s.q.Query(ctx, `
 		SELECT event_id, id, name, type, max_score::float8, weight::float8,
-		       control, enum_map, sort_order
+		       unit, control, enum_map, sort_order
 		FROM tasks ORDER BY event_id, sort_order, id`)
 	if err != nil {
 		return nil, mapError(err)
@@ -149,10 +149,12 @@ func (s *EventStore) ReplaceTasks(ctx context.Context, eventID string, tasks []m
 			maxScore = *t.MaxScore
 		}
 		if _, err := s.q.Exec(ctx, `
-			INSERT INTO tasks (event_id, id, name, type, max_score, weight, control, enum_map, sort_order, contest_id)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+			INSERT INTO tasks (event_id, id, name, type, max_score, weight, unit, control, enum_map, sort_order, contest_id)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 			eventID, t.ID, t.Name, string(t.Type), maxScore, t.Weight,
-			nonEmpty(string(t.Control)), enumArg, order, store.CurrentContest(ctx),
+			// 空量词写成 NULL 而不是空串：空态只留一种（与 control / enum_map 同口径），
+			// 否则读回来分不清「没配」和「配了个空串」。
+			nonEmpty(t.Unit), nonEmpty(string(t.Control)), enumArg, order, store.CurrentContest(ctx),
 		); err != nil {
 			return mapError(err)
 		}
@@ -176,7 +178,7 @@ func (s *EventStore) Delete(ctx context.Context, id string) error {
 // loadTasks 读取单个赛项的任务项。
 func (s *EventStore) loadTasks(ctx context.Context, ev *model.Event) error {
 	rows, err := s.q.Query(ctx, `
-		SELECT id, name, type, max_score::float8, weight::float8, control, enum_map, sort_order
+		SELECT id, name, type, max_score::float8, weight::float8, unit, control, enum_map, sort_order
 		FROM tasks WHERE event_id = $1 AND contest_id = $2 ORDER BY sort_order, id`,
 		ev.ID, store.CurrentContest(ctx))
 	if err != nil {
@@ -202,10 +204,11 @@ func scanTask(rows interface{ Scan(...any) error }, eventID *string) (*model.Tas
 	var t model.Task
 	var typeStr string
 	var maxScore *float64
+	var unit *string
 	var control *string
 	var enumRaw []byte
 
-	dest := []any{&t.ID, &t.Name, &typeStr, &maxScore, &t.Weight, &control, &enumRaw, &t.SortOrder}
+	dest := []any{&t.ID, &t.Name, &typeStr, &maxScore, &t.Weight, &unit, &control, &enumRaw, &t.SortOrder}
 	if eventID != nil {
 		dest = append([]any{eventID}, dest...)
 	}
@@ -215,6 +218,9 @@ func scanTask(rows interface{ Scan(...any) error }, eventID *string) (*model.Tas
 
 	t.Type = model.TaskType(typeStr)
 	t.MaxScore = maxScore
+	if unit != nil {
+		t.Unit = *unit
+	}
 	if control != nil {
 		t.Control = model.Control(*control)
 	}
