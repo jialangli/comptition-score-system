@@ -931,7 +931,7 @@ function substituteModeName(){return substituteMode()==='rank'?'按名次顺延'
 /* 原榜 = 取消资格之前的排名（含作废队），用于「影响预览」与名次空缺判定 */
 /* ---------- 牌面计数规则（黄牌计数器 / 累计升级 / 红牌后果） ----------
    与后端 engine/cards.go **同口径**，两端必须一致：
-     黄牌 —— 只累计，满阈值升级成红牌；本身不产生任何后果。
+     黄牌 —— 记满阈值即升级成红牌**并清零计数**（计数器上限 = 阈值）；本身不产生任何后果。
      红牌 —— **当场取消比赛资格**：成绩保留（照常算分、照常留痕），但不排名次、不参评奖项。
      开关 —— 黄牌计数器关闭 = 整个黄牌体系停用（不显示、不累计、不升级红牌）；
              红牌是独立入口，仍可直接记录。
@@ -943,12 +943,16 @@ function redReasonsOf(ev){
   var c=cardRulesOf(ev);
   return ((c&&c.reasons)||[]).filter(function(r){return (r.card==='red'?'red':'yellow')==='red';});
 }
-/* 归一后的牌面：黄牌数 + 红牌数（含黄牌累计升级出来的部分） */
+/* 归一后的牌面：黄牌数（当前周期）+ 红牌数（直接记的 + 黄牌升级出来的）
+   🔴 2026/10/10 口径变更（用户定）：黄牌**记满阈值即自动升级 1 张红牌并清零黄牌计数**（循环计数），
+   所以裁判端黄牌计数器的上限 = 后台「判罚规则 · 累计升级阈值」。
+   老数据兼容：yellow 可能仍是"累计值"（>= 阈值）→ 读入时在这里一并归一（结果与旧口径一致）。 */
 function effectiveRed(ev,rec){
+  var th=redThresholdOf(ev);
   var yellow=Math.max(0,Number(rec&&rec.yellow)||0);
   var red=Math.max(0,Number(rec&&rec.red)||0);
-  var up=0;
-  if(cardCounterOn(ev))up=Math.floor(yellow/redThresholdOf(ev));
+  var up=Math.max(0,Number(rec&&rec.upgradedRed)||0);
+  if(cardCounterOn(ev)&&th>0){up+=Math.floor(yellow/th);yellow=yellow%th;}
   return {yellow:yellow,red:red+up,upgraded:up};
 }
 /* ---------- 两轮制成绩（与后端 engine 同口径）----------
@@ -2119,7 +2123,7 @@ function eventForm(ev){
     '<div class="grid g2" style="margin-top:8px">'+
       '<div class="fld"><label>判罚模板</label><div class="ro">'+esc(penName(ev.penaltyRule&&ev.penaltyRule.template))+'</div></div>'+
       (crOn?
-        '<div class="fld"><label>累计升级阈值（张黄牌 → 1 张红牌）</label><input type="number" min="1" value="'+crThresh+'" oninput="updRedThreshold(this.value)"></div>'
+        '<div class="fld"><label>累计升级阈值（张黄牌 → 1 张红牌）</label><input type="number" min="1" value="'+crThresh+'" oninput="updRedThreshold(this.value)"><div class="small muted">记满即自动转 1 张红牌并清零黄牌计数 —— <b>裁判端黄牌计数器上限 = 此值</b></div></div>'
         :
         '<div class="fld"><label>累计升级阈值（张黄牌 → 1 张红牌）</label><div class="ro">已停用</div></div>')+
     '</div>'+
@@ -3891,12 +3895,13 @@ function scoreForm(ev){
     '<hr class="sep">'+
     '<div class="grid g3">'+
       '<div class="fld"><label>用时（秒）</label><input type="number" min="0" value="'+(rec.time||'')+'" oninput="setMeta(\'time\',this.value)"></div>'+
-      (cardCounterOn(ev)?'<div class="fld"><label>黄牌数 <span class="muted" style="font-weight:400">（不计分）</span></label><input type="number" min="0" value="'+(rec.yellow||'')+'" oninput="setMeta(\'yellow\',this.value)"></div>':'')+
+      /* 黄牌上限 = 后台阈值：记满即转红牌并清零，由 setYellow 处理（见下） */
+      (cardCounterOn(ev)?'<div class="fld"><label>黄牌数 <span class="muted" style="font-weight:400">（不计分 · 上限 '+redThresholdOf(ev)+'，满即转红牌并清零）</span></label><input type="number" min="0" max="'+redThresholdOf(ev)+'" value="'+(rec.yellow||'')+'" oninput="setYellow(this.value)"></div>':'')+
       '<div class="fld"><label>红牌数 <span class="muted" style="font-weight:400">（不计分 · 记牌即取消该队比赛资格）</span></label><input type="number" min="0" value="'+(rec.red||'')+'" oninput="setMeta(\'red\',this.value)"></div>'+
     '</div>'+
     '<div class="note" style="margin-bottom:12px">判罚记录：黄 / 红牌<b>不扣分</b>，只作记录、留痕与公示（总分 = 基础分 + 加分）。'+
       (cardCounterOn(ev)
-        ? '同一场次同一队伍累计 <b>'+redThresholdOf(ev)+'</b> 张黄牌自动升级 1 张红牌；黄牌仅累计计数、不记事由。'
+        ? '黄牌记满 <b>'+redThresholdOf(ev)+'</b> 张即<b>自动升级 1 张红牌并清零黄牌计数</b>（本页黄牌上限 = 该阈值，后台「判罚规则」可改）；黄牌仅计数、不记事由。'
         : '<b>本赛项已关闭黄牌计数器</b>：黄牌不累计、不升级红牌。')+
       '<b>红牌 = 当场取消比赛资格</b>：该队成绩<b>保留</b>，但不参与名次与奖项。'+
       '红牌的<b>事由</b>由现场裁判在平板端从本赛项配置的事由清单中选择。</div>'+
@@ -3936,6 +3941,23 @@ function curRec(){
 }
 function setScore(tid,v){var r=curRec();if(!r)return;if(!perm('score'))return;if(!scoreGateChk())return;r.tasks[tid]=v;markScoresDirty();save();refreshPreview();}
 function setMeta(k,v){var r=curRec();if(!r)return;if(!perm('score'))return;if(!scoreGateChk())return;r[k]=Number(v)||0;markScoresDirty();save();refreshPreview();}
+/* 黄牌录入：**上限 = 后台累计升级阈值**（用户 2026/10/10 定）。
+   记满阈值即自动升级 1 张红牌并清零黄牌计数（循环计数），所以计数器永远到不了阈值以上。
+   红牌是重后果（当场取消比赛资格），升级那一刻必须让操作者知道 —— 故显式提示。 */
+function setYellow(v){
+  var ev=find(SCORE_EVENT),r=curRec();if(!ev||!r)return;
+  if(!perm('score'))return;if(!scoreGateChk())return;
+  var th=redThresholdOf(ev);
+  var n=Math.max(0,Math.min(th,Number(v)||0));
+  r.yellow=n;
+  if(th>0&&n>=th){
+    var up=Math.floor(n/th);
+    r.upgradedRed=Math.max(0,Number(r.upgradedRed)||0)+up;
+    r.yellow=n%th;
+    alert('黄牌已记满 '+th+' 张：自动升级 '+up+' 张红牌，黄牌计数清零。\n红牌 = 当场取消该队比赛资格（成绩保留、不参与名次与奖项）。');
+  }
+  markScoresDirty();save();refreshPreview();render();
+}
 /* 代录留痕（P2-3）：录入身份必须写入留痕 —— 与平板端 P7 note 5「工作人员代录以「工作人员代录」标识留痕」同口径。
    滑动 / 输入过程中的每一次变动不刷屏，在「保存本次录入」或「签字确认」时统一落一条带身份的留痕。 */
 function scoreEntryRemark(){
