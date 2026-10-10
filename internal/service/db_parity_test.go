@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
@@ -28,14 +27,18 @@ import (
 // ============================================================================
 
 type goldenTeamRow struct {
-	No      string            `json:"no"`
-	Name    string            `json:"name"`
-	Group   string            `json:"group"`
-	School  string            `json:"school"`
-	Coach   string            `json:"coach"`
-	Members string            `json:"members"`
-	Status  string            `json:"status"`
-	Record  model.ScoreRecord `json:"record"`
+	No      string `json:"no"`
+	Name    string `json:"name"`
+	Group   string `json:"group"`
+	School  string `json:"school"`
+	Coach   string `json:"coach"`
+	Members string `json:"members"`
+	Status  string `json:"status"`
+	// Records 该队各轮的原始记录（两轮制下可为 2 条；未开赛为空）。
+	Records []model.ScoreRecord `json:"records"`
+	// Voided 被裁定「取消资格」（成绩作废、整行不进榜单）—— 由争议工单派生，
+	// 因此这里必须在种子里补一张裁定单，否则榜单会多出一行。
+	Voided bool `json:"voided"`
 }
 
 type goldenStandingRow struct {
@@ -46,11 +49,16 @@ type goldenStandingRow struct {
 	Total float64 `json:"total"`
 	Time  float64 `json:"time"`
 	Award string  `json:"award"`
+	// DQ 红牌取消比赛资格：留在榜内但名次为 0。
+	DQ bool `json:"dq"`
 }
 
 type goldenEvent struct {
-	ID        string              `json:"id"`
-	Event     model.Event         `json:"event"`
+	ID    string      `json:"id"`
+	Event model.Event `json:"event"`
+	// RefTime 本赛项的时间奖励基准时长（前端 eventTotalSec 的结论）。
+	// 分阶段赛项 = 各阶段之和 —— 拿全局 refTime 顶替会把「后端按 120s 算奖励」的 bug 盖掉。
+	RefTime   float64             `json:"refTime"`
 	Teams     []goldenTeamRow     `json:"teams"`
 	Standings []goldenStandingRow `json:"standings"`
 }
@@ -59,6 +67,16 @@ type goldenFile struct {
 	Source  string        `json:"source"`
 	RefTime float64       `json:"refTime"`
 	Events  []goldenEvent `json:"events"`
+}
+
+// goldenHasAwards 基准里是否存在已分配的奖项。
+func goldenHasAwards(rows []goldenStandingRow) bool {
+	for _, r := range rows {
+		if r.Award != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func loadGoldenFixture(t *testing.T) goldenFile {
@@ -87,10 +105,14 @@ func findGoldenEvent(g goldenFile, id string) (goldenEvent, bool) {
 	return goldenEvent{}, false
 }
 
-// goldenGroupRows 取基准中某个组别的榜单，按基准名次升序。
+// goldenGroupRows 取基准中某个组别的榜单，**保持基准原有顺序**。
 //
 // 前端榜单是全赛项混合排名的，而公示表要求组内独立名次。
-// 全局排序限制到某个子集时相对顺序不变，因此这两种排名是自洽的。
+// 按组别过滤不会打乱组内相对顺序，所以这两种排名是自洽的。
+//
+// ⚠️ 不要在这里再按 rank 排一次：被红牌取消资格的行 rank=0，
+// 再排一次会把它们提到最前，而两端一致的口径是「取消资格排在榜单最后」。
+// （旧基准里没有 dq 行，所以这个错排一直没暴露。）
 func goldenGroupRows(rows []goldenStandingRow, group string) []goldenStandingRow {
 	out := make([]goldenStandingRow, 0, len(rows))
 	for _, r := range rows {
@@ -98,7 +120,6 @@ func goldenGroupRows(rows []goldenStandingRow, group string) []goldenStandingRow
 			out = append(out, r)
 		}
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Rank < out[j].Rank })
 	return out
 }
 
@@ -126,13 +147,33 @@ func TestSeedParityThroughDatabase(t *testing.T) {
 				if err != nil {
 					t.Fatalf("建队伍 %s 失败: %v", gt.No, err)
 				}
-				rec := gt.Record
-				rec.TeamID = created.ID
-				if rec.RoundNo == 0 {
-					rec.RoundNo = 1
+				// 弃赛态必须经服务走一遍（TeamDraft 里没有 status）——
+				// 直接写库会绕过校验与留痕，测出来的就不是真正跑的那条路。
+				if gt.Status == string(model.TeamWithdrawn) {
+					if _, err := svc.WithdrawTeam(ctx, created.ID, "基准样例：弃赛"); err != nil {
+						t.Fatalf("弃赛 %s 失败: %v", gt.No, err)
+					}
 				}
-				if _, err := svc.SaveScore(ctx, &rec); err != nil {
-					t.Fatalf("录分 %s 失败: %v", gt.No, err)
+				for _, rec := range gt.Records {
+					rec.TeamID = created.ID
+					if rec.RoundNo == 0 {
+						rec.RoundNo = 1
+					}
+					if _, err := svc.SaveScore(ctx, &rec); err != nil {
+						t.Fatalf("录分 %s 第 %d 轮失败: %v", gt.No, rec.RoundNo, err)
+					}
+				}
+				// 裁定取消资格：唯一事实源是争议工单，所以必须真走一遍
+				// 「登记争议 → 裁定 disqualify」，而不是绕过它直接写榜单输入 ——
+				// 否则这段代码测的是"我们以为的实现"，不是真正跑的那条路。
+				if gt.Voided {
+					d, err := svc.ReportDispute(ctx, created.ID, 1, model.DisputeOther, "基准样例：复核实锤")
+					if err != nil {
+						t.Fatalf("登记争议 %s 失败: %v", gt.No, err)
+					}
+					if err := svc.DecideDispute(ctx, d.ID, model.VerdictDisqualify, "基准样例：取消资格", 0, 0); err != nil {
+						t.Fatalf("裁定取消资格 %s 失败: %v", gt.No, err)
+					}
 				}
 			}
 
@@ -140,8 +181,9 @@ func TestSeedParityThroughDatabase(t *testing.T) {
 			if err != nil {
 				t.Fatalf("出榜单失败: %v", err)
 			}
-			if res.RefTime != g.RefTime {
-				t.Errorf("基准时长 = %v，期望 %v（前端 REF_TIME）", res.RefTime, g.RefTime)
+			if res.RefTime != ge.RefTime {
+				t.Errorf("基准时长 = %v，期望 %v（前端 eventTotalSec，阶段数 %d）",
+					res.RefTime, ge.RefTime, len(ge.Event.Phases))
 			}
 			if len(res.Groups) != len(ge.Event.Groups) {
 				t.Fatalf("组别数 = %d，期望 %d", len(res.Groups), len(ge.Event.Groups))
@@ -167,13 +209,32 @@ func TestSeedParityThroughDatabase(t *testing.T) {
 					if got.Duration != want[i].Time {
 						t.Errorf("%s 用时：Go %v / 前端 %v", got.Team.Name, got.Duration, want[i].Time)
 					}
-					if got.Rank != i+1 {
-						t.Errorf("%s 组内名次 = %d，期望 %d", got.Team.Name, got.Rank, i+1)
+					// 名次编号的确切口径（含「不递补」留下的空缺）由 engine 的基准对照守着：
+					// TestParityWithFrontendStandings 逐位比对**混合榜**的名次（含 4 → 6 的空洞）。
+					// 这里**不重算规则** —— 把实现抄进测试，抄错了照样绿。
+					// 只断言两条与榜内顺序自洽的不变量：
+					//   ① 红牌取消资格 → 名次 0（留在榜内但不占名次序号）
+					//   ② 其余名次 > 0 且组内严格递增
+					if want[i].DQ {
+						if got.Rank != 0 {
+							t.Errorf("%s 被红牌取消资格，名次应为 0，实际 %d", got.Team.Name, got.Rank)
+						}
+					} else {
+						if got.Rank <= 0 {
+							t.Errorf("%s 在榜但名次非正数：%d", got.Team.Name, got.Rank)
+						}
+						if i > 0 && !want[i-1].DQ && got.Rank <= grp.Rows[i-1].Rank {
+							t.Errorf("%s 名次 %d 未大于前一名 %d（组内名次必须严格递增）",
+								got.Team.Name, got.Rank, grp.Rows[i-1].Rank)
+						}
 					}
 				}
-				// 组内独立授奖：第 1 名必须拿到奖项（占比 >0 时）
-				if len(want) > 0 && grp.Rows[0].Award == "" {
-					t.Errorf("组别「%s」第 1 名没有奖项", grp.Group)
+				// 组内独立授奖：仅当基准里确实配了奖项档位时才要求后端发奖。
+				// ⚠️ 现配置（2026-10-10 起）里 demo 的赛项**已无 awardTiers**，
+				// 于是谁都不发奖 —— 这不是后端丢了能力，而是没有配置入口。
+				// 保留条件分支，等配置补回来时这条断言自动生效。
+				if len(want) > 0 && goldenHasAwards(ge.Standings) && grp.Rows[0].Award == "" {
+					t.Errorf("组别「%s」第 1 名没有奖项（基准里配了奖项档位）", grp.Group)
 				}
 			}
 
@@ -182,8 +243,10 @@ func TestSeedParityThroughDatabase(t *testing.T) {
 			if err != nil {
 				t.Fatalf("取大屏失败: %v", err)
 			}
-			if page.TotalRows != len(ge.Teams) {
-				t.Errorf("大屏总行数 = %d，期望 %d", page.TotalRows, len(ge.Teams))
+			// 大屏取的是榜单口径：弃赛与「裁定取消资格」的队伍本就不在榜单里，
+			// 所以行数对齐的是榜单行数，而不是队伍总数。
+			if page.TotalRows != len(ge.Standings) {
+				t.Errorf("大屏总行数 = %d，期望 %d（榜单行数）", page.TotalRows, len(ge.Standings))
 			}
 			if page.PageSize != model.DefaultPageSize {
 				t.Errorf("每屏条数 = %d，期望默认 %d", page.PageSize, model.DefaultPageSize)
@@ -242,8 +305,12 @@ func TestScreenLockAndPagination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("取大屏失败: %v", err)
 	}
-	if page.PageSize != 2 || page.TotalPage != 2 || len(page.Rows) != 2 {
-		t.Fatalf("分页异常：pageSize=%d totalPage=%d rows=%d", page.PageSize, page.TotalPage, len(page.Rows))
+	// 本用例只建队伍、不设弃赛也不裁定取消资格 → 全部在榜，页数按基准队伍数推。
+	// （不写死 2 页：写死会让这条断言随着基准规模变化而假红。）
+	wantPages := (len(ge.Teams) + 1) / 2
+	if page.PageSize != 2 || page.TotalPage != wantPages || len(page.Rows) != 2 {
+		t.Fatalf("分页异常：pageSize=%d totalPage=%d（期望 %d）rows=%d",
+			page.PageSize, page.TotalPage, wantPages, len(page.Rows))
 	}
 	if page.IntervalSec != 10 {
 		t.Errorf("停留秒数 = %d，期望 10", page.IntervalSec)
@@ -259,7 +326,9 @@ func TestScreenLockAndPagination(t *testing.T) {
 	}
 
 	// 锁定本场：locked=true，前端据此停播
-	cfg.Pinned = "1001"
+	// 用基准里真实存在的队号，别写死（队号随基准变化）
+	pinnedNo := ge.Teams[0].No
+	cfg.Pinned = pinnedNo
 	if _, err := svc.UpdateScreenConfig(ctx, cfg, "现场异常，锁定本屏"); err != nil {
 		t.Fatalf("锁定失败: %v", err)
 	}
@@ -267,7 +336,7 @@ func TestScreenLockAndPagination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("取大屏失败: %v", err)
 	}
-	if !page.Locked || page.Pinned != "1001" {
+	if !page.Locked || page.Pinned != pinnedNo {
 		t.Errorf("锁定状态未生效：locked=%v pinned=%q", page.Locked, page.Pinned)
 	}
 }

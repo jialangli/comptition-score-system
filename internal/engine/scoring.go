@@ -32,13 +32,30 @@ const DefaultRefTime = 120.0
 
 // RefTimeFor 取某赛项的时间奖励基准时长。
 //
-// 优先级：ev.scoreRule.params.refTime → fallback → DefaultRefTime。
-// fallback <= 0 视为未提供。
+// 优先级（与前端 eventTotalSec **逐条对齐**）：
+//
+//  1. 各阶段时长之和（phases 非空且总和 > 0）
+//  2. ev.scoreRule.params.refTime
+//  3. fallback（<= 0 时视为 DefaultRefTime）
+//
+// 🔴 第 1 条必须在第 2 条之前。前端 eventTotalSec 就是先看阶段、再看 refTime
+// ——后者是「单阶段 / 无阶段」赛项用来填「赛项总时间」的地方。顺序反了，
+// 在「既有阶段、又填了 refTime」的赛项上两端会各算一套，而症状只是名次对不上。
+//
+// 2026-10-10 修：此前这里**从不看阶段**（events 表当时也没有 phases 列），
+// 于是分阶段赛项（未来之城 120+105=225s）后端按 120s 算时间奖励，
+// 与前端差出一截分数。基准时长的口径见 model.Event.PhaseTotalSec。
 func RefTimeFor(ev *model.Event, fallback float64) float64 {
 	if fallback <= 0 {
 		fallback = DefaultRefTime
 	}
-	if ev != nil && ev.ScoreRule.Params != nil {
+	if ev == nil {
+		return fallback
+	}
+	if s := ev.PhaseTotalSec(); s > 0 {
+		return s
+	}
+	if ev.ScoreRule.Params != nil {
 		if v, ok := ev.ScoreRule.Params["refTime"]; ok {
 			if f := numOr0(v); f != 0 {
 				return f

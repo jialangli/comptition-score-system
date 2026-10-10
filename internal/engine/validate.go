@@ -116,6 +116,28 @@ func ValidateEvent(ev *model.Event) ValidationResult {
 		fail("scoreRule.template", "计分规则「%s」不是有效值（本赛制只用「直接求和」）", string(ev.ScoreRule.Template))
 	}
 
+	// —— 阶段 ——
+	//
+	// 阶段只影响一处：时间奖励的**基准时长**（见 RefTimeFor）。
+	// 所以这里不阻断、只提醒 —— 配错不会让赛项"不可用"，
+	// 而是让时间奖励静默按另一个基准算（前端 225s / 后端 120s 就是这么来的），
+	// 属于必须让人看见的那类问题。
+	if len(ev.Phases) > 0 {
+		for i := range ev.Phases {
+			p := &ev.Phases[i]
+			field := fmt.Sprintf("phases[%d]", i)
+			if strings.TrimSpace(p.ID) == "" {
+				warn(field+".id", "第 %d 个阶段的 id 为空，平板端计时与赛程对不上", i+1)
+			}
+			if p.DurationSec <= 0 {
+				warn(field+".durationSec", "阶段「%s」时长不是正数，不会计入时间奖励的基准时长", p.Name)
+			}
+		}
+		if ev.PhaseTotalSec() <= 0 {
+			warn("phases", "各阶段时长之和不是正数，时间奖励的基准时长将退回 scoreRule.params.refTime 或默认值")
+		}
+	}
+
 	// —— 任务项 ——
 	if len(ev.Tasks) == 0 {
 		fail("tasks", "至少需要配置一个任务项，否则成绩恒为 0")

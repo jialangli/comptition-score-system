@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/jackc/pgx/v5"
 
@@ -47,14 +48,18 @@ func notFoundIfNoRows(err error) error {
 // 用 errors.Is 而不是 == 比较：pgx 在部分路径上会包装该错误。
 func isNoRows(err error) bool { return errors.Is(err, pgx.ErrNoRows) }
 
-// jsonArg 把可空 JSONB 参数归一化：
+// jsonArg 把 JSONB 参数归一化，避免「空集合」被写成 SQL NULL。
 //
-//   - 空 slice / 空 map / nil → SQL NULL（而不是 JSON 的 null / [] / {}）
-//   - 其余原样交给 pgx 的 JSON 编码器
+// 背景：`groups JSONB NOT NULL DEFAULT '[]'` 这类列上，传 SQL NULL 会直接违反
+// NOT NULL 报错；而 Go 的 **nil slice** 经 pgx 的 JSON 编码器恰好被当成 SQL NULL。
+// 所以集合类型里的空值要归一成 `[]` / `{}`（JSON 的 null / [] / {} 三态里只保留一种）。
 //
-// 之所以要区分「空」与「null」：`groups JSONB NOT NULL DEFAULT '[]'` 这类列上，
-// 传入 JSON null 虽不违反 NOT NULL（JSON null 不是 SQL NULL），但语义模糊，
-// 后续被当作「未配置」还是「空数组」全靠猜。
+// ⚠️ 兜底必须走反射，不能只列具体类型：2026-10-10 加 `events.phases`（[]model.Phase）时，
+// 就是因为这份白名单里没有它，「清空阶段」直接撞 NOT NULL 报错 ——
+// 这是清单式写法的老毛病：**每加一个列就漏一个**。
+//
+// 唯一的例外是空 map[string]float64 → SQL NULL（该列可空，`null` 表示"未配置"
+// 与 `{}` 语义不同）；它当前没有调用点，保留原行为不动。
 func jsonArg(v any) any {
 	switch x := v.(type) {
 	case nil:
@@ -79,6 +84,16 @@ func jsonArg(v any) any {
 			return nil
 		}
 		return x
+	}
+	switch rv := reflect.ValueOf(v); rv.Kind() {
+	case reflect.Slice:
+		if rv.IsNil() || rv.Len() == 0 {
+			return reflect.MakeSlice(rv.Type(), 0, 0).Interface()
+		}
+	case reflect.Map:
+		if rv.IsNil() || rv.Len() == 0 {
+			return reflect.MakeMap(rv.Type()).Interface()
+		}
 	}
 	return v
 }

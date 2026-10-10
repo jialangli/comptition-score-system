@@ -91,6 +91,22 @@ node _全部回归_2026xxxx.js
 改任何一侧，另一侧与 `testdata/frontend_golden.json` 都要同步更新，并确认 `TestParityWithFrontend*` 通过。
 **不要**只改一边 —— 那会让公示表与榜单对不上。
 
+基准的重新生成（改了前端算法后必须跑）：
+
+```bash
+node scripts/gen_frontend_golden.js "D:/Desktop/workbuddy/赛事统分后台管理_demo.html"
+bash _goenv.sh test ./internal/engine ./internal/service -count=1 -p 1
+```
+
+两点要记住：
+
+1. **脚本会自己报错**，不要绕过它：入口函数被改名 → 抽取阶段就崩；
+   基准少了某类分支（两轮 / 弃赛 / 取消资格 / 并列 / 记分与扣分为 0 …）→ 覆盖度自检退出非 0。
+   它崩了**比它悄悄产出旧内容好**：这份基准曾因脚本静默失效而脱离前端半年。
+2. **`excluded` 要读**：基准里显式登记了「没有对照什么、为什么」（递补口径、红牌跨轮语义、
+   脱敏输出、奖项档位…）。加断言前先看一眼 —— 否则会把已知分歧当成新 bug，
+   或者反过来把"没测"当成"已对齐"。
+
 ---
 
 ## 三、后端开发
@@ -164,7 +180,8 @@ cp internal/service/foo.go /tmp/foo.go.bak
 提交前请确认：
 
 - [ ] 没有把真实赛事数据 / 真实姓名写进代码或演示数据
-- [ ] 改了计分/排名逻辑 → `testdata/frontend_golden.json` 已同步，且 `TestParityWithFrontend*` 通过
+- [ ] 改了计分/排名逻辑 → 已重跑 `scripts/gen_frontend_golden.js` 更新 `testdata/frontend_golden.json`
+      （脚本自带覆盖度自检，会拒绝产出不完整的基准），且 `TestParityWithFrontend*` 通过
 - [ ] 新增了业务写入 → 有对应的审计埋点，且在同一事务内
 - [ ] 原型改动 → CRLF 保持、`node --check` 通过、`node _全部回归_*.js` 全绿
 - [ ] 后端改动 → `go build` / `go vet` / `go test -p 1 ./...` 全绿

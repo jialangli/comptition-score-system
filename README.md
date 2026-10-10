@@ -25,7 +25,7 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 |---|---|
 | 赛事统分后台管理 demo（多赛事版 · 主交付物 · 可交互） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_demo.html) |
 | 赛事统分后台管理 wireframe（16 页 · **可打印/导 PDF**） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_wireframe.html) |
-| 裁判打分系统 wireframe（平板端 · 30 页） | [打开](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html) |
+| 裁判打分系统 wireframe（平板端 · 40 页） | [打开](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html) |
 | 早期单页版原型（保留作对比） | [打开](https://jialangli.github.io/comptition-score-system/) |
 
 也可以直接把对应 `.html` 下载到本地双击打开 —— 单文件、零依赖、离线可运行。
@@ -46,7 +46,7 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 ```
 赛事统分后台管理_demo.html      后台管理端交互原型（多赛事版 · 单文件 · 零依赖）
 赛事统分后台管理_wireframe.html  后台管理端线框（16 页 · 可打印/导 PDF）
-裁判打分系统_wireframe.html     平板端裁判打分 wireframe（30 页单屏 UI）
+裁判打分系统_wireframe.html     平板端裁判打分 wireframe（40 页单屏 UI）
 index.html                      早期单页版原型（保留作对比）
 
 cmd/                         进程装配（main）
@@ -92,7 +92,7 @@ _goenv.sh                    构建入口（隔离 GOROOT 与沙箱代理）
 
 ## 裁判打分 wireframe（平板端）
 
-- **30 页平板单屏 UI**：打分录入、改分审批（P9）、争议裁定台（P8）、锁定台（P10）、选手签字等完整现场链路
+- **40 页平板单屏 UI**：打分录入、改分审批（P9）、争议裁定台（P8）、锁定台（P10）、选手签字等完整现场链路
 - 未来之城 V7.3 **双队对抗同场**模式；裁判码 6 位无歧义字符，首次登录联网激活后**断网可登录**，支撑离线评分
 - 一队两轮（上午第 1 轮 / 下午第 2 轮）：成绩按轮独立、名次**取优**（不是两轮相加）；
   **第 1 轮在册队伍未全部提交前第 2 轮硬锁**（无解锁入口），缺席的处置是标记弃赛
@@ -120,7 +120,10 @@ _goenv.sh                    构建入口（隔离 GOROOT 与沙箱代理）
 - **审计不可绕过**：凡改变业务数据的操作，必须与其审计记录写在同一事务
 - **SQL 注入免疫**：全部走 pgx 参数绑定
 - **计分双端逐位一致**：Go 引擎与前端 JS 引擎由 `testdata/frontend_golden.json` + 一组
-  `TestParityWithFrontend*` 测试锁定，任何一侧改动都必须同步另一侧
+  `TestParityWithFrontend*` 测试锁定，任何一侧改动都必须同步另一侧。
+  基准由 `scripts/gen_frontend_golden.js` 从 demo **自动展开依赖闭包**生成（不写死函数名清单，
+  并自带覆盖度自检与源文件指纹），因此「前端改算法 → 重跑脚本 + `go test`」能立刻暴露分叉；
+  基准里的 `excluded` 字段显式列出**未纳入对照**的口径及其原因
 
 ## 数据与隐私
 

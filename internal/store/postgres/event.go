@@ -11,13 +11,13 @@ import (
 type EventStore struct{ q querier }
 
 // eventColumns 赛项列清单（集中一处，避免 SELECT 与 Scan 顺序不一致）。
-const eventColumns = `id, name, groups, score_rule, bonus_rules, penalty_rule,
+const eventColumns = `id, name, groups, phases, score_rule, bonus_rules, penalty_rule,
 	rank_rule, custom_formula, config_version, created_at, updated_at`
 
 func scanEvent(row interface{ Scan(...any) error }) (*model.Event, error) {
 	var ev model.Event
 	if err := row.Scan(
-		&ev.ID, &ev.Name, &ev.Groups, &ev.ScoreRule, &ev.BonusRules, &ev.PenaltyRule,
+		&ev.ID, &ev.Name, &ev.Groups, &ev.Phases, &ev.ScoreRule, &ev.BonusRules, &ev.PenaltyRule,
 		&ev.RankRule, &ev.CustomFormula, &ev.ConfigVersion, &ev.CreatedAt, &ev.UpdatedAt,
 	); err != nil {
 		return nil, notFoundIfNoRows(err)
@@ -31,10 +31,10 @@ func (s *EventStore) Create(ctx context.Context, ev *model.Event) error {
 		ev.ConfigVersion = "v1.0"
 	}
 	_, err := s.q.Exec(ctx, `
-		INSERT INTO events (id, name, groups, score_rule, bonus_rules, penalty_rule,
+		INSERT INTO events (id, name, groups, phases, score_rule, bonus_rules, penalty_rule,
 		                    rank_rule, custom_formula, config_version, contest_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-		ev.ID, ev.Name, jsonArg(ev.Groups), ev.ScoreRule, jsonArg(ev.BonusRules),
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+		ev.ID, ev.Name, jsonArg(ev.Groups), jsonArg(ev.Phases), ev.ScoreRule, jsonArg(ev.BonusRules),
 		ev.PenaltyRule, ev.RankRule, ev.CustomFormula, ev.ConfigVersion,
 		store.CurrentContest(ctx))
 	return mapError(err)
@@ -108,10 +108,10 @@ func (s *EventStore) List(ctx context.Context) ([]model.Event, error) {
 // Update 更新赛项的规则部分。
 func (s *EventStore) Update(ctx context.Context, ev *model.Event) error {
 	tag, err := s.q.Exec(ctx, `
-		UPDATE events SET name=$2, groups=$3, score_rule=$4, bonus_rules=$5,
-		                  penalty_rule=$6, rank_rule=$7, custom_formula=$8, config_version=$9
-		WHERE id = $1 AND contest_id = $10`,
-		ev.ID, ev.Name, jsonArg(ev.Groups), ev.ScoreRule, jsonArg(ev.BonusRules),
+		UPDATE events SET name=$2, groups=$3, phases=$4, score_rule=$5, bonus_rules=$6,
+		                  penalty_rule=$7, rank_rule=$8, custom_formula=$9, config_version=$10
+		WHERE id = $1 AND contest_id = $11`,
+		ev.ID, ev.Name, jsonArg(ev.Groups), jsonArg(ev.Phases), ev.ScoreRule, jsonArg(ev.BonusRules),
 		ev.PenaltyRule, ev.RankRule, ev.CustomFormula, ev.ConfigVersion,
 		store.CurrentContest(ctx))
 	if err != nil {

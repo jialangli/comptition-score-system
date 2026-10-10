@@ -300,11 +300,58 @@ type RankRule struct {
 	AwardTiers map[string]float64 `json:"awardTiers"` // 奖项占比：{"一等奖":0.1,...}
 }
 
+// Phase 赛项阶段（如未来之城的「自动阶段 / 手动阶段」）。
+//
+// ⚠️ 别与「场次（slots）」混：阶段是**规则配置**里的一段比赛（时长 / 计时方式 / 触发来源），
+// 它决定**时间奖励的基准时长**；场次是**赛程编排**里的「赛台 × 时段」。两者毫无关系。
+//
+// ⚠️ 也必须是具名字段，不能只留在前端的配置里 —— 2026-10-10 之前 events 表根本没有这一列，
+// 配置经后端保存一次阶段就被整个丢掉（零报错），并且后端因看不到阶段而算出
+// 与前端不同的时间奖励（未来之城前端基准 225s、后端 120s）。与 PenaltyRule.CardRules
+// 是同一类坑：解析不出来的配置字段会**静默消失**。
+//
+// 字段风格与 ScoreRule.Params / BonusRule.Params 一致：随赛制演进的参数用 map 承载，
+// 避免每次微调都发一次数据库迁移。
+type Phase struct {
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	DurationSec float64        `json:"durationSec"`
+	TimerMode   string         `json:"timerMode,omitempty"` // countdown / countup
+	Source      string         `json:"source,omitempty"`    // colorcard / gamepad / judge
+	Desc        string         `json:"desc,omitempty"`
+	TimeBonus   map[string]any `json:"timeBonus,omitempty"`
+}
+
+// PhaseTotalSec 各阶段时长之和；无阶段或总和不为正时返回 0。
+//
+// 这是「时间奖励基准时长」的第一优先级判据，与前端 eventTotalSec 逐条对齐：
+// **阶段存在且总和 > 0 → 用总和**，否则才轮到 scoreRule.params.refTime → 默认时长。
+//
+// 口径集中在这一处：散开写必然漂移，而漂移的后果是两端算出不同的成绩，
+// 且现场只表现为"名次对不上"，几乎无法归因。
+func (e *Event) PhaseTotalSec() float64 {
+	if e == nil || len(e.Phases) == 0 {
+		return 0
+	}
+	var sum float64
+	for i := range e.Phases {
+		sum += e.Phases[i].DurationSec
+	}
+	if sum > 0 {
+		return sum
+	}
+	return 0
+}
+
 // Event 赛项。
+//
+// Phases 为阶段配置（无阶段赛项为空数组）。它是**时间奖励基准时长的第一优先级来源**
+// —— 见 PhaseTotalSec 与 engine.RefTimeFor，别按 ScoreRule.Params.refTime 现推。
 type Event struct {
 	ID            string      `json:"id"`
 	Name          string      `json:"name"`
 	Groups        []string    `json:"groups"`
+	Phases        []Phase     `json:"phases"`
 	Tasks         []Task      `json:"tasks"`
 	ScoreRule     ScoreRule   `json:"scoreRule"`
 	BonusRules    []BonusRule `json:"bonusRules"`

@@ -150,14 +150,15 @@ comptition-score-server/
 
 | 表 | 说明 |
 |---|---|
-| `events` | 赛项：id / name / groups / score_rule / bonus_rules / penalty_rule / rank_rule / custom_formula（规则部分存 **JSONB**，字段名与前端 Schema v1 完全一致） |
+| `events` | 赛项：id / name / groups / **phases** / score_rule / bonus_rules / penalty_rule / rank_rule / custom_formula（规则部分存 **JSONB**，字段名与前端 Schema v1 完全一致）。`phases` = 阶段配置（迁移 `0018`）：多阶段赛项（未来之城 自动 120s + 手动 105s）的**时间奖励基准时长 = 各阶段之和**，与前端 `eventTotalSec` 同口径；它必须**落列**，否则配置经后端保存一次就被静默丢掉，且后端会按 120s 算时间奖励 |
 | `tasks` | 任务项：event_id / id / name / type / max_score / weight / control / enum_map |
-| `teams` | 队伍：**event_id / team_no（唯一）/ name / school / coach / group_code / status(active/withdrawn) / source(excel/manual/api)** |
+| `teams` | 队伍：**event_id / team_no（唯一）/ name / school / coach / group_code / status(active/withdrawn) / source(excel/manual/api) / seat_id(归台，NULL=未排台) / seat_order(台内顺位，从 1 起) / session(参赛轮次 1/2/both)** |
 | `scores` | 打分记录：team_id / round_no / task_values(JSONB) / duration_sec / yellow（**黄牌计数，0..阈值-1**）/ upgraded_red（**已升级出的红牌数**）/ red / signed / operator / created_at |
 | `seats` | 赛台：event_id / name / sort_order |
-| `slots` | 场次：seat_id / period / time_range / event_id / group_code / **type(normal/extra/rematch)**（extra=加时赛、rematch=重赛，两者都是**独立场次**：不写队伍主库、成绩不自动进榜单） |
-| `slot_teams` | 场次-队伍 关联（正式场次队伍来源主库） |
-| `slot_snapshots` | **加时赛场内快照**：slot_id / team_no / name / school / coach —— 独立表，**不写主库** |
+| `slots` | 场次：seat_id / period / time_range / event_id / group_code / **type(normal/extra/rematch)**（extra=加时赛、rematch=重赛，两者都是**独立场次**：不写队伍主库、成绩不自动进榜单）/ **round_no(1/2)**（迁移 `0017`；上午=第 1 轮、下午=第 2 轮，**落列而非现推**——1 轮赛项的下午场次仍是第 1 轮） |
+| `slot_teams` | 场次-队伍 关联 —— **已退化为历史表**：场次队伍改为**派生**后不再读写它（迁移 `0017` 同批把 `POST /slots/{id}/teams` 改成 410）。保留数据以备回溯，但任何新代码都不应再写它 |
+| `slot_snapshots` | **独立场次（加时赛 / 重赛）场内快照**：slot_id / team_no / name / school / coach —— 独立表，**不写主库** |
+| `contest_rules` | **赛事级规则**（迁移 `0019`，一行一赛事）：contest_id / **substitute_mode(none/rank)** / substitute_note。`none` = 不递补（默认：取消资格队留下的名次位置**留空**，后续队伍保留原名次 → 公示表出现 4 → 6 的空洞）；`rank` = 按名次顺延。**作用域是赛事不是赛项** —— 与 `events` 里的赛项规则不是一个层级。**无记录 = 取代码里的默认值**（不给每个赛事预插一行）|
 | `audit_logs` | 六类操作留痕：operator / action / target / before / after / reason / created_at |
 | `import_logs` | 报名导入审计：source / operator / summary(JSONB) / detail(JSONB) / status |
 | `config_snapshots` | 配置快照：note / events(JSONB) / created_at |
@@ -168,6 +169,48 @@ comptition-score-server/
 - `teams(event_id, team_no)` 唯一索引 —— 落实「一号一队」强校验
 - `audit_logs` 建 `created_at` 索引，保留 ≥2 年（迁移脚本里附归档说明）
 - 所有 `*_id` 外键加 `ON DELETE RESTRICT`（避免误删带成绩的队伍）
+- **唯一一道例外**：`teams.seat_id` → `seats(id)` 用 `ON DELETE SET NULL`（迁移 `0016`）。
+  归台只决定「在哪张台打」，队伍本身不依赖赛台存在；用它 RESTRICT 会让
+  「撤一张台」被「该台下还有队伍」拦下，逼运营先逐队取消归台 —— 而队伍并没有丢，
+  它只是回到「未排台」，这本来就是删台的预期结果。存储层另在删台时把 `seat_order` 一并归零，
+  读路径也会在 `seat_id` 为空时把顺位读成 0（防「未排台但顺位 3」的怪状态）。
+- `teams.session` 与赛项轮次**取交集**才是该队真正要打的轮次（`TeamSession.Rounds`）——
+  这是「按队伍参赛轮次判」的唯一判据；只按赛项轮次判会让「只打第 1 轮的队」永远算作第 2 轮未录。
+  逐轮判据是 `TeamSession.Includes(round)`（场次派生用它，不需要知道赛项计划）。
+  ⚠️ 交集为空时**回落赛项轮次**：否则配置矛盾（1 轮赛项 + 只打第 2 轮）会让该队**静默消失**，
+  而不是留在待完成名单里被人发现。前端 `teamRounds` 与此逐字同口径。
+- **场次队伍 = 派生，不是存储**（迁移 `0017` 起）：`场次 = 赛台 × 赛项 × 组别 × 轮次`，
+  队伍由**队伍级归台**（`teams.seat_id` / `seat_order` / `session`）派生而来，
+  顺序 = 台内顺位（现场叫号顺序）。唯一事实源只有一处，因此：
+  - 改派 = `PUT /teams/{id}/seat`（写归台），**不是**写场次；
+  - 写场次队伍的旧接口 `POST /slots/{id}/teams` 返回 **410**（保留路由给替代路径，而不是留一个 404 让人怀疑部署）；
+  - `GET /slots/{id}/teams` 是**只读派生**读，也是平板端「本赛台队列」的权威数据源；
+  - `slot_teams` 退化为历史表，任何新代码都不应再写它。
+- **时间奖励的基准时长口径**（`engine.RefTimeFor`，迁移 `0018`）：优先级是
+  **各阶段时长之和 → `scoreRule.params.refTime` → 默认 120s**，与前端 `eventTotalSec` 逐条对齐。
+  🔴 阶段必须排第一：`params.refTime` 是「单阶段 / 无阶段」赛项用来填「赛项总时间」的地方，
+  阶段才是更具体的事实源。顺序反了，在「既有阶段、又填了 refTime」的赛项上两端各算一套，
+  而症状只是**名次对不上**（2026-10-10 实测未来之城前端 225s / 后端 120s，差出十几分）。
+  判据集中在 `model.Event.PhaseTotalSec`，不要在别处再写一遍。
+- **名次编排（递补规则）的判据只有一处**：`model.SubstituteMode.KeepGap()` → `engine.RankOptions.KeepGap`。
+  ⚠️ 两端必须同口径，而且**只有存在被裁定取消资格的队伍时才看得出区别**：
+  - 「不递补」（默认）作废队的位置留空 → 名次 4 → 6；「按名次顺延」编号连续。
+  - **红牌取消比赛资格不产生空洞**（留在榜内、名次 0、排在最后），弃赛也不产生（压根不进原榜）。
+  - 空缺按**组别**算（`RankAllGroups` 逐组发名次），一个组的空缺不会挪到另一个组。
+  - 并列标记要与「**上一支有资格的队伍**」比，不能与上一行比 —— 上一行可能是作废队，
+    那会把「并列」错判成「不并列」。这条已在 `TestRankKeepGap` 里用同分素材钉住。
+  - 🔴 **奖项名额不跟着留空**（2026-10-10 定案）：作废行在 `assignAwards` **之前**整行剔除，
+    于是它既不参与名额的分母（名额 = `floor(在榜队数 × 占比)`）也不当获奖人，让出的名额由
+    后面队伍顶上 —— 10 队作废 1 队、三等奖 30%，名额由 3 个变 2 个。
+    一句话：**名次上的空洞保留、奖项上的名额不留**（前者是身份标识，后者是名额分配）。
+    归纳成一句：**只有「在榜且有资格」的队伍占名额** —— 作废队（已剔除，连分母都不参与）、
+    红牌队（在榜、名次 0）、未完成录入队（在榜、有名次）都不占名额，名额一律顺延。
+    守它的是 `TestRankVoidedTeamFreesAwardSlot`（10 支队素材 —— 2 队的素材配 floor + 保底
+    会把两种口径算成同一结果，分不清）。
+- `events.phases` 与 `groups` 同为 `JSONB NOT NULL DEFAULT '[]'`：**空态只有一种**。
+  ⚠️ 写 JSONB 集合列一律走 `postgres.jsonArg`，它用**反射**把空/nil 集合归一成 `[]` / `{}`
+  —— 因为 Go 的 nil slice 经 pgx 会被当作 SQL NULL，直接撞 NOT NULL；
+  而白名单式写法每加一个列就会漏一个（`[]model.Phase` 就是这么漏的）。
 
 ---
 
@@ -177,9 +220,10 @@ comptition-score-server/
 |---|---|
 | 赛项 | `GET/POST /events` · `GET/PUT/DELETE /events/{id}` · `POST /events/{id}/validate` |
 | 配置快照 | `GET /events/{id}/snapshots` · `POST /events/{id}/snapshots` · `POST /events/{id}/snapshots/{sid}/restore` |
-| 队伍 | `GET/POST /events/{id}/teams` · `PUT/DELETE /teams/{id}` · `POST /teams/{id}/withdraw` · `POST /teams/{id}/restore` |
+| 队伍 | `GET/POST /events/{id}/teams` · `PUT/DELETE /teams/{id}` · `POST /teams/{id}/withdraw` · `POST /teams/{id}/restore` · `PUT /teams/{id}/seat`（归台，seatId=0 取消） · `PUT /teams/{id}/session`（参赛轮次 1/2/both） |
 | 报名导入 | `POST /imports/preview`（返回列映射 + 四色变更清单，不落库）· `POST /imports/commit` |
-| 赛台赛程 | `GET/POST /seats` · `GET/POST/PUT/DELETE /slots` · `POST /slots/{id}/auto-assign` · `POST /slots/{id}/snapshot` |
+| 赛事级规则 | `GET/PUT /contest/rules`（**挂在顶层 /contest 下**：作用域是赛事；`{id}` 在别的路由里一律指赛项，混在一起会让人以为递补规则是逐赛项配的） |
+| 赛台赛程 | `GET/POST /seats` · `GET/POST/PUT/DELETE /slots` · `POST /slots/{id}/auto-assign`（**一键自动分台**：写队伍级归台）· `GET /slots/{id}/teams`（**派生读**：本赛台队列的数据源）· `POST /slots/{id}/snapshot` · ⚠️ `POST /slots/{id}/teams` **已废弃 → 410**（改派走 `PUT /teams/{id}/seat`） |
 | 打分 | `GET/PUT /teams/{id}/scores` · `POST /scores/{id}/change-requests` |
 | 榜单 | `GET /events/{id}/standings?group=` |
 | 大屏 | `GET /screen/{eventId}`（**已脱敏**，返回当前屏数据 + 分页元信息）· `PUT /screen/{eventId}/config` |

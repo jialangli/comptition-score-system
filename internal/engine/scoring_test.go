@@ -465,3 +465,58 @@ func TestRefTimeFor(t *testing.T) {
 		t.Errorf("nil 赛项应回退默认值，得到 %v", got)
 	}
 }
+
+// TestRefTimeForPhases 多阶段赛项的基准时长 = 各阶段之和，且**优先于** params.refTime。
+//
+// 这条是 2026-10-10 修掉的真实 bug：此前 RefTimeFor 从不看阶段（events 表当时也没有
+// phases 列），未来之城（120 + 105 = 225s）在后端按 120s 算时间奖励，与前端差出十几分。
+// 顺序也必须守住：前端 eventTotalSec 是先阶段、后 refTime，
+// 反过来会在「既有阶段、又填了 refTime」的赛项上各算一套。
+func TestRefTimeForPhases(t *testing.T) {
+	ev := newEvent()
+	ev.Phases = []model.Phase{{ID: "auto", DurationSec: 120}, {ID: "manual", DurationSec: 105}}
+	if got := RefTimeFor(ev, 0); got != 225 {
+		t.Errorf("多阶段赛项应为各阶段之和 225，得到 %v", got)
+	}
+	// 同时配了 refTime 时，阶段仍优先（与前端 eventTotalSec 同序）
+	ev.ScoreRule.Params = map[string]any{"refTime": 150.0}
+	if got := RefTimeFor(ev, 90); got != 225 {
+		t.Errorf("阶段应优先于 params.refTime，得到 %v", got)
+	}
+	// 阶段之和不为正 → 视为没配，继续走 refTime
+	ev.Phases = []model.Phase{{ID: "broken", DurationSec: 0}}
+	if got := RefTimeFor(ev, 0); got != 150 {
+		t.Errorf("阶段之和不为正时应回退 params.refTime，得到 %v", got)
+	}
+	// 空阶段数组 = 无阶段赛项
+	ev.Phases = []model.Phase{}
+	if got := RefTimeFor(ev, 0); got != 150 {
+		t.Errorf("空阶段应回退 params.refTime，得到 %v", got)
+	}
+}
+
+// TestPhaseTotalSec 阶段时长之和的判据（含负值参与求和，与前端 Number(x)||0 同口径）。
+func TestPhaseTotalSec(t *testing.T) {
+	cases := []struct {
+		name string
+		in   []model.Phase
+		want float64
+	}{
+		{"无阶段", nil, 0},
+		{"空数组", []model.Phase{}, 0},
+		{"单阶段", []model.Phase{{DurationSec: 120}}, 120},
+		{"两阶段", []model.Phase{{DurationSec: 120}, {DurationSec: 105}}, 225},
+		{"时长为 0", []model.Phase{{DurationSec: 0}}, 0},
+		{"正负相抵后不为正", []model.Phase{{DurationSec: 10}, {DurationSec: -10}}, 0},
+		{"负值参与求和（与前端一致）", []model.Phase{{DurationSec: 120}, {DurationSec: -10}}, 110},
+	}
+	for _, c := range cases {
+		ev := &model.Event{Phases: c.in}
+		if got := ev.PhaseTotalSec(); got != c.want {
+			t.Errorf("%s：得到 %v，期望 %v", c.name, got, c.want)
+		}
+	}
+	if got := (*model.Event)(nil).PhaseTotalSec(); got != 0 {
+		t.Errorf("nil 赛项应得 0，得到 %v", got)
+	}
+}
