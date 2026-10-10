@@ -194,6 +194,12 @@ type DisputeRepo interface {
 	// ListByTeam 某队全部历史工单（含已裁定 / 已撤回），按时间倒序。
 	// 用于成绩单页判断该队是否被判取消资格。
 	ListByTeam(ctx context.Context, teamID int64) ([]model.Dispute, error)
+	// ListDisqualifiedTeamIDs 某赛项被裁定「取消资格」的队伍 ID（成绩作废）。
+	//
+	// 榜单按**赛项**批量取：大屏每 5 秒轮询一次，逐队 ListByTeam 会变成 N+1。
+	// 判据是「已裁定且结论为 disqualify」—— 改判成其它结论后该队自动不再命中，
+	// 所以榜单侧不需要维护任何「作废标记」的增删。
+	ListDisqualifiedTeamIDs(ctx context.Context, eventID string) ([]int64, error)
 	// Decide 裁定：写入结论、裁定人、原因与时间。允许对已裁定工单再裁定。
 	// 不存在返回 ErrNotFound。
 	Decide(ctx context.Context, id int64, decider string,

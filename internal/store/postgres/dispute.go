@@ -155,3 +155,36 @@ func (s *DisputeStore) Withdraw(ctx context.Context, id int64) error {
 	}
 	return nil
 }
+
+// ListDisqualifiedTeamIDs 某赛项被裁定取消资格（成绩作废）的队伍 ID。
+//
+// 只认「已裁定 + 结论 disqualify」：已撤回的工单等于没提过，不算；
+// 改判为维持原判 / 授权改分后该队自动不再命中 —— 这正是把判据留在工单表
+// 而不是另存一份「作废标记」的好处，不需要任何回滚维护。
+//
+// JOIN teams 是为了按赛项过滤：工单本身只带 team_id（跨赛项的同名队伍会串）。
+// DISTINCT 是因为同一队可能有多张工单命中（如两轮各裁一次）。
+func (s *DisputeStore) ListDisqualifiedTeamIDs(ctx context.Context, eventID string) ([]int64, error) {
+	rows, err := s.q.Query(ctx, `
+		SELECT DISTINCT d.team_id
+		FROM disputes d
+		JOIN teams t ON t.id = d.team_id
+		WHERE d.contest_id=$1 AND t.event_id=$2
+		  AND d.status='decided' AND d.verdict='disqualify'
+		ORDER BY d.team_id`,
+		store.CurrentContest(ctx), eventID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	defer rows.Close()
+
+	var out []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, mapError(err)
+		}
+		out = append(out, id)
+	}
+	return out, mapError(rows.Err())
+}

@@ -39,6 +39,17 @@ type RankOptions struct {
 	// 默认 false —— 弃赛队伍不应再参与名次与奖项分配（与前端原型的差异点，见 PROGRESS.md）。
 	IncludeWithdrawn bool
 
+	// VoidedTeams 被裁定「取消资格」的队伍（成绩作废，2026/10/10 接线）。
+	//
+	// 与 StandingRow.Disqualified（红牌）是两回事，所以刻意不共用同一个开关：
+	//
+	//	红牌     成绩**保留** —— 留在榜内、名次置 0，分数照给（留痕可查）
+	//	裁定作废  成绩**作废** —— 整行不进榜单，连 Result 都不再给出
+	//
+	// 判据由调用方从争议工单派生（唯一事实源 = 工单），不在这里落库复制一份：
+	// 改判（disqualify → uphold）时榜单自动恢复，无需任何回滚维护。
+	VoidedTeams map[int64]bool
+
 	// OnlySigned 是否只统计选手代表已签字的轮次。
 	// 默认 false：与前端原型一致，未签字也先参与试排名（现场需要实时看名次）。
 	// 正式公示前应置为 true。
@@ -80,6 +91,9 @@ func Rank(in RankInput, opts RankOptions) []model.StandingRow {
 		t := in.Teams[i]
 		if t.EventID != "" && t.EventID != ev.ID {
 			continue // 防御：传入了不属于本赛项的队伍
+		}
+		if opts.VoidedTeams[t.ID] {
+			continue // 裁定取消资格：成绩作废，整行不进榜单
 		}
 		if !opts.IncludeWithdrawn && t.Status == model.TeamWithdrawn {
 			continue

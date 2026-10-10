@@ -3,6 +3,7 @@ package service_test
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/jialangli/comptition-score-server/internal/model"
@@ -424,5 +425,109 @@ func TestDisputeUpholdDisqualifyNoChangeRequest(t *testing.T) {
 	}
 	if _, rerr := svc.PendingChangeOf(ctx, teamID, 1); !errors.Is(rerr, store.ErrNotFound) {
 		t.Fatalf("维持原判不应生成改分单，实际 err=%v", rerr)
+	}
+}
+
+// dqRowsOf 取某组别的榜单行（榜单按组别分组返回）。
+func dqRowsOf(t *testing.T, res *service.StandingsResult, group string) []model.StandingRow {
+	t.Helper()
+	for _, g := range res.Groups {
+		if g.Group == group {
+			return g.Rows
+		}
+	}
+	t.Fatalf("榜单里没有组别 %q", group)
+	return nil
+}
+
+func dqNos(rows []model.StandingRow) []string {
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.Team.TeamNo)
+	}
+	return out
+}
+
+// TestStandingsExcludeDisqualifiedTeam 裁定「取消资格」→ 该队整行不进榜单（成绩作废），改判后自动恢复。
+//
+// 补的是后端此前的断点：DecideDispute 只把结论写进工单，榜单根本不读争议 →
+// 「裁定完取消资格，榜单纹丝不动」，作废了却无人认领（wireframe P8c note 7 点的正是这个风险）。
+// 本用例同时钉住三件事：① 整行剔除且名次连续；② 榜单能解释「为什么少了一队」（voidedTeamIds）；
+// ③ 改判后自动恢复 —— 判据派生自工单，不需要任何回滚维护。
+func TestStandingsExcludeDisqualifiedTeam(t *testing.T) {
+	svc, _ := newSvc(t)
+	ctx := operatorCtx("运营A")
+
+	ev, err := svc.CreateEvent(ctx, brainPlanetEvent())
+	if err != nil {
+		t.Fatalf("建赛项失败: %v", err)
+	}
+
+	teams := map[string]int64{}
+	for _, spec := range []struct {
+		no, name string
+		task     float64
+		dur      float64
+	}{
+		{"9101", "甲队", 90, 100},
+		{"9102", "乙队", 80, 90},
+		{"9103", "丙队", 70, 80},
+	} {
+		team, terr := svc.CreateTeam(ctx, model.TeamDraft{
+			EventID: ev.ID, TeamNo: spec.no, Name: spec.name, GroupCode: "小学组",
+		})
+		if terr != nil {
+			t.Fatalf("建队伍失败: %v", terr)
+		}
+		teams[spec.no] = team.ID
+		if _, serr := svc.SaveScore(ctx, &model.ScoreRecord{
+			TeamID: team.ID, RoundNo: 1, DurationSec: spec.dur, Signed: true,
+			TaskValues: map[string]any{"focus": spec.task, "build": spec.task},
+		}); serr != nil {
+			t.Fatalf("录成绩失败: %v", serr)
+		}
+	}
+
+	// 乙队被裁定「取消资格」
+	d, err := svc.ReportDispute(ctx, teams["9102"], 1, model.DisputeDuplicate, "同队同轮出现两份成绩")
+	if err != nil {
+		t.Fatalf("上报争议失败: %v", err)
+	}
+	if err := svc.DecideDispute(operatorCtx("裁判长C"), d.ID, model.VerdictDisqualify,
+		"确认重复提交，取消资格", 0, 0); err != nil {
+		t.Fatalf("裁定取消资格失败: %v", err)
+	}
+
+	res, err := svc.Standings(ctx, ev.ID, service.StandingsOptions{})
+	if err != nil {
+		t.Fatalf("取榜单失败: %v", err)
+	}
+	rows := dqRowsOf(t, res, "小学组")
+	if got := dqNos(rows); !reflect.DeepEqual(got, []string{"9101", "9103"}) {
+		t.Fatalf("被裁定作废的乙队应整行不进榜单，实际 %v", got)
+	}
+	for i, r := range rows {
+		if r.Rank != i+1 {
+			t.Errorf("第 %d 行名次 = %d，应连续发放（作废不留空洞）", i+1, r.Rank)
+		}
+	}
+	if len(res.VoidedTeamIDs) != 1 || res.VoidedTeamIDs[0] != teams["9102"] {
+		t.Errorf("榜单要能解释「为什么少了一队」，voidedTeamIds = %v", res.VoidedTeamIDs)
+	}
+
+	// 改判维持原判 → 作废自动撤销
+	if err := svc.DecideDispute(operatorCtx("裁判长C"), d.ID, model.VerdictUphold,
+		"复核后确认是计时器重复触发，撤销作废", 0, 0); err != nil {
+		t.Fatalf("改判维持原判失败: %v", err)
+	}
+	res2, err := svc.Standings(ctx, ev.ID, service.StandingsOptions{})
+	if err != nil {
+		t.Fatalf("取榜单失败: %v", err)
+	}
+	if got := dqNos(dqRowsOf(t, res2, "小学组")); !reflect.DeepEqual(got, []string{"9101", "9102", "9103"}) {
+		t.Fatalf("改判后乙队应回到榜单（按总分降序：90/80/70），实际 %v", got)
+	}
+	if len(res2.VoidedTeamIDs) != 0 {
+		t.Errorf("改判后不应再有作废队伍，实际 %v", res2.VoidedTeamIDs)
 	}
 }

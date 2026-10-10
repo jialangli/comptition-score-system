@@ -43,6 +43,12 @@ type StandingsResult struct {
 	Groups     []model.GroupStandings  `json:"groups"` // 分组榜单（组内独立名次与奖项）
 	Teams      int                     `json:"teams"`  // 参与排名的队伍数
 	Validation engine.ValidationResult `json:"validation"`
+
+	// VoidedTeamIDs 被裁定「取消资格」而整队不计入榜单的队伍（成绩作废，2026/10/10）。
+	//
+	// 必须回给前端：否则榜上凭空少一队却没有任何解释。对外公示要能说出
+	// 「本组别存在被取消资格队伍，其成绩不计入名次」——这句话得有数据支撑。
+	VoidedTeamIDs []int64 `json:"voidedTeamIds,omitempty"`
 }
 
 // Standings 计算榜单。
@@ -62,6 +68,19 @@ func (s *Service) Standings(ctx context.Context, eventID string, opts StandingsO
 	if err != nil {
 		return nil, err
 	}
+	// 被裁定「取消资格」的队伍：成绩作废、整行不进榜单。
+	//
+	// 判据来自争议工单（唯一事实源），不落库复制 —— 改判后榜单自动恢复。
+	// 放在这里而不是各自调用点：Standings 是榜单 / 公示 / 大屏 / 导出的唯一入口
+	// （大屏走 groupedRows → Standings），改这一处即全覆盖。
+	voidedIDs, err := s.ro().Disputes.ListDisqualifiedTeamIDs(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	voided := make(map[int64]bool, len(voidedIDs))
+	for _, id := range voidedIDs {
+		voided[id] = true
+	}
 
 	rankOpts := engine.RankOptions{
 		Group:             opts.Group,
@@ -69,6 +88,7 @@ func (s *Service) Standings(ctx context.Context, eventID string, opts StandingsO
 		IncludeWithdrawn:  opts.IncludeWithdrawn,
 		OnlySigned:        opts.OnlySigned,
 		AwardOnlyComplete: opts.AwardOnlyComplete,
+		VoidedTeams:       voided,
 	}
 	in := engine.RankInput{Event: ev, Teams: teams, Scores: scores}
 
@@ -78,6 +98,8 @@ func (s *Service) Standings(ctx context.Context, eventID string, opts StandingsO
 		RefTime:    rankOpts.RefTime,
 		Teams:      len(teams),
 		Validation: engine.ValidateEvent(ev),
+
+		VoidedTeamIDs: voidedIDs,
 	}
 	if opts.Group != "" {
 		res.Groups = []model.GroupStandings{{Group: opts.Group, Rows: engine.Rank(in, rankOpts)}}

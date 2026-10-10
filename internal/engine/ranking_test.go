@@ -454,3 +454,50 @@ func TestRankAwardsUseFloorNotCeil(t *testing.T) {
 		t.Errorf("3 队 × 0.34 应按 floor 发 1 个一等奖，实际发了 %d 个（若为 2 说明被改回了 ceil）：%v", n1, got2)
 	}
 }
+
+// TestRankVoidedTeams 被裁定「取消资格」的队伍**整行**不进榜单（成绩作废）。
+//
+// 与红牌（Disqualified）刻意分开是本条的重点：红牌成绩**保留** —— 留在榜内、
+// 名次置 0、分数照给；裁定作废是成绩**作废** —— 连行都不给。
+// 所以这里不是打标记，是在建行时就剔除。
+func TestRankVoidedTeams(t *testing.T) {
+	f := newRankFixture()
+
+	t.Run("整行剔除且名次连续", func(t *testing.T) {
+		rows := Rank(f.input(), RankOptions{Group: "小学组", VoidedTeams: map[int64]bool{2: true}})
+		if got := nos(rows); !reflect.DeepEqual(got, []string{"1001"}) {
+			t.Fatalf("乙队被裁定作废后小学组应只剩甲队，实际 %v", got)
+		}
+		if rows[0].Rank != 1 {
+			t.Errorf("名次应连续发放（作废不是留空洞），实际 %d", rows[0].Rank)
+		}
+		if rows[0].Result.Total == 0 {
+			t.Errorf("在榜队伍的成绩应照常给出")
+		}
+		if rows[0].Disqualified {
+			t.Errorf("裁定作废 ≠ 红牌：不该同时打上红牌标记")
+		}
+	})
+
+	t.Run("奖项名额按剔除后的榜数算", func(t *testing.T) {
+		// 小学组 2 队剔除 1 队 → 榜数 1；一等奖占比 0.1 → floor(0.1)=0 → 保底 1 个
+		rows := Rank(f.input(), RankOptions{Group: "小学组", VoidedTeams: map[int64]bool{2: true}})
+		if rows[0].Award != "一等奖" {
+			t.Errorf("唯一在榜的甲队应拿到保底名额，实际 %q", rows[0].Award)
+		}
+	})
+
+	t.Run("改判后自动恢复（判据派生自工单，无回滚动作）", func(t *testing.T) {
+		rows := Rank(f.input(), RankOptions{Group: "小学组"})
+		if got := nos(rows); !reflect.DeepEqual(got, []string{"1002", "1001"}) {
+			t.Errorf("撤销作废后应按原规则排序（乙队用时更少），实际 %v", got)
+		}
+	})
+
+	t.Run("不影响其它组别", func(t *testing.T) {
+		rows := Rank(f.input(), RankOptions{Group: "初中组", VoidedTeams: map[int64]bool{2: true}})
+		if got := nos(rows); !reflect.DeepEqual(got, []string{"1003"}) {
+			t.Errorf("初中组不应受影响，实际 %v", got)
+		}
+	})
+}
