@@ -22,12 +22,21 @@ type Seat struct {
 type SlotType string
 
 const (
-	SlotNormal SlotType = "normal" // 正式场次：队伍来自队伍主库
-	SlotExtra  SlotType = "extra"  // 加时赛：独立场次，队伍来自场内快照
+	SlotNormal  SlotType = "normal"  // 正式场次：队伍来自队伍主库，参与分台派生
+	SlotExtra   SlotType = "extra"   // 加时赛：独立场次，仅在影响冠亚季军 / 晋级时启用
+	SlotRematch SlotType = "rematch" // 重赛：独立场次，某队因器材故障 / 受干扰等原因重打一次
 )
 
+// Extra 是否「非正式场次」（加时赛 / 重赛）。
+//
+// 两者机制完全相同 —— 队伍以场内快照导入、不写入队伍主库、不参与分台派生、归档时独立标记；
+// 区别只在「为什么打」（见各常量的注释）。判断一律走本方法，
+// 不要再写 t == SlotExtra：新增类型时会漏点，而漏点**不报错**，
+// 会把独立场次当成正式场次走进派生路径。
+func (t SlotType) Extra() bool { return t == SlotExtra || t == SlotRematch }
+
 // Valid 校验场次类型。
-func (t SlotType) Valid() bool { return t == SlotNormal || t == SlotExtra }
+func (t SlotType) Valid() bool { return t == SlotNormal || t.Extra() }
 
 // Display 返回中文名称（界面与留痕文案用）。
 func (t SlotType) Display() string {
@@ -36,6 +45,8 @@ func (t SlotType) Display() string {
 		return "正式场次"
 	case SlotExtra:
 		return "加时赛（独立场次）"
+	case SlotRematch:
+		return "重赛（独立场次）"
 	}
 	return string(t)
 }

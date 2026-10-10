@@ -605,6 +605,20 @@ func TestScheduleAndScreenOverHTTP(t *testing.T) {
 		"eventId": ev.ID, "group": "小学组", "type": "extra",
 	}, "运营A").expect(t, http.StatusCreated).as(t, &extra)
 
+	// 重赛场次：与加时赛**同机制**（独立场次 / 场内快照），仅类型不同。
+	// 这条同时是 slot_type 新取值域（迁移 0015）的端到端证明 —— 迁移没上时这里是 500。
+	var rematch model.Slot
+	ts.do(t, http.MethodPost, "/api/v1/slots", map[string]any{
+		"seatId": seat.ID, "period": "晚上", "time": "19:00–20:00",
+		"eventId": ev.ID, "group": "小学组", "type": "rematch",
+	}, "运营A").expect(t, http.StatusCreated).as(t, &rematch)
+	if rematch.Type != model.SlotRematch || rematch.Type.Display() != "重赛（独立场次）" {
+		t.Fatalf("重赛场次类型异常：%q / %q", rematch.Type, rematch.Type.Display())
+	}
+	if !rematch.Type.Extra() {
+		t.Fatalf("重赛应属于「非正式场次」（Extra()=true）")
+	}
+
 	ts.do(t, http.MethodPost, "/api/v1/slots/"+itoa(extra.ID)+"/snapshot", map[string]any{
 		"snapshot": []map[string]any{
 			{"no": "9001", "name": "新星队", "school": "成都教装展学校", "coach": "陈老师"},

@@ -2473,7 +2473,7 @@ function slotCountOfSeat(seatId){var n=0;S.slots.forEach(function(x){if(x.seatId
 function seatName(id){for(var i=0;i<S.seats.length;i++){if(S.seats[i].id===id)return S.seats[i].name;}return '—';}
 function slotTeams(sl){
   if(!sl)return [];
-  if(sl.type==='extra')return (sl.snapshot||[]).map(function(x){return {no:x.no,name:x.name,school:x.school||'',temp:true};});
+  if(isExtraSlot(sl))return (sl.snapshot||[]).map(function(x){return {no:x.no,name:x.name,school:x.school||'',temp:true};});
   return (sl.teams||[]).map(function(id){
     var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===id){t=S.teams[i];break;}}
     return t?{no:t.no,name:t.name,school:t.school||'',id:t.id,temp:false}:null;
@@ -2521,12 +2521,17 @@ function delSlot(id){
   save();render();
 }
 function openSlot(id){CUR_SLOT=id;render();}
+/* 非正式场次（加时赛 / 重赛）：独立场次，队伍来自场内快照，不参与派生、不写队伍主库。
+   两者机制完全相同，只有「为什么打」不同 —— 判据一律走 isExtraSlot()，
+   **不要**再写 sl.type==='extra'（新增类型时会漏点，且漏点不报错：独立场次会被当正式场次走派生）。 */
+function isExtraSlot(sl){return !!sl&&(sl.type==='extra'||sl.type==='rematch');}
+function slotKindName(sl){if(!sl||!sl.type||sl.type==='normal')return '正式场次';return sl.type==='rematch'?'重赛':'加时赛';}
 function slotSet(id,k,v){
   var sl=slotById(id);if(!sl)return;
   var before=String(sl[k]==null?'—':sl[k]);
   sl[k]=v;
   if(k==='type'){
-    if(v==='extra'){sl.snapshot=sl.snapshot||[];sl.teams=[];}
+    if(v&&v!=='normal'){sl.snapshot=sl.snapshot||[];sl.teams=[];}
     else{sl.teams=sl.teams||[];sl.snapshot=null;}
   }
   var label=(k==='eventId')?'赛项':(k==='group'?'组别':'场次类型');
@@ -2535,7 +2540,7 @@ function slotSet(id,k,v){
 }
 function autoAssignByProximity(slotId){
   var sl=slotById(slotId);if(!sl)return;
-  if(sl.type==='extra'){alert('加时赛场次请用「导入队伍编号」建立场内快照，不参与自动分配。');return;}
+  if(isExtraSlot(sl)){alert(slotKindName(sl)+'场次请用「导入队伍编号」建立场内快照，不参与自动分配。');return;}
   var targets=S.slots.filter(function(x){return x.period===sl.period&&x.type==='normal'&&x.eventId===sl.eventId&&x.group===sl.group;});
   if(!targets.length){alert('该时段没有同赛项同组别的可用场次，请先配置赛台场次。');return;}
   var pool=S.teams.filter(function(t){return t.eventId===sl.eventId&&t.group===sl.group&&t.status!=='withdrawn';}).map(function(t){return t.id;});
@@ -2551,7 +2556,7 @@ function moveTeamToSlot(teamId,targetSlotId){
   var from=null;
   S.slots.forEach(function(x){if(x.teams){var i=x.teams.indexOf(teamId);if(i>=0){from=x;x.teams.splice(i,1);}}});
   var to=slotById(targetSlotId);
-  if(!to||to.type==='extra'){alert('目标场次不可用。');save();render();return;}
+  if(!to||isExtraSlot(to)){alert('目标场次不可用。');save();render();return;}
   to.teams=to.teams||[];if(to.teams.indexOf(teamId)<0)to.teams.push(teamId);
   var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===teamId){t=S.teams[i];break;}}
   logAudit('调赛台','手动改派赛台',(t?t.name:teamId)+' @ '+(from?seatName(from.seatId):'—'),seatName(to.seatId),'现场调度');
@@ -2559,7 +2564,7 @@ function moveTeamToSlot(teamId,targetSlotId){
 }
 function clearSlotTeams(slotId){
   var sl=slotById(slotId);if(!sl)return;
-  if(sl.type==='extra')sl.snapshot=[];else sl.teams=[];
+  if(isExtraSlot(sl))sl.snapshot=[];else sl.teams=[];
   logAudit('调赛台','清空场次队伍',sl.period+' · '+sl.group,'—','重新编排');
   save();render();
 }
@@ -2592,9 +2597,9 @@ function viewSeats(){
       var sl=slotOfSeat(s.id,p);
       if(!sl)return '<td><div class="slot empty" onclick="addSlot(\''+s.id+'\',\''+p+'\')">+ 配置场次</div></td>';
       var ev=find(sl.eventId)||{name:'—'};
-      return '<td><div class="slot'+(sl.type==='extra'?' extra':'')+(CUR_SLOT===sl.id?' sel':'')+'" onclick="openSlot(\''+sl.id+'\')">'+
+      return '<td><div class="slot'+(isExtraSlot(sl)?' extra':'')+(CUR_SLOT===sl.id?' sel':'')+'" onclick="openSlot(\''+sl.id+'\')">'+
         '<b>'+esc(ev.name)+'</b><div class="small muted">'+esc(sl.group)+'</div>'+
-        '<div style="margin:4px 0">'+(sl.type==='extra'?'<span class="tag warn">加时赛</span>':'<span class="tag b">正式场次</span>')+'</div>'+
+        '<div style="margin:4px 0">'+'<span class="tag '+(isExtraSlot(sl)?'warn':'b')+'">'+slotKindName(sl)+'</span>'+'</div>'+
         '<div class="small">'+slotTeams(sl).length+' 支队伍</div></div></td>';
     }).join('')+'</tr>';
   }).join('');
@@ -2616,11 +2621,17 @@ function viewSeats(){
         '<div class="fld"><label>赛项</label><select onchange="slotSet(\''+sl.id+'\',\'eventId\',this.value)">'+evOpts+'</select></div>'+
         '<div class="fld"><label>组别</label><select onchange="slotSet(\''+sl.id+'\',\'group\',this.value)">'+grpOpts+'</select></div>'+
         '<div class="fld"><label>场次类型</label><select onchange="slotSet(\''+sl.id+'\',\'type\',this.value)">'+
-          '<option value="normal" '+(sl.type!=='extra'?'selected':'')+'>正式场次</option>'+
-          '<option value="extra" '+(sl.type==='extra'?'selected':'')+'>加时赛（独立场次）</option></select></div>'+
+          '<option value="normal" '+((sl.type||'normal')==='normal'?'selected':'')+'>正式场次</option>'+
+          '<option value="extra" '+(sl.type==='extra'?'selected':'')+'>加时赛（独立场次）</option>'+
+          '<option value="rematch" '+(sl.type==='rematch'?'selected':'')+'>重赛（独立场次）</option></select></div>'+
       '</div>'+
-      (sl.type==='extra'
-        ? '<div class="note" style="margin-bottom:12px">加时赛 = 赛项内的<b>独立场次</b>，仅在影响冠亚季军 / 晋级时启用。队伍编号由运营手动导入，<b>以导入为准</b>；数据以<b>场内快照</b>保存，<b>不写入队伍主库</b>，归档时独立标记。</div>'+
+      (isExtraSlot(sl)
+        ? '<div class="note" style="margin-bottom:12px">'+slotKindName(sl)+' = 赛项内的<b>独立场次</b>，'+
+          (sl.type==='rematch'
+            ? '用于某队因<b>器材故障 / 受干扰等原因</b>需要<b>重打一次</b>。'
+            : '仅在<b>影响冠亚季军 / 晋级</b>时启用。')+
+          '队伍编号由运营手动导入，<b>以导入为准</b>；数据以<b>场内快照</b>保存，<b>不写入队伍主库</b>，归档时独立标记。'+
+          '<br>⚠️ <b>成绩采用口径</b>：本场次成绩<b>不自动进榜单</b>；若要作为榜单成绩，仍走<b>改分申请 → 审批</b>（有留痕）。</div>'+
           '<div class="fld"><label>导入队伍编号（每行一个，可写作「编号,队伍名」）</label>'+
           '<textarea id="extraText" placeholder="9001&#10;9002,临时队"></textarea></div>'+
           '<div class="row" style="margin-bottom:12px"><button class="btn primary" onclick="importExtraTeams(\''+sl.id+'\')">导入为场内快照</button>'+

@@ -155,7 +155,7 @@ comptition-score-server/
 | `teams` | 队伍：**event_id / team_no（唯一）/ name / school / coach / group_code / status(active/withdrawn) / source(excel/manual/api)** |
 | `scores` | 打分记录：team_id / round_no / task_values(JSONB) / duration_sec / yellow（**黄牌计数，0..阈值-1**）/ upgraded_red（**已升级出的红牌数**）/ red / signed / operator / created_at |
 | `seats` | 赛台：event_id / name / sort_order |
-| `slots` | 场次：seat_id / period / time_range / event_id / group_code / **type(normal/extra)** |
+| `slots` | 场次：seat_id / period / time_range / event_id / group_code / **type(normal/extra/rematch)**（extra=加时赛、rematch=重赛，两者都是**独立场次**：不写队伍主库、成绩不自动进榜单） |
 | `slot_teams` | 场次-队伍 关联（正式场次队伍来源主库） |
 | `slot_snapshots` | **加时赛场内快照**：slot_id / team_no / name / school / coach —— 独立表，**不写主库** |
 | `audit_logs` | 六类操作留痕：operator / action / target / before / after / reason / created_at |
