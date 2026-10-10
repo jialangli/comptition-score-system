@@ -2,7 +2,8 @@
 
 > 技术栈：Go（net/http + pgx/v5）+ PostgreSQL 17
 > 定位：局域网部署、离线优先、单二进制交付
-> 状态：P1 ✅ ｜ P2 ✅ ｜ P3 ✅ ｜ P4（API 层 + HTTP 测试 + 冒烟脚本）✅ ｜ P5 进行中 ｜ 详见 `PROGRESS.md`
+> 状态：P1 ~ P9 已完成（后端主体 + 前端接入 + 改分/争议/发布/锁与证据均已落地）；
+> 其后为口径级变更，按日期记在 `PROGRESS.md` 与 `CHANGELOG.md`
 
 ---
 
@@ -95,7 +96,7 @@ comptition-score-server/
 │       ├── reader.go                # ZIP + deflate + XML 扫描（与前端同算法）
 │       └── reader_test.go
 │
-├── migrations/
+├── migrations/                      # 手写顺序编号，up / down 成对（当前 0001 ~ 0014）
 │   ├── 0001_init.up.sql
 │   └── 0001_init.down.sql
 │
@@ -152,7 +153,7 @@ comptition-score-server/
 | `events` | 赛项：id / name / groups / score_rule / bonus_rules / penalty_rule / rank_rule / custom_formula（规则部分存 **JSONB**，字段名与前端 Schema v1 完全一致） |
 | `tasks` | 任务项：event_id / id / name / type / max_score / weight / control / enum_map |
 | `teams` | 队伍：**event_id / team_no（唯一）/ name / school / coach / group_code / status(active/withdrawn) / source(excel/manual/api)** |
-| `scores` | 打分记录：team_id / round_no / task_values(JSONB) / duration_sec / yellow / red / signed / operator / created_at |
+| `scores` | 打分记录：team_id / round_no / task_values(JSONB) / duration_sec / yellow（**黄牌计数，0..阈值-1**）/ upgraded_red（**已升级出的红牌数**）/ red / signed / operator / created_at |
 | `seats` | 赛台：event_id / name / sort_order |
 | `slots` | 场次：seat_id / period / time_range / event_id / group_code / **type(normal/extra)** |
 | `slot_teams` | 场次-队伍 关联（正式场次队伍来源主库） |
@@ -209,6 +210,10 @@ comptition-score-server/
 8. **单二进制交付** —— `go build` 出一个 exe，前端已 embed；赛场上拷到机器、配好 DSN 就能跑。
 9. **迁移脚本手写、顺序编号** —— 不引 migrate 框架，`0001_init.up.sql` 直接可读，便于学校/公司 DBA 审。
 10. **时间统一 UTC 存储、展示层转本地** —— 避免跨时区赛事（美国/北京赛区）出现排序错乱。
+11. **牌面口径只有一份，且读写两条路径都归一** —— 「几张黄牌升 1 张红牌」的阈值由赛项下发，
+    黄牌**记满即转红并清零**，所以已升级出的红牌**必须单独落列**（`scores.upgraded_red`）。
+    写路径 `NormalizeCards`（录入端与服务端共用）与读路径 `ResolveCards`（兼容仍是累计值的老数据）
+    是同一套判据的两次表达 —— 与「计分双端逐位一致」同理，两侧各写一套必然漂移。
 
 ---
 

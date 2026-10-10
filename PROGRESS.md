@@ -677,6 +677,78 @@ go test -p 1 -count=1 ./... → api ok (8.7s) / engine ok (1.4s) / service ok (1
 
 ---
 
+## 判罚升级口径落地：黄牌记满即清零（2026-10-10）
+
+### 背景
+
+需求原文：「裁判端的打分页需要与后台管理的赛项与规则配置 · 判罚规则的累计升级阈值进行链接，
+选的是超过三张黄牌转化为一张红牌，那么这个裁判的打分页的黄牌计数器最大只能为 3」。
+
+核下来这不是给输入框加个 `max` 属性 —— 它**改了黄牌的数据语义**：
+
+| | 旧口径 | 新口径 |
+|---|---|---|
+| `yellow` 含义 | 不封顶的累计值（可能 4、5、6） | **当前周期计数**（`0 .. 阈值-1`） |
+| 红牌数 | `直接记的 + floor(yellow / 阈值)`，现算 | `直接记的 + upgraded_red` |
+| 计数器上限 | 无 | **= 阈值**（由后台按赛项下发） |
+
+**关键推论（决定了本次必须加列）**：清零之后 `floor(yellow / 阈值)` 恒为 0 ——
+已经升级出来的红牌**算不出来了**，必须落到独立字段。
+所以 `scores.upgraded_red` 不是设计选择，是「归零」方案的数学后果。
+
+### 交付文件
+
+```
+migrations/0014_score_card_yellow_clear.{up,down}.sql   加列 + 历史值折算
+internal/engine/cards.go                                新增 NormalizeCards（写路径归一）
+                                                        ResolveCards 改为「当前周期黄牌 + 已升级红牌」
+internal/model/score.go                                 ScoreRecord 补 UpgradedRed
+internal/api/{params,score_handler,sync_handler}.go     三个请求 DTO 补字段
+internal/service/score_service.go                       SaveScore 落库前先归一
+internal/store/postgres/score.go                        SELECT / Scan / UPSERT 带新列
+internal/engine/cards_test.go                           表驱动用例补「期望黄牌计数」一列
+internal/service/integration_test.go                    TestScoreCardYellowClearsAtThreshold
+web/index.html                                          离线补传请求体补 upgradedRed（见下）
+index.html · 赛事统分后台管理_demo.html · 裁判打分系统_wireframe.html   前端三处同口径
+```
+
+### 关键设计
+
+| 决策 | 说明 |
+|---|---|
+| **读写两条路径，同一套口径** | `NormalizeCards`（写：把「要记的黄牌总数」折算成 `(黄牌计数, 升级红牌数)`）与 `ResolveCards`（读：兼容仍是累计值的老数据）表达的是一条规则。**录入端与服务端共用** —— 各算一套必然漂移 |
+| **关掉开关 = 规则真的不生效** | `cardRules.enabled=false` 时黄牌不累计、也不升级红牌，只剩裁判直接记的红牌。不是「把界面藏起来」 |
+| **升级那一刻必须显式提示** | 红牌 = 当场取消比赛资格（重后果），而升级是系统自动触发的。若静默发生，操作者不会知道自己刚记下的第 3 张黄牌变成了红牌 |
+| **`/sync` 必须带上新字段** | 前端归零后是 `yellow=0, upgradedRed=1`；只发 `yellow`/`red` 时服务端会算出**红牌 0 → 取消资格静默失效**（成绩看着对，红牌没了）。补传正是离线场景的主路径 |
+| **迁移不可逆要写明** | 归一后原「累计黄牌数」不再单独保留（追溯看操作审计里的逐次记牌记录），`down` 只回滚列 |
+| **阈值逐赛项取** | `events.penalty_rule -> 'cardRules' ->> 'redThreshold'`，缺省 3；关闭黄牌计数器的赛项不动 |
+
+### 验证记录（真实执行）
+
+```
+bash scripts/test_db.sh                → 迁移 0014 应用成功
+go build ./... / go vet ./...          → 通过、0 告警
+gofmt -l internal/ cmd/                → 无输出
+go test -p 1 -count=1 ./...            → api ok (18.5s) / engine ok (1.2s)
+                                          model ok (1.2s) / service ok (17.5s)   ← 真连 PG
+前端全量（30 个脚本，含 4 个探针）      → 1501 项 0 失败
+```
+
+**新增集成用例 `TestScoreCardYellowClearsAtThreshold`**（打到真实 PG）一次证明三件事：
+
+1. **新列真贯通** —— 写 `upgraded_red=1 / yellow=0`，读回仍是 `1 / 0`；
+2. **写路径归一真生效** —— 请求里发「要记 5 张黄牌」（阈值 3），落库是 `yellow=2, upgraded_red=1`，
+   即服务端不会把 5 张原样存下来；
+3. **重复归一不叠加** —— 同一条记录再归一一次结果不变（幂等），否则补传重试会把红牌越滚越多。
+
+### 已知边界
+
+- **归一不可逆**：历史 `yellow` 已被折算，`down` 只能回滚列、回不到原累计值。
+- **前端 demo 的分数仍存在浏览器 localStorage**（`S.scores[teamId] = {1: rec, 2: rec}`），
+  与后端两轮结构同构但**不是同一份数据** —— 该前端是原型，不接后端。
+
+---
+
 ## 已知问题 / 待办
 
 ### ✅ 已定调（2026-10-04）
@@ -698,6 +770,11 @@ go test -p 1 -count=1 ./... → api ok (8.7s) / engine ok (1.4s) / service ok (1
       串行（`-p 1`）可过。修法：每测试独立 schema，或 `newSvc(t)` 生成唯一赛项 id。
 - [ ] **就近分配的排序依据是队伍编号**，不是叫号表。真实赛制应以 WRC 导出的叫号表为序，叫号表尚未接入（P6）。
       当前算法（按编号轮流铺到各赛台）是唯一确定且可解释的替代，运营可随时手动改派
+- [ ] **队伍级归台（`teams.seat_id` / `sort_order`）后端不存在** —— 前端原型已把它定为
+      「队伍落在哪张台」的**唯一事实源**（场次队伍改为派生，见 CHANGELOG 2026-10-09 那批），
+      但库表里没有这两列、后端也**没有队列接口**。因此平板端「本赛台队列」目前**没有权威数据源**。
+      补齐 = 迁移（加列或 `team_seats` 表）+ 按 `slot_teams` 反推回填 + 与既有
+      `slots/{id}/auto-assign`、`slots/{id}/teams` 两个接口重新对齐（它们与「派生」语义冲突）
 - [ ] **`service` 覆盖率 82%**：剩余未覆盖的多为事务闭包内的 `return err` 分支，需故障注入才能触达。计分等核心计算在 engine 侧已是 100%
 - [ ] **`-race` 竞态检测跑不了**：需要 cgo，而本机无 gcc。当前用「互斥锁 + 并发对称性测试」替代。若后续要上 CI，建议在带 gcc 的环境或 `CGO_ENABLED=1` 的容器里补跑一次
 - [x] `scripts/pg_start.sh` / `pg_stop.sh` 已补（幂等 + postmaster.pid 残留自愈 + 失败打印日志尾部）
