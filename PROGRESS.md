@@ -858,13 +858,15 @@ go test -p 1 -count=1 ./...            → api ok (18.5s) / engine ok (1.2s)
   它的加分规则还引用了 `energy` / `bridge` 两个**不在任务表里**的计数项 ——
   `engine.ValidateEvent` 对此只给警告（「将作为派生计数项参与加分（不计入基础分）」），
   不报错，所以一直没被注意到。补齐 = 按 V6.2 在后台把 7 项建出来（**配置工作，不是开发工作**）。
-- [ ] **`EventStore.List` 批量读任务时没带 `contest_id` 过滤**（2026-10-10 发现，待确认）：
-  `SELECT … FROM tasks ORDER BY event_id, sort_order, id` 读的是**全库**任务，
-  再按内存里的 `idx[eventID]`（那一步已按赛事过滤）逐个赛项归位。
-  而 `tasks` 的主键是 `(contest_id, event_id, id)` —— 同一个 `event_id`（如 `brain_planet`）
-  **允许在两个赛事里各存一套**，于是另一赛事的任务会被 append 到当前赛事的同名赛项上。
-  现网单赛事时看不出来（测试库也只有 `ct_default` 一套），多赛事并行后会表现为
-  「赛项任务莫名翻倍」。改点只有一处：给那条 SELECT 加 `WHERE contest_id = $1`。
+- [x] **`EventStore.List` 批量读任务缺 `contest_id` 过滤 —— 已修**（2026-10-10，一行 WHERE）：
+  实测两场赛事、同 id 赛项、A 场 2 项 + B 场 3 项 → A 场读出 5 项（`build build energy focus focus`）。
+  新增 `TestMultiContestTaskIsolation` 守住（先红后绿；素材特意让两场任务集不同，
+  否则「串了」与「没串」结果一样、断言失效）。
+  ⚠️ **同类候选（启发式扫过，尚未逐个验证，也没动）**：`audit_logs` / `import_logs` /
+  `config_snapshots` 三张表**都有 `contest_id` 列，但对应查询没用**：
+  `AuditStore.CountByAction`（审计汇总计数）、`AuditStore.ListImports`（导入记录列表）、
+  `ScreenStore.ListSnapshots`（留底快照列表）。现网单赛事时看不出来，多赛事后会互相串。
+  要修的话是同样的一行 WHERE ×3 + 一条共用用例；属独立一批。
 - [ ] 鉴权仅预留插槽（`api.CurrentUser`），本期不实现
 - [ ] `x/text` 已从间接依赖提升为直接依赖（仅用于中文排序），二进制体积增加约 1MB。若在意可改注入 `CodepointNameLess` 换回码点序
 - [ ] **PG 后端进程曾被 `0xC0000142`（DLL 初始化失败）杀掉一次** —— 典型是杀软拦截 fork。若后续频繁出现，需要把 `D:\Desktop\workbuddy\pgsql\bin` 加入杀软白名单

@@ -83,6 +83,21 @@
 
 ### 修复
 
+#### 批量读任务缺赛事过滤：跨赛事的同名赛项会互相串任务（2026-10-10）
+
+- `EventStore.List` 为避开 N+1，先把赛项读出来、再一次性把任务全拉回来按 `event_id` 归位。
+  那条 `SELECT … FROM tasks` **起初没带 `contest_id`** —— 而 `tasks` 的主键是
+  `(contest_id, event_id, id)`，`brain_planet` 这类模板 id 几乎每场赛事都有，
+  于是**另一场赛事的同名赛项任务会被 append 到本场赛项上**。
+  单赛事下永远看不出来（测试库长期只有 `ct_default` 一套），多赛事并行的现场表现是
+  **「赛项任务莫名翻倍」**：实测两场赛事、A 场 2 项 + B 场 3 项 → A 场读出
+  `[build build energy focus focus]` 共 5 项（既有重复、又混入 B 场独有的 `energy`）。
+- 修法是**一行**：`FROM tasks WHERE contest_id = $1`（参数取 `store.CurrentContest(ctx)`）。
+- 新增 `TestMultiContestTaskIsolation` 守住它：两场赛事、**同一个赛项 id、不同任务集**，
+  断言 A 场只见自己那 2 项、B 场仍是 3 项（既要抓住串号，也不许为了修过滤把本场该有的滤掉）。
+  ⚠️ 素材上两场任务集必须不同 —— 相同的话「串了」与「没串」结果长得一样，断言形同虚设。
+  修之前该用例是红的，修之后绿。
+
 - **名次编排「不递补」后端缺失**（见上「新增」）：基准里的 `excluded` 因此去掉了「递补口径」一条，
   主场景改为在**产品默认的 `none`** 下对照（名次带空洞），另加
   `brain_planet__substitute_rank` 覆盖另一档；覆盖度自检要求两档各一场景、且都留着作废队

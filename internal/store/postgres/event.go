@@ -83,10 +83,15 @@ func (s *EventStore) List(ctx context.Context) ([]model.Event, error) {
 		return out, nil
 	}
 
+	// ⚠️ 这里必须按赛事过滤：tasks 的主键是 (contest_id, event_id, id)，
+	// 同一个 event_id（brain_planet 这类模板 id 几乎每场赛事都有）允许在两场赛事各存一套。
+	// 少了这个条件，另一场赛事的同名赛项任务会被 append 到本场赛项上 ——
+	// 现场表现是「赛项任务莫名翻倍」，而单赛事下永远看不出来（见 TestMultiContestTaskIsolation）。
 	trows, err := s.q.Query(ctx, `
 		SELECT event_id, id, name, type, max_score::float8, weight::float8,
 		       unit, control, enum_map, sort_order
-		FROM tasks ORDER BY event_id, sort_order, id`)
+		FROM tasks WHERE contest_id = $1 ORDER BY event_id, sort_order, id`,
+		store.CurrentContest(ctx))
 	if err != nil {
 		return nil, mapError(err)
 	}

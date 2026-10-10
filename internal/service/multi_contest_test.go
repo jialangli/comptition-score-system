@@ -18,6 +18,8 @@ package service_test
 
 import (
 	"context"
+	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/jialangli/comptition-score-server/internal/model"
@@ -161,4 +163,101 @@ func TestMultiContestIsolation(t *testing.T) {
 	if _, err := svc.GetTeam(ctxB, teamA.ID); err == nil {
 		t.Errorf("B 场不应能通过 ID 读到 A 场的队伍（隔离失效）")
 	}
+}
+
+// TestMultiContestTaskIsolation 同 id 赛项的任务不能跨赛事串。
+//
+// 守的是一条**只在多赛事下才暴露**的漏法：`EventStore.List` 为了避开 N+1，先把赛项读出来，
+// 再一次性 `SELECT … FROM tasks` 拉任务、按内存里的 idx[event_id] 归位。
+// 那条 SELECT 起初**没带 contest_id** —— 而 tasks 的主键是 (contest_id, event_id, id)，
+// 同一个 event_id（`brain_planet` 这种模板 id 几乎每场赛事都有）允许在两场赛事各存一套，
+// 于是另一场的任务会被 append 到本场同名赛项上：现场表现是「赛项任务莫名翻倍」。
+//
+// 单赛事下永远看不出来（测试库也长期只有 ct_default 一套），所以必须构造两场赛事；
+// 而且两场的任务集要**不一样**，否则「串了」与「没串」的结果都是同一份。
+func TestMultiContestTaskIsolation(t *testing.T) {
+	svc, db := newSvc(t)
+	if err := db.TruncateAll(context.Background()); err != nil {
+		t.Fatalf("清空失败: %v", err)
+	}
+	const (
+		ctA = "ct_task_a"
+		ctB = "ct_task_b"
+	)
+	ctxA := contestCtx(ctA, "运营A")
+	ctxB := contestCtx(ctB, "运营B")
+
+	if err := db.Repos().Contests.EnsureDefault(context.Background()); err != nil {
+		t.Fatalf("重建默认赛事失败: %v", err)
+	}
+	for _, c := range []*model.Contest{
+		{ID: ctA, Name: "A 场", Status: model.ContestLive},
+		{ID: ctB, Name: "B 场", Status: model.ContestLive},
+	} {
+		if err := db.Repos().Contests.Create(context.Background(), c); err != nil {
+			t.Fatalf("建赛事 %s 失败: %v", c.ID, err)
+		}
+	}
+
+	// A 场：脑机星球（focus + build）
+	if _, err := svc.CreateEvent(ctxA, brainPlanetEvent()); err != nil {
+		t.Fatalf("A 场建赛项失败: %v", err)
+	}
+	// B 场：**同一个赛项 id**，但任务集不同（多一个计数项「energy」）——
+	// 只有这样，串号时「多的那项」才会直接暴露出来。
+	evB := brainPlanetEvent()
+	evB.Tasks = append(evB.Tasks, model.Task{
+		ID: "energy", Name: "能量球运输", Type: model.TaskCount,
+		MaxScore: fptr(160), Weight: 20, Control: model.CtrlCounter, Unit: "颗",
+	})
+	if _, err := svc.CreateEvent(ctxB, evB); err != nil {
+		t.Fatalf("B 场建赛项失败（同 id 赛项应可共存）: %v", err)
+	}
+
+	// List 就是那个「批量拉全库任务再归位」的入口 —— 漏过滤的地方正在这里。
+	listA, err := svc.ListEvents(ctxA)
+	if err != nil {
+		t.Fatalf("A 场列赛项失败: %v", err)
+	}
+	if len(listA) != 1 {
+		t.Fatalf("A 场应只见 1 个赛项，实为 %d", len(listA))
+	}
+	gotA := taskIDs(listA[0].Tasks)
+	wantA := []string{"build", "focus"}
+	if !reflect.DeepEqual(gotA, wantA) {
+		t.Errorf("A 场赛项的任务 = %v，期望 %v —— 多出来的就是另一场赛事的任务串进来了", gotA, wantA)
+	}
+	if containsStr(gotA, "energy") {
+		t.Errorf("B 场独有的任务「energy」出现在 A 场赛项上（跨赛事任务串号）")
+	}
+
+	listB, err := svc.ListEvents(ctxB)
+	if err != nil {
+		t.Fatalf("B 场列赛项失败: %v", err)
+	}
+	gotB := taskIDs(listB[0].Tasks)
+	wantB := []string{"build", "energy", "focus"}
+	if !reflect.DeepEqual(gotB, wantB) {
+		t.Errorf("B 场赛项的任务 = %v，期望 %v —— 修漏过滤时别把本场该有的也滤掉了", gotB, wantB)
+	}
+}
+
+// taskIDs 取任务 id 升序，便于逐项断言（顺序本身就是 ReplaceTasks 落库的 sort_order，
+// 这里只关心集合是否串号，所以排一下）。
+func taskIDs(ts []model.Task) []string {
+	out := make([]string, 0, len(ts))
+	for i := range ts {
+		out = append(out, ts[i].ID)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func containsStr(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
 }
