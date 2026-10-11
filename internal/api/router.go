@@ -53,6 +53,10 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/events/{id}/validate", s.handleValidateEvent)
 	mux.HandleFunc("GET /api/v1/events/{id}/standings", s.handleStandings)
 
+	// 开赛就绪度是**跨业务域**的只读聚合（赛项校验 + 队伍归台 + 场次派生 + 裁判激活），
+	// 不属于任何一个子域，挂在顶层路径；当前赛事由 X-Contest 请求头决定。
+	mux.HandleFunc("GET /api/v1/readiness", s.handleReadiness)
+
 	// 配置快照是**全局**的（一次快照覆盖全部赛项配置），因此挂在顶层路径下，
 	// 而不是嵌在 /events/{id} 里 —— 后者会让人以为快照是赛项级的。
 	mux.HandleFunc("GET /api/v1/config-snapshots", s.handleListSnapshots)
