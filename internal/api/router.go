@@ -146,6 +146,12 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/disputes/{id}/decide", s.handleDecideDispute)
 	mux.HandleFunc("POST /api/v1/disputes/{id}/withdraw", s.handleWithdrawDispute)
 	mux.HandleFunc("GET /api/v1/teams/{id}/disputes", s.handleListTeamDisputes)
+	// 后台手工登记取消资格（图集 13）：同一事务内代建争议单 + 裁定 disqualify。
+	mux.HandleFunc("POST /api/v1/teams/{id}/disqualify", s.handleRegisterDisqualification)
+
+	// 聚合告警（图集 12）：从改分申请 / 争议工单现算待办、超时、自批、取消资格，
+	// 只读派生、不落库；当前赛事由 X-Contest 决定。
+	mux.HandleFunc("GET /api/v1/alerts", s.handleListAlerts)
 
 	// ---------------------------------------------------------------------
 	// 发布单元与移交 / 发布状态机（0006 · 前端 P11 / P13）

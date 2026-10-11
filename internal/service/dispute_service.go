@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jialangli/comptition-score-server/internal/engine"
 	"github.com/jialangli/comptition-score-server/internal/model"
@@ -250,6 +251,124 @@ func (s *Service) spawnChangeRequestFromDispute(ctx context.Context, r store.Rep
 // OpenDisputes 待裁定队列（P8 队列页数据源），先到先裁。
 func (s *Service) OpenDisputes(ctx context.Context) ([]model.Dispute, error) {
 	return s.ro().Disputes.ListOpen(ctx)
+}
+
+// RegisterDisqualification 后台手工登记取消资格（图集 13 缺口补齐）。
+//
+// 场景：裁定发生在**系统之外**（纸质裁定 / 平板故障兜底），由工作人员在后台
+// 把「已作出的取消资格裁定」落库 —— 是 demo「登记取消资格」的后端对应物。
+//
+// 设计取舍（与图集 13 note 同口径）：**取消资格的唯一事实源是争议工单**，
+// 所以本方法不是新开一张 DQ 表，而是在**同一事务内**「代建一张争议单 +
+// 直接裁定 disqualify」—— void 判据、榜单剔除、改判恢复、审计口径全部复用
+// 争议链，不存在第二份事实。两条审计（上报争议 + 裁定争议）与走完整
+// P5.10 → P8 链路的留痕完全一致。
+//
+// 校验（与 demo「登记取消资格」一致）：
+//   - 弃赛队不能登记 —— 弃赛是可恢复的软删除，与不可撤销的取消资格是两条链；
+//   - 已有生效中的取消资格不可重复登记（不可撤销，推翻只能再裁定一次并留痕）；
+//   - 该队该轮已有待裁定工单时撞唯一约束 → ErrDisputePending（先结掉再登记）。
+//
+// 与重发联动：名次分布变了 → 该赛项**已发布**的发布单元全部置「待重发」
+// （demo 的 pubDirty 同款；未发布的单元不受影响）。
+//
+// 争议单的轮次挂第 1 轮：作废是**整队事实**、不区分轮次，而轮次列非空
+// （唯一约束依赖），取首轮只是承载位 —— 判据（ListDisqualifiedTeamIDs）按队伍取，不看轮次。
+func (s *Service) RegisterDisqualification(ctx context.Context, teamID int64,
+	reason, evidence string) (*model.Dispute, error) {
+
+	if err := requireReason(reason); err != nil {
+		return nil, err
+	}
+	team, err := s.ro().Teams.Get(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	if team.Status == model.TeamWithdrawn {
+		return nil, &model.FieldError{
+			Field: "teamId",
+			Msg:   fmt.Sprintf("%s 已弃赛，无需取消资格 —— 弃赛是可恢复的软删除，与不可撤销的取消资格是两条链", teamLabel(team)),
+		}
+	}
+	voided, err := s.ro().Disputes.ListDisqualifiedTeamIDs(ctx, team.EventID)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range voided {
+		if id == teamID {
+			return nil, &model.FieldError{
+				Field: "teamId",
+				Msg:   fmt.Sprintf("%s 已有生效中的取消资格记录，不可重复登记（不可撤销）—— 如需推翻只能在裁定台再裁定一次并留痕", teamLabel(team)),
+			}
+		}
+	}
+
+	fullReason := reason
+	if evidence != "" {
+		fullReason += "（留底：" + evidence + "）"
+	}
+	decider := CurrentUser(ctx)
+
+	d := &model.Dispute{
+		TeamID: teamID, RoundNo: 1,
+		Kind: model.DisputeOther, Source: model.SourceReferee,
+		Status:   model.DisputePending,
+		Reason:   "后台手工登记取消资格：" + reason,
+		Operator: decider,
+	}
+	if err := s.tx(ctx, func(r store.Repos) error {
+		if err := r.Disputes.Create(ctx, d); err != nil {
+			return err
+		}
+		if err := r.Disputes.Decide(ctx, d.ID, decider, model.VerdictDisqualify, fullReason); err != nil {
+			return err
+		}
+		d.Status = model.DisputeDecided
+		verdict := model.VerdictDisqualify
+		d.Verdict = &verdict
+		d.Decider = decider
+		d.DecisionReason = fullReason
+		now := time.Now()
+		d.DecidedAt = &now
+
+		// 审计两条，与走完整裁定链的留痕一致
+		if err := log(ctx, r, model.ActDisputeReport, disputeTarget(d),
+			"", model.DisputeDecided.Label(), d.Reason); err != nil {
+			return err
+		}
+		if err := log(ctx, r, model.ActDisputeDecide, disputeTarget(d),
+			model.DisputePending.Label(), "已裁定（取消资格）", fullReason); err != nil {
+			return err
+		}
+
+		// 重发联动：已发布单元名次分布变了 → 置「待重发」（未发布的不动）
+		units, err := r.Releases.ListByContest(ctx)
+		if err != nil {
+			return err
+		}
+		for i := range units {
+			u := &units[i]
+			if u.EventID != team.EventID || u.Status != model.ReleasePublished {
+				continue
+			}
+			why := "取消资格：" + teamLabel(team) + " → 名次分布变化，需重发"
+			if err := r.Releases.MarkRepublish(ctx, u.ID, why); err != nil {
+				return err
+			}
+			if err := log(ctx, r, model.ActRepublish, releaseTarget(u),
+				model.ReleasePublished.Label(), model.ReleasePending.Label(), why); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		if errors.Is(err, store.ErrDuplicate) {
+			return nil, ErrDisputePending
+		}
+		return nil, err
+	}
+	d.DeriveCode()
+	return d, nil
 }
 
 // Dispute 按工单号读取。

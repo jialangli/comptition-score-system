@@ -92,6 +92,32 @@ func (s *DisputeStore) ListOpen(ctx context.Context) ([]model.Dispute, error) {
 	return out, mapError(rows.Err())
 }
 
+// ListDisqualifications 本赛事全部「已裁定 = 取消资格」的工单，按裁定时间倒序。
+//
+// 聚合告警（图集 12）的数据源之一：取消资格是最高危档，登记/裁定后
+// 要在告警收件箱可见。只取 decided 且 verdict=disqualify —— 改判后自动不再命中。
+func (s *DisputeStore) ListDisqualifications(ctx context.Context) ([]model.Dispute, error) {
+	rows, err := s.q.Query(ctx, `
+		SELECT `+disputeColumns+` FROM disputes
+		WHERE contest_id=$1 AND status='decided' AND verdict='disqualify'
+		ORDER BY decided_at DESC, id DESC
+		LIMIT 200`, store.CurrentContest(ctx))
+	if err != nil {
+		return nil, mapError(err)
+	}
+	defer rows.Close()
+
+	var out []model.Dispute
+	for rows.Next() {
+		d, err := scanDispute(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *d)
+	}
+	return out, mapError(rows.Err())
+}
+
 // ListByTeam 某队全部历史工单，按时间倒序。
 func (s *DisputeStore) ListByTeam(ctx context.Context, teamID int64) ([]model.Dispute, error) {
 	rows, err := s.q.Query(ctx, `

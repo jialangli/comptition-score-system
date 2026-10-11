@@ -138,3 +138,36 @@ func (s *ChangeStore) ListByTeam(ctx context.Context, teamID int64) ([]model.Sco
 	}
 	return out, mapError(rows.Err())
 }
+
+// ListByContest 本赛事全部改分申请（含待审批与已处理），按时间倒序。
+//
+// score_change_requests 表**没有 contest_id 列**（0003 早于多赛事维度），
+// 通过 join teams（teams 有 contest_id）过滤 —— 聚合告警（图集 12）的取数入口。
+// 自批检测需要「已处理」的单（operator == approver），所以不止取待审批。
+// 上限 200：告警看板只需要近期，全量历史归审计页管。
+func (s *ChangeStore) ListByContest(ctx context.Context) ([]model.ScoreChangeRequest, error) {
+	rows, err := s.q.Query(ctx, `
+		SELECT c.id, c.score_id, c.team_id, c.round_no::int,
+		       c.before_total::float8, c.after_total::float8,
+		       c.reason, c.operator, c.approved, c.approver,
+		       c.created_at, c.decided_at, c.appeal_evidence_id
+		FROM score_change_requests c
+		JOIN teams t ON t.id = c.team_id
+		WHERE t.contest_id=$1
+		ORDER BY c.created_at DESC, c.id DESC
+		LIMIT 200`, store.CurrentContest(ctx))
+	if err != nil {
+		return nil, mapError(err)
+	}
+	defer rows.Close()
+
+	var out []model.ScoreChangeRequest
+	for rows.Next() {
+		r, err := scanChange(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *r)
+	}
+	return out, mapError(rows.Err())
+}

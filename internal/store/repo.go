@@ -191,6 +191,9 @@ type ChangeRequestRepo interface {
 	SetAppeal(ctx context.Context, id int64, appealEvidenceID int64) error
 	// ListByTeam 某队全部历史申请（含已处理），按时间倒序。
 	ListByTeam(ctx context.Context, teamID int64) ([]model.ScoreChangeRequest, error)
+	// ListByContest 本赛事全部申请（含已处理，join teams 过滤赛事）——
+	// 聚合告警取数入口（图集 12）；自批检测需要已处理单。
+	ListByContest(ctx context.Context) ([]model.ScoreChangeRequest, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -220,6 +223,9 @@ type DisputeRepo interface {
 	// ListByTeam 某队全部历史工单（含已裁定 / 已撤回），按时间倒序。
 	// 用于成绩单页判断该队是否被判取消资格。
 	ListByTeam(ctx context.Context, teamID int64) ([]model.Dispute, error)
+	// ListDisqualifications 本赛事全部「已裁定 = 取消资格」工单，按裁定时间倒序 ——
+	// 聚合告警取数入口（图集 12）；改判后自动不再命中。
+	ListDisqualifications(ctx context.Context) ([]model.Dispute, error)
 	// ListDisqualifiedTeamIDs 某赛项被裁定「取消资格」的队伍 ID（成绩作废）。
 	//
 	// 榜单按**赛项**批量取：大屏每 5 秒轮询一次，逐队 ListByTeam 会变成 N+1。

@@ -219,3 +219,37 @@ func parseDisputeKind(raw string) (model.DisputeKind, error) {
 	}
 	return "", NewBadRequest("kind 必须是 duplicate / sync_conflict / other，收到 " + raw)
 }
+
+// handleRegisterDisqualification POST /api/v1/teams/{id}/disqualify
+//
+// 后台手工登记取消资格（图集 13 缺口补齐）：裁定发生在系统之外（纸质裁定 /
+// 平板故障兜底）时，由工作人员把「已作出的裁定」落库。同一事务内「代建争议单
+// + 直接裁定 disqualify」—— 取消资格的唯一事实源仍是争议工单（图集 13 note）。
+//
+// 请求体：{ "reason": "...", "evidence": "纸质件 2 页 · 存档 A-07（选填）" }
+// 弃赛队 / 已作废队会被 400 拦下；成功后该队即时从榜单剔除，已发布单元置「待重发」。
+func (s *Server) handleRegisterDisqualification(w http.ResponseWriter, r *http.Request) {
+	teamID, err := pathInt64(r, "id")
+	if err != nil {
+		Fail(w, r, err)
+		return
+	}
+	var req struct {
+		Reason   string `json:"reason"`
+		Evidence string `json:"evidence,omitempty"`
+	}
+	if err := decodeJSON(w, r, &req); err != nil {
+		Fail(w, r, err)
+		return
+	}
+	if teamID <= 0 {
+		Fail(w, r, NewBadRequest("teamId 必须为正整数"))
+		return
+	}
+	d, err := s.svc.RegisterDisqualification(r.Context(), teamID, req.Reason, req.Evidence)
+	if err != nil {
+		Fail(w, r, err)
+		return
+	}
+	Created(w, d)
+}
