@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>裁判端与后台端 · 功能链路图集（2026-10-11）</title>
+<style>
+  :root{--ink:#2d3748;--muted:#718096;--line:#cbd5e0;--panel:#fff;--bg:#f7fafc;
+        --ok:#2f855a;--okbg:#e6fffa;--warn:#7b341e;--warnbg:#fdf6e3;--warnln:#d69e2e;--accent:#185FA5;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.65 "PingFang SC","Microsoft YaHei",system-ui,sans-serif;}
+  .wrap{max-width:960px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:21px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+  .legend{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:22px}
+  .legend b{font-size:13.5px}
+  .legend .p{margin-left:2px}
+  h2{font-size:17px;margin:34px 0 4px;padding-left:10px;border-left:4px solid var(--accent)}
+  h2 .cnt{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 18px;margin:10px 0 6px;
+       display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .fig{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 18px 12px;margin:14px 0}
+  .fig h3{font-size:15px;margin:0 0 2px}
+  .fig .scope{color:var(--muted);font-size:12.5px;margin:0 0 10px}
+  .fig svg{display:block;max-width:100%;height:auto}
+  .note{color:var(--muted);font-size:12.5px;margin:8px 0 0;padding-left:10px;border-left:3px solid #e2e8f0}
+  .note+.note{margin-top:4px}
+  .pill{display:inline-block;font-size:11.5px;line-height:1;padding:3px 8px;border-radius:999px;vertical-align:1px}
+  .pill.ok{color:var(--ok);background:var(--okbg);border:1px solid #bfe8cc}
+  .pill.warn{color:var(--warn);background:#fdecd2;border:1px solid var(--warnln)}
+  .pill.dim{color:var(--muted);background:#edf2f7;border:1px solid #e2e8f0}
+  @media print{.fig{break-inside:avoid;border-color:#d8dee6}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>裁判端与后台端 · 功能链路图集</h1>
+  <div class="sub">每张大功能一张：入口 → 核心对象 → 出口/下游。状态标记以 <b>2026-10-11 当天代码</b>为准（demo = 后台单文件基准 · web = Go 后端承载的正式前端 · Go = 后端引擎与接口；裁判端平板页面均为 wireframe 设计稿，尚未实现）。</div>
+  <div class="legend">
+    <b>标记口径：</b>
+    <span class="pill ok p">已实现</span> 三端/两端已通；
+    <span class="pill warn p">缺</span> 尚无实现（谁缺见各图说明）；
+    <span class="pill dim p">部分</span> 主链已通、留有已知缺口。
+    连线为「业务流」，不是数据流；注释里写的是口径与坑。
+  </div>
+  <div id="toc" class="toc"></div>
+  <div id="figs"></div>
+</div>
+<script>
+/* ---------- 渲染器：图数据 → SVG ----------
+   节点文本语法："标题 | 修饰 | 修饰"
+     修饰 ok:xx / warn:xx / dim:xx → 右侧 pill；hub / warn → 节点形态
+   levels: 每层一行（自动层间汇流连线）；X 数组: 挂在某节点正下方的补充节点 */
+function renderFig(d){
+  var W=880, G=26, NH=46, NH2=64, LG=46, XH=58;
+  var lv=d.levels, rows=[], y=8, i, j, k;
+  for(i=0;i<lv.length;i++){
+    var n=lv[i].length, h=0, cells=[];
+    for(j=0;j<n;j++){
+      var spec=lv[i][j].split('|'), t=spec[0], sub='', pill=null, cls='';
+      for(k=1;k<spec.length;k++){
+        var m=spec[k].trim();   /* 数据里「标题 | ok:已实现」的竖线两侧有空格 —— 不 trim 全部 pill 都会静默丢失 */
+        if(m==='hub')cls='hub';
+        else if(m==='warn')cls='warn';
+        else if(/^ok:/.test(m))pill={t:m.slice(3),c:'ok'};
+        else if(/^warn:/.test(m))pill={t:m.slice(5),c:'warn'};
+        else if(/^dim:/.test(m))pill={t:m.slice(4),c:'dim'};
+        else if(/^sub:/.test(m))sub=m.slice(4);
+      }
+      if(sub)cls=cls||'';
+      cells.push({t:t,sub:sub,pill:pill,cls:cls});
+    }
+    var rowH=(cells.some(function(c){return c.sub;})?NH2:NH);
+    rows.push({y:y,h:rowH,n:n,cells:cells,cw:W/n});
+    y+=rowH+LG;
+  }
+  /* extra 节点：挂在指定节点正下方 */
+  var extras=[];
+  (d.X||[]).forEach(function(x){
+    var r=rows[x.lv], cx=r.cw*x.i+r.cw/2;
+    extras.push({x:cx-260/2,y:r.y+r.h+LG-10,t:x.t,sub:x.sub||'',warn:x.warn!==false});
+    r.extraBelow=true;
+    y=Math.max(y, r.y+r.h+LG-10+XH+LG-36+LG);
+  });
+  var H=y- LG+14;
+  var s='<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" xmlns="http://www.w3.org/2000/svg">';
+  s+='<rect width="'+W+'" height="'+H+'" fill="#ffffff"/>';
+  /* 连线（层间汇流） */
+  for(i=0;i<rows.length-1;i++){
+    var a=rows[i], b=rows[i+1], y1=a.y+a.h, y2=b.y, mid=(y1+y2)/2;
+    var xs1=[],xs2=[];
+    for(j=0;j<a.n;j++)xs1.push(a.cw*j+a.cw/2);
+    for(j=0;j<b.n;j++)xs2.push(b.cw*j+b.cw/2);
+    var lo=Math.min.apply(null,xs1.concat(xs2)), hi=Math.max.apply(null,xs1.concat(xs2));
+    var p='';
+    xs1.forEach(function(x){p+='M'+x+' '+y1+' V'+mid+' ';});
+    p+='M'+lo+' '+mid+' H'+hi+' ';
+    xs2.forEach(function(x){p+='M'+x+' '+mid+' V'+(y2-7)+' ';});
+    s+='<path d="'+p+'" fill="none" stroke="#a0aec0" stroke-width="1.4"/>';
+    xs2.forEach(function(x){s+='<polygon points="'+(x-4.5)+','+(y2-7)+' '+(x+4.5)+','+(y2-7)+' '+x+','+y2+'" fill="#a0aec0"/>';});
+  }
+  /* extra 连线（父节点直下） */
+  (d.X||[]).forEach(function(x){
+    var r=rows[x.lv], cx=r.cw*x.i+r.cw/2, y1=r.y+r.h+LG-10;
+    s+='<path d="M'+cx+' '+(y1-16)+' V'+(y1-23+16)+'" fill="none" stroke="'+(x.warn!==false?'#d69e2e':'#a0aec0')+'" stroke-width="1.4"/>';
+    s+='<polygon points="'+(cx-4.5)+','+(y1-8)+' '+(cx+4.5)+','+(y1-8)+' '+cx+','+y1+'" fill="'+(x.warn!==false?'#d69e2e':'#a0aec0')+'"/>';
+  });
+  /* 节点 */
+  rows.forEach(function(r){
+    r.cells.forEach(function(c,j){
+      var x=r.cw*j+G/2, w=r.cw-G, h=r.h, cx=r.cw*j+r.cw/2;
+      var fill='#ffffff', ln='#cbd5e0', ink='#2d3748';
+      if(c.cls==='hub'){fill='#f1f3f5';ln='#a0aec0';}
+      if(c.cls==='warn'){fill='var(--warnbg)'.replace('var(--warnbg)','#fdf6e3');ln='#d69e2e';ink='#7b341e';}
+      s+='<rect x="'+x+'" y="'+r.y+'" width="'+w+'" height="'+h+'" rx="10" fill="'+fill+'" stroke="'+ln+'"/>';
+      var pw=c.pill?(c.pill.t.length*12+16):0, px=x+w-pw-10;
+      /* 文本自适应缩字号：中文按 1.02em/字估宽，避免长文案溢出节点 */
+      function fit(t,base){var avail=w-(pw?pw+34:20);var fs=base;while(t.length*fs*1.02>avail&&fs>9)fs-=0.5;return fs;}
+      var ty=c.sub?(r.y+h/2-7):(r.y+h/2+5);
+      var tx=c.pill?(x+14):(cx);
+      s+='<text x="'+tx+'" y="'+ty+'" font-size="'+fit(c.t,13.5)+'" fill="'+ink+'" '+(c.pill?'':'text-anchor="middle"')+(c.pill?'':' font-weight="600"')+'>'+esc(c.t)+'</text>';
+      if(c.sub)s+='<text x="'+tx+'" y="'+(ty+17)+'" font-size="'+fit(c.sub,11.5)+'" fill="#718096">'+esc(c.sub)+'</text>';
+      if(c.pill){
+        var pc=c.pill.c==='ok'?['#e6fffa','#2f855a','#bfe8cc']:c.pill.c==='warn'?['#fdecd2','#7b341e','#d69e2e']:['#edf2f7','#718096','#e2e8f0'];
+        s+='<rect x="'+px+'" y="'+(r.y+h/2-11)+'" width="'+pw+'" height="21" rx="10.5" fill="'+pc[0]+'" stroke="'+pc[2]+'"/>';
+        s+='<text x="'+(px+pw/2)+'" y="'+(r.y+h/2+4)+'" font-size="11.5" fill="'+pc[1]+'" text-anchor="middle">'+esc(c.pill.t)+'</text>';
+      }
+    });
+  });
+  /* extra 节点本体 */
+  extras.forEach(function(e){
+    s+='<rect x="'+e.x+'" y="'+e.y+'" width="260" height="46" rx="8" fill="'+(e.warn?'#fdf6e3':'#f1f3f5')+'" stroke="'+(e.warn?'#d69e2e':'#cbd5e0')+'"/>';
+    s+='<text x="'+(e.x+130)+'" y="'+(e.y+19)+'" font-size="12.5" fill="'+(e.warn?'#7b341e':'#2d3748')+'" text-anchor="middle">'+esc(e.t)+'</text>';
+    if(e.sub)s+='<text x="'+(e.x+130)+'" y="'+(e.y+36)+'" font-size="11" fill="#718096" text-anchor="middle">'+esc(e.sub)+'</text>';
+  });
+  return s+'</svg>';
+}
+function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* ---------- 图数据 ---------- */
+var FIGS=[
+/* ============ 后台端 ============ */
+{s:'bg',id:'bg-dash',t:'总览（开赛就绪度）',scope:'后台 demo 全功能 · web 有此页 · Go 无聚合接口（就绪度是前端拼出来的视图）',levels:[
+ ['赛项与规则配置就绪 | ok:已实现','队伍已导入（按赛事） | ok:已实现','裁判 / 场次就位 | ok:已实现'],
+ ['开赛就绪度检查（逐项核对） | hub'],
+ ['可以开赛（N 队 / N 裁判 / N 场次全就位） | ok:已实现','还差 N 项 → 逐项列出点名 | ok:已实现']
+  ],
+ X:[{lv:1,i:0,t:'就绪度只有前端视图：Go 无「就绪度」聚合接口',sub:'补齐 = 一个只读聚合端点；属独立一批',warn:true}],
+ notes:['「就绪度」不是新算分：它把赛项校验、队伍数、裁判数、场次数拼成一屏。','切赛事后整屏随数据空间切换。']},
+
+{s:'bg',id:'bg-contests',t:'赛事管理（多赛事 · 隔离与归档）',scope:'demo 全功能 · web 未做（单赛事代际）· Go 已支持（contests + contest_rules + 请求头切赛事）',levels:[
+ ['新建赛事（勾选赛项模板带规则） | ok:已实现','复制已有赛事规则（不带队伍/成绩） | ok:已实现','后端独立数据空间（contests 表） | ok:已实现'],
+ ['赛事索引 · 合并式写入 + 删除墓碑 | hub'],
+ ['切换赛事 = 整套数据切换 | ok:已实现','归档 = 真只读 gate | ok:已实现','赛事级规则（递补等） | ok:已实现']
+  ],
+ notes:['「当前赛事」按标签独立（两地同时办赛各用各的标签页）。','赛事状态按赛期派生四态：已归档 > 已结束 > 进行中 > 筹备中（10/10）。','数据空间 key = 赛事 id 后缀；跨实例算分用 withContestData，不另写算分。']},
+
+{s:'bg',id:'bg-events',t:'赛项与规则配置',scope:'demo 全功能 · web 有 · Go 全接（events + tasks + 校验引擎）',levels:[
+ ['赛项模板（三赛项规则唯一来源） | ok:已实现','任务 / 判罚 / 加分 / 轮次配置 | ok:已实现','保存前校验（validateEvent 双端同源） | ok:已实现'],
+ ['规则落库：events + tasks | hub'],
+ ['阶段配置 phases（0018，时间奖励基准=阶段和） | ok:已实现','任务量词 unit（0020，题卡「每颗 +N」） | ok:已实现','前端对照基准 golden 逐位锁双端 | ok:已实现']
+  ],
+ notes:['规则列是 JSONB：加字段不需迁移，但必须做成具名字段。','接口严格模式：请求体多一个未知字段 = 整条 400。','计分兜底必须是 sum：weighted_sum 会改满分口径且静默算错。']},
+
+{s:'bg',id:'bg-schedule',t:'赛台与赛程编排（含分台与顺位）',scope:'demo 全功能 · web 已接线 · Go 全接（seats/slots + 迁移 0016/0017）',levels:[
+ ['建赛台 / 建场次（赛台×时段×赛项×组别×轮次） | ok:已实现','就近自动分台（写队伍归台） | ok:已实现','手动改派 / 清空（写归台） | ok:已实现'],
+ ['唯一事实源 = 队伍级归台（seat_id / order / session） | hub'],
+ ['场次队伍 = 派生（= 平板队列数据源） | ok:已实现','独立场次 = 场内快照（加时 / 重赛） | ok:已实现','时段↔轮次绑定（上午=1 / 下午=2） | ok:已实现']
+  ],
+ notes:['POST /slots/{id}/teams 已废弃为 410（队伍绑定不再可写）。','seats.contest_id 从未写入 —— 既存缺陷，已在 PROGRESS 挂账。','场次必须落 round_no：1 轮赛项的下午场次仍是第 1 轮，按时段现推会丢队。']},
+
+{s:'bg',id:'bg-teams',t:'队伍与报名 · 队伍管理',scope:'demo 全功能 · web 有 · Go 全接（teams + seat/session + 弃赛/恢复）',levels:[
+ ['手动建档（编号赛事内唯一） | ok:已实现','报名导入落库（见「报名导入」链） | ok:已实现','弃赛 / 恢复（软删，可逆） | ok:已实现'],
+ ['队伍主档 teams | hub'],
+ ['归台 / 参赛轮次（PUT seat、session） | ok:已实现','进度列三态：已签 / 已录 / 待录 | ok:已实现','删队保护：有成绩被外键拦下 | ok:已实现']
+  ],
+ notes:['「按队伍参赛轮次判」= 发布门 / 完整性 / 进度列的唯一判据（赛项轮次 ∩ session）。','导入不覆盖 session：报名表没这列，覆盖会把现场设的「仅第 1 轮」无声改回两轮。']},
+
+{s:'bg',id:'bg-import',t:'队伍与报名 · WRC 报名导入',scope:'demo 全功能 · web 有 · Go 全接（imports preview/commit + import_logs）',levels:[
+ ['WRC 官方表（6 列，含赛项列） | ok:已实现','批量 Excel（不含赛项列，整批写入） | ok:已实现','粘贴 CSV / 内置样例 | ok:已实现'],
+ ['解析 → 列映射 → 校验 → 变更预览 | hub'],
+ ['合并式入库（新增/更新/跳过/冲突） | ok:已实现','冲突逐条裁决后才可提交 | ok:已实现','导入任务留痕（可撤回） | ok:已实现']
+  ],
+ notes:['不做清空重建：已有成绩的队伍不物理删除，退赛用标记。','导入记录进本场赛事审计（按赛事可追溯）。']},
+
+{s:'bg',id:'bg-referees',t:'裁判与排班 · 裁判档案与裁判码',scope:'demo 全功能 · web 未做此页 · Go 已接（referee-codes + activate）',levels:[
+ ['裁判建档（姓名 / 角色 / 状态） | ok:已实现','赛前建档发码（6 位无歧义字符） | ok:已实现','裁判码与赛台绑定（赛事级凭证） | ok:已实现'],
+ ['referee_codes：首登联网激活 | hub'],
+ ['码 + 姓名双重校验（平板 P1.5b/c） | ok:已实现','换赛事必须重新建档发码 | ok:已实现','裁判「人」可跨赛事复用 | ok:已实现']
+  ],
+ notes:['裁判码是赛事级凭证：换赛事旧码一律无效（演示与正式场都要重发）。','平板断网可登录 —— 前提是首登联网激活过。']},
+
+{s:'bg',id:'bg-duty',t:'裁判与排班 · 执裁排班',scope:'demo 全功能 · web 未做 · Go 缺排班接口（slots 的 chief/judges 无独立读写）',levels:[
+ ['赛台 × 时段 × 人 执裁排班 | ok:已实现','值守人登记（这条赛事归谁，可多人） | ok:已实现','换场软校验（不是你值守 → 先问一句） | ok:已实现'],
+ ['排班结果 → 打分页 / 队列带出 | hub'],
+ ['值守冲突检测（并行赛事同一人） | ok:已实现','后端排班读写接口 | warn:缺']
+  ],
+ notes:['值守冲突是排班问题不是系统冲突：一个人不可能同时在两个场地。','后端补齐 = slots 的裁判分配读写 + 一条集成用例；属独立一批。']},
+
+{s:'bg',id:'bg-score',t:'裁判打分录入（后台代录）',scope:'demo 全功能 · web 有 · Go 全接（scores 按轮 + 写锁）',levels:[
+ ['选赛项 → 选队伍 → 选轮次 | ok:已实现','录任务分 / 计时 / 记牌（与平板同口径） | ok:已实现','轮次切换（两轮赛项） | ok:已实现'],
+ ['成绩记录 scores（按轮独立，助手读写） | hub'],
+ ['选手代表签字 → 成绩生效（终态） | ok:已实现','改分走申请-审批（不直接改） | ok:已实现','写锁 team_write_locks（防并写） | ok:已实现']
+  ],
+ notes:['后台代录与裁判端 P3-P5 同一套口径与校验。','直接读写 S.scores 一律走助手：漏一个点会静默把两轮数据当「没签没录」。']},
+
+{s:'bg',id:'bg-rank',t:'实时榜单',scope:'demo 全功能 · web 有 · Go 全接（standings 引擎，双端逐位对照）',levels:[
+ ['成绩（已签轮次） + 判罚（record_only） | ok:已实现','轮次口径：赛项轮次 ∩ 参赛轮次 | ok:已实现','时间奖励（基准=阶段之和 0018） | ok:已实现'],
+ ['standings 引擎（前端 JS 与 Go 逐位一致） | hub'],
+ ['两轮取优：总分↓ → 用时↑ → 轮次小 | ok:已实现','取消资格=整行剔除 / 红牌=名次 0 | ok:已实现','名次编排：不递补（留空）vs 顺延 | ok:已实现']
+  ],
+ notes:['奖项档位当前在前端已无配置入口 → 永不出奖（已登记待产品确认）。','对照基准 golden 自带覆盖度自检与源指纹；改算法必须重跑脚本。']},
+
+{s:'bg',id:'bg-screen',t:'大屏展示（赛后公示）',scope:'demo 全功能 · web 本期不做（NAV_OFF 置灰）· Go 已接（screen config + 大屏数据）',levels:[
+ ['选赛项 / 页容量 / 自动翻页 | ok:已实现','锁定本屏 / 锁定赛事（现场防切走） | ok:已实现','正式公示成绩（只显示已发布） | ok:已实现'],
+ ['screen_config + 大屏数据接口 | hub'],
+ ['匿名公示（仅队序号，可切换） | ok:已实现','未发布 = 草稿预览提示 | ok:已实现','取消资格 / 弃赛按榜单口径剔除 | ok:已实现']
+  ],
+ notes:['现场大屏与实时直播已砍（09/03 决策），仅保留赛后公示页 —— web 本期不做即由此而来。']},
+
+{s:'bg',id:'bg-watch',t:'处理进度看板（告警 + 台账）',scope:'demo 全功能 · web 未做 · Go 部分（disputes / change-requests 列表已有，无聚合告警）',levels:[
+ ['告警收件箱（待处理） | ok:已实现','改分申请台账（可按轮筛选） | ok:已实现','争议台账（可按轮筛选） | ok:已实现'],
+ ['待办聚合：待审批 / 待裁定 / 待处理 | hub'],
+ ['闭环在各自功能页完成，本页只读 | ok:已实现','聚合告警的后端接口 | warn:缺']
+  ],
+ notes:['台账轮次筛选是单值直接生效，不做草稿-生效双状态。','同一队两次改分申请不合并（一申请一独立单）。']},
+
+{s:'bg',id:'bg-dq',t:'公示与发布 · 资格与递补（取消资格登记 + 递补）',scope:'demo 全功能 · web 未做 · Go 全接（disputes decide + 榜单剔除 + 递补口径）',levels:[
+ ['争议裁定 = 取消资格（走裁定链） | ok:已实现','后台手工登记取消资格 | warn:缺','红牌 = 当场取消（另一条链，不走这里） | ok:已实现'],
+ ['成绩作废名单 → 榜单即时剔除 | hub'],
+ ['整行不进榜单（10/10 已接线） | ok:已实现','不递补 = 名次留空（4 → 6） | ok:已实现','按名次顺延 = 编号连续（可切） | ok:已实现']
+  ],
+ X:[{lv:2,i:0,t:'作废队不占奖项名额（10/10 定案）',sub:'名次上的空洞保留、奖项上的名额不留',warn:false}],
+ notes:['手工登记入口缺失：取消资格唯一事实源是争议工单（要登记得先建一张争议单）。','空缺按组别算：一个组的空缺不会挪到另一个组。']},
+
+{s:'bg',id:'bg-evidence',t:'留底证据库',scope:'demo 全功能 · web 未做 · Go 已接（evidence + appeals/upload + synced）',levels:[
+ ['公示表 / 内部成绩表快照（发布时生成） | ok:已实现','争议申述书照片上传（平板 P5.10） | ok:已实现','移交记录（谁 / 何时接手） | ok:已实现'],
+ ['evidence：本地先存 → 联网补传（synced） | hub'],
+ ['发布 / 重发时同步刷新时间戳 | ok:已实现','按赛事隔离 · 可导出追溯 | ok:已实现']
+  ],
+ notes:['「别用已同步当判据」：断网也要能上报，照片先 local、联网补传。','服务端尚不校验「申述书照片必传」—— 与 P5.10 的两项必填口径差半步（已挂账）。']},
+
+{s:'bg',id:'bg-publish',t:'公示与发布 · 公示与导出',scope:'demo 全功能 · web 有 · Go 全接（releases ensure/publish/republish/hand-over/receive）',levels:[
+ ['完整性校验（发布门，按队伍参赛轮次） | ok:已实现','裁判长确认 → 移交工作人员 | ok:已实现','后台执行发布（谁 / 何时留痕） | ok:已实现'],
+ ['发布单元 release_units | hub'],
+ ['公示表 / 导出 xlsx（与发布同源） | ok:已实现','重发：成绩变更 → 覆盖式重新发布 | ok:已实现','发布状态回流裁判端（P13 看真值） | ok:已实现']
+  ],
+ notes:['发布门卡：没签 / 没录 / 待裁定 / 待审批；一队只打一轮不再永久卡门（10/10 口径）。','口径文案成对写：赛项总时间＝时间奖励基准；奖励时间 = 总时间 − 本队用时。']},
+
+{s:'bg',id:'bg-roles',t:'合规 · 角色与权限',scope:'demo 有页面级入口控制 · web 未做 · Go 缺（鉴权仅预留 CurrentUser 插槽）',levels:[
+ ['登录身份（当前登录人 / 角色） | ok:已实现','页面级入口区分（staff / chief / referee） | ok:已实现','敏感操作要求填写原因（留痕） | ok:已实现'],
+ ['角色 → 可见页 / 可执行操作 | hub'],
+ ['后端鉴权（真正拦请求） | warn:缺','角色变更审计 | ok:已实现']
+  ],
+ notes:['本期不实现（PROGRESS 待办）：后端只有插槽，谁都能调任何接口。','补齐前，「权限」只是界面软引导 —— 现场靠流程约束。']},
+
+{s:'bg',id:'bg-audit',t:'合规 · 全操作审计',scope:'demo 全功能 · web 有 · Go 全接（audit-logs + summary）',levels:[
+ ['六类操作留痕（谁 / 何时 / 改什么 / 为什么） | ok:已实现','改前值 → 改后值（含「默认」口径文案） | ok:已实现','按赛事隔离（切场即切审计） | ok:已实现'],
+ ['audit_logs（保留 ≥ 2 年） | hub'],
+ ['汇总计数（按动作聚合） | ok:已实现','导出追溯（xlsx） | ok:已实现']
+  ],
+ notes:['审计查询是「漏过滤」候选之一：多赛事下未按 contest_id 过滤（已记 PROGRESS，未修）。','配置导出 / 恢复（config_snapshots）也在此域。']},
+
+{s:'bg',id:'bg-cross',t:'比赛结果总览（跨赛事对照）',scope:'demo 专属 · web 未做 · Go 无跨场接口',levels:[
+ ['多场赛事多选（含「已归档」） | ok:已实现','状态 / 赛期 / 赛项 / 组别筛选 | ok:已实现','同一队伍跨场身份（队名+学校近似） | ok:已实现'],
+ ['withContestData 跨实例只读算分 | hub'],
+ ['跨场成绩对照（不合并排名） | ok:已实现','复用 standings/rankAll（不另写算分） | ok:已实现']
+  ],
+ notes:['跨赛事只做对照、不做总分排名 —— 不同场次的成绩没有可比性口径。','判定「是否当前实例」要在进入 withContestData 之前抓局部变量（它内部会换 CUR_CONTEST）。']},
+/* ============ 裁判端（平板 · wireframe 40 页归并为 12 个功能域） ============ */
+{s:'ref',id:'ref-auth',t:'登录与鉴权（裁判码）',scope:'wireframe P1 / P1.5 / P1.6 / P1.5b / P1.5c · 平板页面未实现 · 后台建档发码 demo 已有 · Go 已接（referee-codes + activate）',levels:[
+ ['输入 6 位裁判码 + 姓名 | ok:已实现','首登联网激活（绑定确认） | ok:已实现','裁判码无效 → 校验失败页 P1.5b | ok:已实现'],
+ ['referee_codes 校验（赛事级凭证 · 赛台绑定） | hub'],
+ ['成功 → 按角色分流（普通裁判 / 裁判长） | ok:已实现','姓名与码不匹配 → P1.5c | ok:已实现','断网可登录（激活过即可） | ok:已实现']
+  ],
+ notes:['码由主办方 / 主控赛前建档生成：6 位无歧义字符（去易混 I/O/1、0/O 等）。','换赛事必须重新建档发码，旧码在新赛事无效。']},
+
+{s:'ref',id:'ref-queue',t:'赛台队列 / 当前比赛',scope:'wireframe P2 / P2f / P2g · 平板未实现 · 队列数据源 Go 已接（GET /slots/{id}/teams 派生读）',levels:[
+ ['后台排班 + 分台顺位（决定上场次序） | ok:已实现','裁判码绑定赛台（登录即定） | ok:已实现','队伍信息自动切换（打完一个自动下一个） | ok:已实现'],
+ ['本赛台队列（赛台 × 赛项 × 组别 × 轮次） | hub'],
+ ['返回拦截：有未提交改动先拦（P2f） | ok:已实现','设置弹窗 / 退出二次确认（P2g） | ok:已实现','队列顺序 = 台内顺位，裁判端只读 | ok:已实现']
+  ],
+ notes:['发现顺序不对请联系工作人员在后台「分台与顺位」改 —— 平板不提供调整。','队列恰好就是「这张台这个时段该上场的队伍」，派生读接口即数据源。']},
+
+{s:'ref',id:'ref-score',t:'打分录入（三赛项打分表）',scope:'wireframe P3 / P4 / P5 / P5.5 · 平板未实现 · 后台可代录 · Go 已接（PUT scores/{round}）',levels:[
+ ['数值评分（滑块 / 输入，满分封顶） | ok:已实现','计数得分（计数器 × 每单位分） | ok:已实现','是否完成（达成记满分、未完成记 0） | ok:已实现'],
+ ['按轮录入 → 选手代表签字提交 | hub'],
+ ['提交后进入榜单口径（只有已签轮次参与） | ok:已实现','量词「每颗 +N」由后台按任务下发 | ok:已实现','时间奖励按赛项配置（未启用只作排名维度） | ok:已实现']
+  ],
+ notes:['判罚不扣分（record_only，只记录、影响并列排序）。','后台代录与平板同一套校验：谁录都一样，审计里能看清是谁。']},
+
+{s:'ref',id:'ref-cards',t:'双侧计分板与记牌',scope:'wireframe P5.6 / P5.7 / P5.7b / P5.8c / P5.8d / P5.9 · 平板未实现 · 后台 demo / Go 已接（迁移 0014）',levels:[
+ ['双队同场对抗（各自计分板） | ok:已实现','记黄牌（计数器上限 = 后台阈值） | ok:已实现','记红牌（P5.8c 浮层，可选事由） | ok:已实现'],
+ ['黄牌记满自动升级 = 1 张红牌并清零黄牌计数 | hub'],
+ ['upgradedRed 必须落字段（0014 + 归一历史值） | ok:已实现','红牌 = 当场取消：成绩保留、名次 0 | ok:已实现','比赛时间结束提醒（P5.8d / P5.9） | ok:已实现']
+  ],
+ notes:['五处同口径：demo / 两份 web / wireframe / Go。前端归零后不发 upgradedRed，服务端红牌会静默变少。','红牌与「裁定取消资格」是两条链：红牌留榜内名次 0，裁定是整行剔除。']},
+
+{s:'ref',id:'ref-review',t:'成绩回看',scope:'wireframe P2e / P2e2 · 平板未实现 · 数据侧已就绪（GET scores/{round}）',levels:[
+ ['从队列进入回看（本队已提交成绩） | ok:已实现','按轮查看（两轮赛项分轮展示） | ok:已实现'],
+ ['已提交成绩只读展示 | hub'],
+ ['用时 / 时间奖励展示（按赛项配置） | ok:已实现','要改走「改分申请」，不在这里直接改 | ok:已实现']
+  ],
+ notes:['回看页的用时标注与时间奖励口径逐字对齐（10/10 改过：不带「分」字、按赛项配置）。']},
+
+{s:'ref',id:'ref-dispute',t:'争议 / 申诉上报 → 裁定',scope:'wireframe P5.10 → P8 家族 · 平板未实现 · 后台 demo 已有 · Go 已接（disputes + decide；照片校验缺半步）',levels:[
+ ['裁判人工上报（情况说明 + 申述书照片，两项必填） | ok:已实现','系统自动建单（补传冲突 source=system，不经本页） | ok:已实现','后台手工登记 | warn:缺'],
+ ['争议工单 D-00x · 待裁定 | hub'],
+ ['维持原判（P8a） | ok:已实现','授权改分（P8b，转改分链） | ok:已实现','取消资格（P8c） | warn']
+  ],
+ X:[{lv:2,i:2,t:'成绩作废 · 整行不进榜单',sub:'后端已接线（10/10）：裁定完榜单即时剔除',warn:false}],
+ notes:['「别用已同步当判据」：断网先 local、联网补传。','服务端尚不校验「申述书照片必传」—— 与两项必填口径差半步（已挂账）。','红牌与弃赛都不走这条链。']},
+
+{s:'ref',id:'ref-chief',t:'裁判长工作台',scope:'wireframe P7 / P7b / P7c · 平板未实现 · 角色概念 Go 缺（鉴权仅预留插槽）',levels:[
+ ['「执裁」页签（与 P2 同一屏 + 权限入口） | ok:已实现','「裁判长管理权限」页签（裁定 / 发布入口） | ok:已实现','空状态：本赛台当日无执裁场次（P7c） | ok:已实现'],
+ ['按角色分流（登录即定，裁判长多一排入口） | hub'],
+ ['裁定台 / 发布确认的入口从这里进 | ok:已实现','角色与权限的后端表达 | warn:缺']
+  ],
+ notes:['普通裁判看不到管理页签；后端目前谁都能调任何接口（权限是界面软引导）。']},
+
+{s:'ref',id:'ref-adjudicate',t:'裁定台（争议裁定）',scope:'wireframe P8 家族 · 平板未实现 · 后台 demo 已有 · Go 已接（decide / withdraw）',levels:[
+ ['待裁定工单列表（按赛台 / 状态筛） | ok:已实现','工单详情（事由 + 申述书照片 + 双方成绩） | ok:已实现','裁定需填理由（留痕） | ok:已实现'],
+ ['裁定决定（disputes/{id}/decide） | hub'],
+ ['维持原判 | ok:已实现','授权改分（转改分链） | ok:已实现','取消资格（成绩作废 → 榜单剔除） | ok:已实现','撤销工单（withdraw） | ok:已实现']
+  ],
+ notes:['裁定取消资格已接入榜单（10/10）：对外公示能说明「本组别存在被取消资格队伍」。','改判（取消资格 → 维持）时榜单自动恢复，无需回滚维护 —— 判据从争议单派生，不落库复制。']},
+
+{s:'ref',id:'ref-change',t:'改分审批（裁判发起 → 裁判长授权）',scope:'wireframe P9 / P9b / P2b-d · 平板未实现 · demo / web / Go 全通',levels:[
+ ['裁判发起改分申请（写当前轮） | ok:已实现','台账可按轮筛选（全部 / 第 1 / 第 2 轮） | ok:已实现','同一队两次申请不合并 | ok:已实现'],
+ ['裁判长授权（approve / reject + 理由） | hub'],
+ ['授权后进入改分模式打分（P2b-d） | ok:已实现','改完重新走签字 → 生效 | ok:已实现','审批全程留痕（谁授权 / 为什么） | ok:已实现']
+  ],
+ notes:['改分与争议是两条链，不要混：改分不取消资格，取消资格不经改分。','原值 → 新值写审计；「直接改库」的路径不存在（不新增第二条改成绩路径）。']},
+
+{s:'ref',id:'ref-publish',t:'发布链路（确认 → 移交 → 回流）',scope:'wireframe P11 / P12 家族 / P13 · 平板未实现 · demo / Go 全通（releases + 发布门）',levels:[
+ ['裁判长发布前确认（完整性校验） | ok:已实现','移交工作人员（hand-over 留痕） | ok:已实现','发布状态回流看板（P13，实时看后台真值） | ok:已实现'],
+ ['发布 release_units（publish / republish） | hub'],
+ ['发布门 = 按队伍参赛轮次判（10/10 口径） | ok:已实现','重发：成绩变更 → 覆盖式重新发布 | ok:已实现','公示表 / 大屏 / 导出同源 | ok:已实现']
+  ],
+ notes:['发布门卡：没签 / 没录 / 待裁定 / 待审批。一队下午缺席不再永久卡门（改参赛轮次即可）。']},
+
+{s:'ref',id:'ref-rounds',t:'轮次机制（两轮制 · 贯穿打分全程）',scope:'wireframe P2 / P3-P5 内嵌 · demo 已实现 · Go 表达了「参赛轮次」但轮次硬锁缺',levels:[
+ ['时段↔轮次绑定（上午=第 1 轮 / 下午=第 2 轮） | ok:已实现','队伍参赛轮次可改（只打一轮，成绩保留） | ok:已实现','两轮成绩独立（按 teamId 分轮存） | ok:已实现'],
+ ['轮次硬锁：第 2 轮起，第 1 轮未全部提交即锁 | hub'],
+ ['锁定态不生成入口（不是 CSS 挡） | ok:已实现','缺席正解 = 改参赛轮次（比弃赛轻） | ok:已实现','轮次锁的后端表达 | warn:缺']
+  ],
+ notes:['整队退赛才用弃赛；「批次」说法已废弃（全仓 0 处）。','后端的 team_write_locks 是「编辑锁」（防并写），不是轮次锁 —— 两者别混。']},
+
+{s:'ref',id:'ref-offline',t:'平板离线能力（全局口径）',scope:'wireframe 全局约束 · demo 部分体现 · Go 部分（evidence 补传有，成绩离线链未做）',levels:[
+ ['首登联网激活（之后断网可用） | ok:已实现','断网打分：成绩 / 争议先存本地 | ok:已实现','联网补传（synced 标记） | ok:已实现'],
+ ['本地优先 · 最终一致 | hub'],
+ ['别用「已同步」当判据（断网也要能上报） | ok:已实现','申述书照片 local → 联网补传 | ok:已实现','后台管理端必须联网（无离线兜底） | ok:已实现']
+  ],
+ notes:['这是裁判端与后台端最重要的能力分界：平板可离线，后台不可。','成绩的离线补传链尚未在后端打通（先 local 的结构已有，同步端点缺）。']}
+];
+
+/* ---------- 渲染全部：目录 + 分组标题 + 图 ---------- */
+var sideName={bg:'后台端',ref:'裁判端'};
+var toc='', html='', lastSide=null, no=0;
+FIGS.forEach(function(d){
+  no++;
+  if(d.s!==lastSide){
+    lastSide=d.s;
+    html+='<h2 id="side-'+d.s+'">'+(d.s==='bg'?'第一部分 · 后台端':'第二部分 · 裁判端（平板 · 设计稿）')+
+      '<span class="cnt">'+FIGS.filter(function(x){return x.s===d.s;}).length+' 张</span></h2>';
+  }
+  toc+='<a href="#fig-'+d.id+'">'+no+'. '+esc(d.t)+'</a>';
+  var nts=(d.notes||[]).map(function(x){return '<div class="note">'+esc(x)+'</div>';}).join('');
+  html+='<div class="fig" id="fig-'+d.id+'"><h3>'+no+'. '+esc(d.t)+
+    ' <span class="pill dim">'+sideName[d.s]+'</span></h3><div class="scope">'+esc(d.scope)+'</div>'+
+    renderFig(d)+nts+'</div>';
+});
+document.getElementById('toc').innerHTML=toc;
+document.getElementById('figs').innerHTML=html;
+</script>
+</body>
+</html>
