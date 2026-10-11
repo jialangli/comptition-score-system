@@ -88,3 +88,17 @@ func (s *RefereeStore) MarkActivated(ctx context.Context, id int64) error {
 		id, store.CurrentContest(ctx))
 	return oneRow(tag, err)
 }
+
+// MarkRevoked 作废裁判码。
+//
+// 当前（0021）只是 store 级写能力，供排班校验等读侧口径使用；
+// 面向运营的「作废 / 重发」接口属裁判码管理批（图集 7 号）。
+// unused / activated 都可作废；已作废的重复作废命中 0 行 → ErrNotFound。
+func (s *RefereeStore) MarkRevoked(ctx context.Context, id int64) error {
+	tag, err := s.q.Exec(ctx, `
+		UPDATE referee_codes
+		SET status='revoked'
+		WHERE id=$1 AND contest_id=$2 AND status IN ('unused','activated')`,
+		id, store.CurrentContest(ctx))
+	return oneRow(tag, err)
+}

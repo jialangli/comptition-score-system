@@ -342,6 +342,93 @@ func (s *Service) SlotTeams(ctx context.Context, slotID int64) (*SlotTeamsResult
 	return res, nil
 }
 
+// SetSlotJudges 整体替换场次的执裁排班（0021，图集 8 号缺口补齐）。
+//
+// 读路径随场次返回（GET /slots、GET /slots/{id} 的 Slot.Judges）；
+// 写路径是**整体替换**而不是增删两个端点 —— demo 的加 / 删 / 清空最终都是
+// 「这份名单长这样」，一个写入口就没有两份名单的分叉。排的是「人」：
+// 引用 referee_codes 主键，码重发不影响已排的班。
+//
+// 校验三条（与 demo 口径对齐）：
+//  1. 裁判必须在本赛事建档 —— 裁判码是赛事级凭证，A 场的裁判排不进 B 场的场次；
+//  2. 已作废的裁判不能排（demo 候选下拉只列未作废，这里在服务端兜底）；
+//  3. 去重保序 —— 同一裁判重复提交只留一次，指派顺序就是现场点名顺序。
+//
+// 刻意不做跨场次冲突检测：demo 的「值守冲突」是**值守人**（赛事级 staff）的概念，
+// 与场次排班是两回事；同一裁判是否兼场次由运营判断，系统不硬拦（换场软校验同理）。
+func (s *Service) SetSlotJudges(ctx context.Context, slotID int64, judgeIDs []int64, reason string) (*model.Slot, error) {
+	slot, err := s.ro().Slots.Get(ctx, slotID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 去重保序
+	seen := map[int64]bool{}
+	clean := make([]int64, 0, len(judgeIDs))
+	for _, id := range judgeIDs {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		clean = append(clean, id)
+	}
+
+	// 裁判档案校验（一次 ListByContest 兜住全部 id —— 裁判是个位数到几十人）
+	refs, err := s.ro().Referees.ListByContest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[int64]model.RefereeCode, len(refs))
+	for _, r := range refs {
+		byID[r.ID] = r
+	}
+	nameOf := func(ids []int64) string {
+		parts := make([]string, 0, len(ids))
+		for _, id := range ids {
+			if r, ok := byID[id]; ok {
+				parts = append(parts, fmt.Sprintf("%s(#%d)", r.Name, id))
+			} else {
+				parts = append(parts, fmt.Sprintf("#%d", id))
+			}
+		}
+		if len(parts) == 0 {
+			return "未排班"
+		}
+		return strings.Join(parts, "、")
+	}
+	for _, id := range clean {
+		r, ok := byID[id]
+		if !ok {
+			return nil, &model.FieldError{
+				Field: "judges",
+				Msg:   fmt.Sprintf("裁判 #%d 不在本赛事的裁判档案里 —— 裁判码是赛事级凭证，请先在「裁判档案」建档", id),
+			}
+		}
+		if r.Status == model.RefereeRevoked {
+			return nil, &model.FieldError{
+				Field: "judges",
+				Msg:   fmt.Sprintf("裁判「%s」（#%d）的码已作废，不能排班 —— 如需恢复请重发裁判码", r.Name, id),
+			}
+		}
+	}
+
+	if reason == "" {
+		reason = "场次裁判指派"
+	}
+	old := slot.Judges // 审计 before 要取**替换前**的名单
+	slot.Judges = clean
+	if err := s.tx(ctx, func(r store.Repos) error {
+		if err := r.Slots.UpdateJudges(ctx, slotID, clean); err != nil {
+			return err
+		}
+		return log(ctx, r, model.ActDuty, slotLabel(slot),
+			nameOf(old), nameOf(clean), reason)
+	}); err != nil {
+		return nil, err
+	}
+	return slot, nil
+}
+
 // SaveSnapshot 写入加时赛场内快照。
 //
 // 依据需求确认单：「加时赛队伍以运营导入的为准，采用场内快照，**不污染主库**」。

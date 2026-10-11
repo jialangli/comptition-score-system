@@ -39,6 +39,10 @@ const (
 	ActRefereeIssue    AuditAction = "建档裁判码" // 赛前生成码并预绑执裁范围
 	ActRefereeActivate AuditAction = "激活裁判码" // 首登联网激活
 
+	// 执裁排班（0021）。与裁判码同组：排的是「谁在哪场次执裁」，属责任分配，
+	// 现场出了评分争议，「这个场次当时安排了谁」是第一个要回答的问题。
+	ActDuty AuditAction = "排班" // 场次执裁排班的整体替换
+
 	// 留底证据（0009）。
 	ActEvidence AuditAction = "留底证据" // 证据生成与上云
 

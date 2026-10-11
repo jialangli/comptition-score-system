@@ -156,6 +156,39 @@ func (s *Server) handleAutoAssignSlot(w http.ResponseWriter, r *http.Request) {
 	OK(w, map[string]any{"slotId": id, "count": count})
 }
 
+// slotJudgesBody PUT /api/v1/slots/{id}/judges 的请求体。
+//
+// judges 为**全量名单**（裁判档案 ID 数组，按指派顺序）：整体替换而不是增删两
+// 个端点 —— demo 的加 / 删 / 清空最终都是「这份名单长这样」，一个写入口就
+// 不会有两份名单的分叉。空数组 = 清空排班。
+type slotJudgesBody struct {
+	Judges []int64 `json:"judges"`
+	Reason string  `json:"reason,omitempty"`
+}
+
+// handleSetSlotJudges PUT /api/v1/slots/{id}/judges
+//
+// 执裁排班的写入口（0021，图集 8 号缺口补齐）；读随 GET /slots 的 Slot.Judges。
+// service 层校验裁判在本赛事建档、未作废、去重保序，并写「排班」审计。
+func (s *Server) handleSetSlotJudges(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		Fail(w, r, err)
+		return
+	}
+	var body slotJudgesBody
+	if err := decodeJSON(w, r, &body); err != nil {
+		Fail(w, r, err)
+		return
+	}
+	slot, err := s.svc.SetSlotJudges(r.Context(), id, body.Judges, body.Reason)
+	if err != nil {
+		Fail(w, r, err)
+		return
+	}
+	OK(w, slot)
+}
+
 // handleListSlotTeams GET /api/v1/slots/{id}/teams
 //
 // **派生读**：正式场次返回由队伍级归台派生出的队伍（按台内顺位排序）；

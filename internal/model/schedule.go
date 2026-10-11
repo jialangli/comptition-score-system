@@ -64,7 +64,13 @@ type Slot struct {
 	RoundNo   int        `json:"round"`              // 轮次 1 / 2（见 RoundOfPeriod）
 	TeamIDs   []int64    `json:"teamIds,omitempty"`  // 正式场次：**派生**出的队伍 ID（不再存储）
 	Snapshot  []Snapshot `json:"snapshot,omitempty"` // 独立场次：场内快照
-	CreatedAt time.Time  `json:"createdAt"`
+
+	// Judges 本场次的执裁排班（referee_codes.id 数组，按指派顺序）。
+	// 排班是场次的附属属性：读随场次一起回（GET /slots），写走
+	// PUT /slots/{id}/judges 整体替换（service 层校验 + 审计，0021）。
+	// 引用档案主键而不是码值 —— 码可重发变更，排的是「人」。
+	Judges    []int64   `json:"judges"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // RoundOfPeriod 时段 → 轮次的**默认**绑定（上午 = 第 1 轮、下午 = 第 2 轮）。

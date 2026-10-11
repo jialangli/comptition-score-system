@@ -91,17 +91,31 @@ func (s *SeatStore) Delete(ctx context.Context, id int64) error {
 // SlotStore 场次仓储。
 type SlotStore struct{ q querier }
 
-const slotColumns = `id, seat_id, period, time_range, event_id, group_code, slot_type, round_no, created_at`
+const slotColumns = `id, seat_id, period, time_range, event_id, group_code, slot_type, round_no, judges, created_at`
 
 func scanSlot(row interface{ Scan(...any) error }) (*model.Slot, error) {
 	var s model.Slot
 	var typ string
+	var judges []byte // JSONB 先落原始字节再解：NULL 与 'null' 两种形态都能兜住
 	if err := row.Scan(&s.ID, &s.SeatID, &s.Period, &s.TimeRange, &s.EventID,
-		&s.GroupCode, &typ, &s.RoundNo, &s.CreatedAt); err != nil {
+		&s.GroupCode, &typ, &s.RoundNo, &judges, &s.CreatedAt); err != nil {
 		return nil, notFoundIfNoRows(err)
 	}
 	s.Type = model.SlotType(typ)
+	if err := scanJSONB(judges, &s.Judges); err != nil {
+		return nil, err
+	}
 	return &s, nil
+}
+
+// UpdateJudges 整体替换场次的执裁排班（0021）。命中 0 行返回 ErrNotFound。
+//
+// 刻意按 slotID 直接 UPDATE 而不是走 UpdateMeta：排班是高频小改动，
+// 与「改场次元信息」共用一条路径会让每次排班都带着全量元信息回写。
+func (s *SlotStore) UpdateJudges(ctx context.Context, slotID int64, judges []int64) error {
+	tag, err := s.q.Exec(ctx, `UPDATE slots SET judges=$2 WHERE id=$1`,
+		slotID, jsonArg(judges))
+	return affected(tag, err)
 }
 
 // Create 新增场次。

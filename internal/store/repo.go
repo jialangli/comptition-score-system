@@ -283,6 +283,9 @@ type RefereeCodeRepo interface {
 	ListByContest(ctx context.Context) ([]model.RefereeCode, error)
 	// MarkActivated 标记已激活（首登联网激活）；不存在或已作废返回 ErrNotFound。
 	MarkActivated(ctx context.Context, id int64) error
+	// MarkRevoked 作废裁判码（0021：store 级写能力，供排班校验等读侧口径；
+	// 运营侧「作废 / 重发」接口属裁判码管理批）。不存在或已作废返回 ErrNotFound。
+	MarkRevoked(ctx context.Context, id int64) error
 }
 
 // ---------------------------------------------------------------------------
@@ -362,6 +365,8 @@ type SlotRepo interface {
 	List(ctx context.Context, seatID int64, eventID string) ([]model.Slot, error)
 	// UpdateMeta 只更新场次的元信息（队伍由队伍级归台决定，场次不存队伍）。
 	UpdateMeta(ctx context.Context, s *model.Slot) error
+	// UpdateJudges 整体替换场次的执裁排班（0021）。命中 0 行返回 ErrNotFound。
+	UpdateJudges(ctx context.Context, slotID int64, judges []int64) error
 	Delete(ctx context.Context, id int64) error
 	// 注：`SetTeams`（写场次队伍）已删除 —— 场次队伍改为派生，
 	// 写入路径改为 PUT /teams/{id}/seat（写队伍级归台）。`slot_teams` 退化为历史表。
