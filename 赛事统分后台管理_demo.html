@@ -5307,6 +5307,7 @@ function caseRoundCell(r){
   return '<span class="muted">—</span>';
 }
 function caseStatusTag(st){
+  if(st==='已撤回')return '<span class="tag">'+esc(st)+'</span>';   /* 撤回不是错误，不上红色 */
   var cls=(st==='已批准'||st==='已裁定')?'ok':((st==='待审批'||st==='待裁定')?'warn':'err');
   return '<span class="tag '+cls+'">'+esc(st)+'</span>';
 }
@@ -5314,6 +5315,53 @@ function caseStatusTag(st){
    裁判长响应慢属其本人 accountability，换人直接在「裁判与排班」处理。 */
 /* 改分台账的轮次筛选：单值下拉，改选即生效（不做 XRF/XRA 那套草稿-生效双状态 —— 只有一个条件时那是多余） */
 function caseRoundFilter(v){CASE_ROUND_FILTER=String(v==null?'':v);render();}
+/* 争议工单的后台手工登记（链路图集 24「后台手工登记」，2026/10/11 补齐）：
+   队伍没走平板（口头 / 纸质申诉、平板故障）时由工作人员代登记，让工单进入同一条
+   待裁定队列；裁定仍在平板端 P8，本页只负责「让工单存在」并留痕。
+   S.disputes 此前零写入点 → 争议台账 / 发布门口径 ④ / 看板统计这半条链是死的。 */
+var DSP_EVENT='';   /* 登记表单的赛项选择（队伍候选按赛项过滤）；空串 = 取第一个赛项 */
+function setDspEvent(id){DSP_EVENT=id;render();}
+function dspRegister(){
+  if(!perm('dispute'))return;
+  var evId=(find(DSP_EVENT)?DSP_EVENT:((S.events[0]||{}).id||''));
+  var ev=find(evId);
+  if(!ev){alert('还没有赛项 —— 请先到「赛项与规则配置」建赛项');return;}
+  var tid=((document.getElementById('dspTeam')||{}).value||'');
+  var type=((document.getElementById('dspType')||{}).value||'');
+  var desc=((document.getElementById('dspDesc')||{}).value||'').trim();
+  var att=((document.getElementById('dspAtt')||{}).value||'').trim();
+  var rn=Number((document.getElementById('dspRound')||{}).value)||1;
+  if(!tid){alert('请选择队伍');return;}
+  if(!type){alert('请选择争议类型 —— 类型按赛项配置（裁判端只读选择），本赛项还没配，请先到「赛项与规则配置」补齐');return;}
+  if(!desc){alert('情况说明必填 —— 与裁判端 P5.10「情况说明 + 申述书照片」两项必填同口径（纸质申述书在「附件说明」注明归档位置）');return;}
+  var t=findTeam(tid);
+  if(!t){alert('该队伍不存在（可能已被删除）');return;}
+  var open=(S.disputes||[]).filter(function(d){return d.teamId===tid&&d.eventId===ev.id&&d.status==='待裁定';});
+  if(open.length){alert('该队在本赛项已有待裁定工单（'+open[0].no+'）。\n同队同赛项同一时刻只留一张开放工单（与后端唯一约束同口径）。\n确属两件事，请先在裁定台结掉上一张。');return;}
+  var no=nextCaseNo('D');
+  S.disputes=S.disputes||[];
+  S.disputes.unshift({id:uid('dsp'),no:no,teamId:tid,eventId:ev.id,group:t.group||'',
+    round:(Number(ev.rounds||1)>=2?rn:1),type:type,desc:desc,attach:att,
+    source:'后台手工登记',by:operatorName(),ts:nowStr(),status:'待裁定',
+    rulingBy:'',rulingTs:'',takeover:'',ruling:'',configVersion:ev.configVersion||'—'});
+  logAudit('争议',no+' · '+teamLabel(tid)+' · '+ev.name,'—','已生成 '+no+'（待裁定）',
+    '后台手工登记 · '+type+' · '+desc);
+  save();render();
+  alert(no+' 已登记：'+t.name+'（'+t.no+'）· '+type+'，已进入待裁定队列。\n裁定在平板端 P8 裁定台（裁判长）；待裁定期间该赛项不应发布。');
+}
+/* 撤回：只给手工登记单开 —— 平板上报单由上报人在平板端 P8 撤（后台不代撤）；
+   已裁定的不可撤，如需推翻只能再裁定一次并留痕（与取消资格同口径）。 */
+function dspWithdraw(no){
+  if(!perm('dispute'))return;
+  var d=(S.disputes||[]).filter(function(x){return x.no===no;})[0];
+  if(!d)return;
+  if(d.status!=='待裁定'){alert('该工单已裁定（'+d.status+'），不可撤回 —— 如需推翻只能再裁定一次并留痕。');return;}
+  if(d.source!=='后台手工登记'){alert('平板端上报的工单由上报人在平板端 P8 撤回，后台不代撤。');return;}
+  if(!confirm('撤回争议工单 '+no+'？\n撤回后工单闭环（已撤回），全程留痕。'))return;
+  d.status='已撤回';
+  logAudit('争议',d.no+' · '+teamLabel(d.teamId),'待裁定','已撤回（登记有误 / 队伍撤诉）','后台手工登记工单的裁定前撤回');
+  save();render();
+}
 function viewCases(){
   var reqs=S.changeRequests||[],diss=S.disputes||[];
   var wReq=reqs.filter(function(r){return r.status==='待审批';}).length;
@@ -5345,10 +5393,15 @@ function viewCases(){
   var disRows=diss.map(function(r,i){
     var o=overdueOf(r);
     var pending=(r.status==='待裁定');
-    var ops='<span class="small muted">'+(pending?'由裁判长在平板端处理':'已闭环 · 无需督办')+'</span>';
+    /* 手工登记单在裁定前可在后台撤回（误登记 / 撤诉）；平板上报单的撤回权在上报人 */
+    var ops=(pending&&r.source==='后台手工登记')
+      ?('<span class="row tight"><button class="btn sm" onclick="dspWithdraw(\''+esc(r.no)+'\')">撤回</button>'+
+        '<span class="small muted">裁定前可撤</span></span>')
+      :('<span class="small muted">'+(pending?'由裁判长在平板端处理':'已闭环 · 无需督办')+'</span>');
     return '<tr><td><b>'+esc(r.no)+'</b></td><td>'+esc(teamLabel(r.teamId))+'</td>'+
-      '<td class="small">'+esc((find(r.eventId)||{name:'—'}).name)+' · '+esc(r.group)+'</td>'+
-      '<td class="small">'+esc(r.type)+'</td>'+
+      '<td class="small">'+esc((find(r.eventId)||{name:'—'}).name)+' · '+esc(r.group)+
+        (Number((find(r.eventId)||{}).rounds||1)>=2?(' · <b>第 '+Number(r.round||1)+' 轮</b>'):'')+'</td>'+
+      '<td class="small">'+esc(r.type)+(r.desc?('<div class="small muted">'+esc(r.desc)+'</div>'):'')+'</td>'+
       '<td class="small">'+esc(r.source)+'</td>'+
       '<td class="small">'+esc(r.by)+'<div class="small muted">'+esc(r.ts)+'</div></td>'+
       '<td>'+caseStatusTag(r.status)+
@@ -5359,6 +5412,35 @@ function viewCases(){
       '<td class="small">'+esc(r.ruling||'—')+'<div class="small muted">config_version = '+esc(r.configVersion||'—')+'</div></td>'+
       '<td>'+ops+'</td></tr>';
   }).join('');
+  /* —— 争议工单 · 后台手工登记（图集 24「后台手工登记」补齐，2026/10/11）—— */
+  var dspEv=(find(DSP_EVENT)?DSP_EVENT:((S.events[0]||{}).id||''));
+  var dspEvObj=find(dspEv)||{};
+  var dspTwoRound=Number(dspEvObj.rounds||1)>=2;
+  var dspEvOpts=S.events.map(function(e){return '<option value="'+e.id+'"'+(e.id===dspEv?' selected':'')+'>'+esc(e.name)+'</option>';}).join('');
+  var dspCand=(S.teams||[]).filter(function(t){return t.eventId===dspEv&&t.status!=='withdrawn';});
+  var dspTeamOpts=dspCand.length?dspCand.map(function(t){
+      return '<option value="'+t.id+'">'+esc(t.name)+'（'+esc(t.no)+'）'+(t.group?(' · '+esc(t.group)):'')+'</option>';
+    }).join(''):'<option value="">（本赛项暂无可登记的队伍）</option>';
+  var dspTypeOpts=((dspEvObj.disputeTypes||[]).filter(function(d){return (d.label||'').trim();}).map(function(d){
+      return '<option>'+esc(d.label)+'</option>';}).join(''))||'<option value="">（本赛项未配置争议类型）</option>';
+  var dspForm='<div class="card"><h2>登记争议工单（后台手工登记） <small>代登记：队伍没走平板时由工作人员落库 —— 裁定仍在平板端 P8</small></h2>'+
+    '<div class="row" style="align-items:flex-start">'+
+      '<div class="fld"><label>赛项</label><select style="min-width:140px" onchange="setDspEvent(this.value)">'+dspEvOpts+'</select></div>'+
+      '<div class="fld"><label>队伍</label><select id="dspTeam" style="min-width:190px">'+dspTeamOpts+'</select></div>'+
+      (dspTwoRound?('<div class="fld"><label>轮次</label><select id="dspRound" style="min-width:96px"><option value="1">第 1 轮</option><option value="2">第 2 轮</option></select></div>'):'')+
+      '<div class="fld"><label>争议类型</label><select id="dspType" style="min-width:130px">'+dspTypeOpts+'</select></div>'+
+      '<div class="fld" style="flex:1;min-width:220px"><label>情况说明（必填）</label><input id="dspDesc" placeholder="如：对方选手碰撞我方机器人导致任务中断，申请复核该轮用时"></div>'+
+      '<div class="fld" style="flex:1;min-width:200px"><label>附件说明（选填）</label><input id="dspAtt" placeholder="纸质申述书已收：如「纸质件 2 页 · 存档 A-07」"></div>'+
+      '<div class="fld"><label>&nbsp;</label><button class="btn primary" onclick="dspRegister()">登记工单</button></div>'+
+    '</div>'+
+    '<div class="hint">'+
+      '<b>为什么后台能登记</b>：上报发生在现场，但队伍不一定都有平板通道 —— 口头 / 纸质申诉、平板故障时，'+
+      '由工作人员<b>代登记</b>，让工单进入同一条待裁定队列（登记人 / 裁定人 / 裁定结论都在台账可见）。'+
+      '<b>登记 ≠ 裁定</b>：裁定仍在平板端 P8，后台不复制裁定界面。<br>'+
+      '<b>同队同时只留一张</b>：同队同赛项已有「待裁定」工单时不重复登记（与后端唯一约束同口径）——'+
+      '确属两件事请先在裁定台结掉上一张。<b>误登记可撤回</b>：仅限手工登记单、裁定前，撤回全程留痕。'+
+    '</div>'+
+  '</div>';
   return '<div class="grid g4">'+
       kpi('待审批改分',wReq+' 件','P9 通道 · 裁判长审批')+
       kpi('待裁定工单',wDis+' 件','P8 裁定台 · 由裁判长在平板端处理')+
@@ -5378,7 +5460,8 @@ function viewCases(){
     '<div style="overflow:auto"><table><thead><tr><th style="width:70px">单号</th><th>队伍</th><th style="width:140px">赛项 · 组别</th><th class="num" style="width:76px">轮次</th><th style="width:150px">改动内容</th><th style="width:110px">来源</th><th style="width:120px">申请人</th><th style="width:130px">状态</th><th style="width:150px">审批人</th><th>审批意见</th><th style="width:240px">操作</th></tr></thead>'+
     '<tbody>'+(reqRows||('<tr><td colspan="11" class="muted">'+(CASE_ROUND_FILTER?('当前筛选（第 '+CASE_ROUND_FILTER+' 轮）下没有申请单 —— 共 '+reqs.length+' 件，切到「全部」可看'):'暂无申请单')+'</td></tr>'))+'</tbody></table></div>'+
   '</div>'+
-  '<div class="card"><h2>争议工单台账 D-00x <small>共 '+diss.length+' 件 · 裁定操作在平板端 P8，本页只读</small></h2>'+
+  dspForm+
+  '<div class="card"><h2>争议工单台账 D-00x <small>共 '+diss.length+' 件 · 裁定操作在平板端 P8，本页只读 · 手工登记单裁定前可撤回</small></h2>'+
     '<div style="overflow:auto"><table><thead><tr><th style="width:70px">单号</th><th>队伍</th><th style="width:150px">赛项 · 组别</th><th>争议类型</th><th style="width:130px">来源</th><th style="width:120px">上报人</th><th style="width:130px">状态</th><th style="width:150px">裁定人</th><th>裁定结论</th><th style="width:240px">操作</th></tr></thead>'+
     '<tbody>'+(disRows||'<tr><td colspan="10" class="muted">暂无工单</td></tr>')+'</tbody></table></div>'+
   '</div>'+
@@ -5394,7 +5477,11 @@ function viewCases(){
         '真正的发布闸门在「公示与导出」。<br>'+
       '<b>⑤ 超时信息同时进入告警收件箱</b>：类型 = 超时催办，可在本看板上方「告警收件箱」查看，便于事后追溯。<br>'+
       '<b>⑥ 改分按轮次归属</b>：两轮制下单号带<b>轮次</b>（第 1 / 第 2 轮）—— 同一支队可能两次改分分别落在不同轮次，'+
-        '台账按单独立、不合并；复审时请连轮次一起看，别只看队名。上方<b>「轮次」下拉</b>可按轮筛选（只筛表格行，KPI 仍是全部轮次）。'+
+        '台账按单独立、不合并；复审时请连轮次一起看，别只看队名。上方<b>「轮次」下拉</b>可按轮筛选（只筛表格行，KPI 仍是全部轮次）。<br>'+
+      '<b>⑦ 争议工单可后台手工登记</b>：队伍没走平板（口头 / 纸质申诉、平板故障）时由工作人员<b>代登记</b>进待裁定队列，'+
+        '裁定仍在平板端 P8（后台不复制裁定界面）；同队同赛项同时只留<b>一张开放工单</b>（与后端唯一约束同口径）；'+
+        '<b>误登记</b>的工单可在裁定前<b>撤回</b>（仅限手工登记单 —— 平板上报单由上报人在平板端撤回）；'+
+        '情况说明必填，申述书为纸质件时在「附件说明」注明归档位置。'+
     '</div>'+
   '</div>';
 }
@@ -5553,6 +5640,8 @@ function publishReadyGate(evId){
   if(noScore.length)miss.push('无成绩记录队伍：'+noScore.length+' 支（若该队只打部分轮次，先到「分台与顺位」改它的「参赛轮次」）');
   var dqN=(S.dqCases||[]).filter(function(c){return c.eventId===evId&&c.status==='待裁定';}).length;
   if(dqN)miss.push('待裁定资格案例：'+dqN+' 件');
+  var dspN=(S.disputes||[]).filter(function(d){return d.eventId===evId&&d.status==='待裁定';}).length;
+  if(dspN)miss.push('待裁定争议工单：'+dspN+' 件');
   var chgN=(S.changeRequests||[]).filter(function(c){return c.eventId===evId&&c.status==='待审批';}).length;
   if(chgN)miss.push('待审批改分：'+chgN+' 件');
   var wdN=(S.teams||[]).filter(function(t){return t.eventId===evId&&t.status==='withdrawn';}).length;
@@ -5574,6 +5663,7 @@ function publishReadinessHtml(evId){
   /* 只打部分轮次的队伍（参赛轮次 ≠ 两轮）：不参与上面的完整度分母，单独以「提示项」呈现 */
   var partial=teams.filter(function(t){return (t.session||'both')!=='both';});
   var dqN=(S.dqCases||[]).filter(function(c){return c.eventId===evId&&c.status==='待裁定';}).length;
+  var dspN=(S.disputes||[]).filter(function(d){return d.eventId===evId&&d.status==='待裁定';}).length;
   var chgN=(S.changeRequests||[]).filter(function(c){return c.eventId===evId&&c.status==='待审批';}).length;
   var wdN=(S.teams||[]).filter(function(t){return t.eventId===evId&&t.status==='withdrawn';}).length;
   return '<div style="margin-top:12px;border:1px solid '+(g.ok?'#9ae6b4':'#fc8181')+';border-radius:8px;padding:10px 12px">'+
@@ -5583,6 +5673,7 @@ function publishReadinessHtml(evId){
       row('成绩完整度',teams.length>0&&scoredN===teams.length,teams.length?('全部 '+teams.length+' 队已录入（'+scoredN+'/'+teams.length+'）'):'本赛项暂无队伍')+
       row('签字提交',teams.length>0&&signedN===teams.length,teams.length?('全部 '+teams.length+' 队已签字提交（'+signedN+'/'+teams.length+'）'):'本赛项暂无队伍')+
       row('资格裁定',dqN===0,dqN?('仍有 '+dqN+' 件待裁定'):'无待裁定资格案例')+
+      row('争议裁定',dspN===0,dspN?('仍有 '+dspN+' 件待裁定'):'无待裁定争议工单')+
       row('改分审批',chgN===0,chgN?('仍有 '+chgN+' 件待审批改分'):'无待审批改分')+
       row('弃赛处理',true,wdN?('弃赛 '+wdN+' 支已作废，不进榜单'):'无弃赛队伍')+
       rowHint('部分轮次参赛',partial.length
@@ -5660,6 +5751,7 @@ var PERMS={
   ref:      {label:'裁判档案 / 排班 / 分台',            roles:['staff']},
   score:    {label:'成绩录入（工作人员代录 / 现场回传）', roles:['staff']},
   dq:       {label:'取消资格登记 / 递补执行',           roles:['staff']},
+  dispute:  {label:'争议工单手工登记 / 撤回',           roles:['staff']},
   publish:  {label:'发布 / 重新发布',                  roles:['staff']},
   evidence: {label:'留底补传 / 归档 / 导出',            roles:['staff']},
   alert:    {label:'告警处理 / 复核',                  roles:['staff']},
@@ -5687,12 +5779,12 @@ function logAudit(action,target,before,after,reason){
   S.auditLogs=S.auditLogs.slice(0,300);
   save();
 }
-var AUDIT_TYPES=['改配置','改分','改组','调赛台','弃赛','删队','裁判码','排班','分台','锁定成绩','解锁','发布','重发','裁定','递补','告警','留底','账号'];
+var AUDIT_TYPES=['改配置','改分','改组','调赛台','弃赛','删队','裁判码','排班','分台','锁定成绩','解锁','发布','重发','裁定','争议','递补','告警','留底','账号'];
 var AUDIT_GROUPS=[
   {label:'配置与队伍',types:['改配置','改分','改组','调赛台','弃赛','删队']},
   {label:'裁判与排班',types:['裁判码','排班','分台']},
   {label:'公示与发布',types:['发布','重发','锁定成绩','解锁']},
-  {label:'裁定与合规',types:['裁定','递补','告警']},
+  {label:'裁定与合规',types:['裁定','争议','递补','告警']},
   {label:'证据与系统',types:['留底','账号']}
 ];
 function viewAudit(){

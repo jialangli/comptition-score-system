@@ -2,12 +2,12 @@
   "source": "赛事统分后台管理_demo.html",
   "sourceInfo": {
     "name": "赛事统分后台管理_demo.html",
-    "bytes": 382933,
-    "sha256": "21c61bcfb2bf45f3dd3f8ebd6813b291f5c9ea8c50e6152b13babfbdd82cff4f",
-    "mtime": "2026-10-10T08:14:00.171Z"
+    "bytes": 407982,
+    "sha256": "1f48561e4e51d2c2926f95a158d3d8ca353ec0b2a5a149c35743492f0d66fdc4",
+    "mtime": "2026-10-11T03:06:44.215Z"
   },
   "note": "由 scripts/gen_frontend_golden.js 从 demo 前端实现自动生成，请勿手工编辑。赛项配置取自 demo 的 EVENT_TEMPLATES；队伍与成绩为脚本内显式 fixture（覆盖分支用）",
-  "generatedAt": "2026-10-10T08:14:55.644Z",
+  "generatedAt": "2026-10-11T03:26:40.864Z",
   "refTime": 120,
   "closure": {
     "entrypoints": [
