@@ -3544,7 +3544,7 @@ function seatPanel(){
     var sOpts='<option value="">（未分台）</option>'+S.seats.map(function(x){
       return '<option value="'+x.id+'" '+(t.seatId===x.id?'selected':'')+'>'+esc(x.name)+'</option>';}).join('');
     return '<tr>'+
-      '<td><input type="checkbox" class="seatpick" value="'+t.id+'"></td>'+'<td class="num">'+(pos||'—')+'</td>'+
+      '<td class="num">'+(pos||'—')+'</td>'+
       '<td><b>'+esc(t.no||'—')+'</b></td>'+
       '<td>'+esc(t.name)+'<div class="small muted">'+esc(t.members||'—')+'</div></td>'+
       '<td class="small">'+esc(t.group||'—')+'</td>'+
@@ -3565,15 +3565,15 @@ function seatPanel(){
         '<span class="small muted">'+list.length+' 支队伍 · 出赛顺位 1–'+list.length+'</span>'+
       '</div>'+
       '<div style="overflow:auto">'+
-      '<table style="margin-top:6px"><thead><tr><th style="width:40px">选</th><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:84px">组别</th><th style="width:104px">参赛轮次</th><th style="width:78px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
-      '<tbody>'+(rows||'<tr><td colspan="6" class="muted">该赛台暂无队伍</td></tr>')+'</tbody></table></div>'+
+      '<table style="margin-top:6px"><thead><tr><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:84px">组别</th><th style="width:104px">参赛轮次</th><th style="width:78px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
+      '<tbody>'+(rows||'<tr><td colspan="7" class="muted">该赛台暂无队伍</td></tr>')+'</tbody></table></div>'+
     '</div>';
   }).join('');
 
   var unBlock=unassigned.length
     ? '<div style="margin-top:12px;border:1px dashed #f6ad55;border-radius:8px;padding:10px 12px;background:#fffaf0">'+
       '<div class="row" style="justify-content:space-between"><b>未分台</b><span class="small muted">'+unassigned.length+' 支 · 平板端不会出现在任何赛台队列里</span></div>'+
-      '<div style="overflow:auto"><table style="margin-top:6px"><thead><tr><th style="width:40px">选</th><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:84px">组别</th><th style="width:104px">参赛轮次</th><th style="width:78px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
+      '<div style="overflow:auto"><table style="margin-top:6px"><thead><tr><th class="num" style="width:60px">顺位</th><th style="width:96px">编号</th><th>队伍 / 成员</th><th style="width:84px">组别</th><th style="width:104px">参赛轮次</th><th style="width:78px">进度</th><th style="width:250px">调整（↑↓ 换位 / 改派赛台）</th></tr></thead>'+
       '<tbody>'+unassigned.map(function(t){return teamRow(t,'—');}).join('')+'</tbody></table></div></div>'
     : '';
 
@@ -3583,7 +3583,7 @@ function seatPanel(){
       '<span class="sp" style="flex:1"></span>'+
       '<select style="max-width:150px" onchange="selSeatEvent(this.value)">'+evOpts2+'</select>'+
       '<select style="max-width:140px" onchange="selSeatGroup(this.value)">'+gOpts+'</select>'+
-      '<button class="btn primary" onclick="autoDistributeSeats()">一键自动分台</button>'+'<button class="btn" onclick="autoDistributeSeatsSel()">按编号均分选中队伍</button>'+
+      '<button class="btn primary" onclick="autoDistributeSeats()">一键自动分台</button>'+
       '<button class="btn" onclick="clearTeamSeats()">清空分台</button>'+
     '</div>'+
     '<div class="grid g4" style="margin-top:12px">'+
@@ -3602,9 +3602,8 @@ function seatPanel(){
       '<b>⑤ 参赛轮次（第 1 轮 / 第 2 轮 / 两轮）</b>：本赛制一队要打两轮 —— <b>上午第 1 轮、下午第 2 轮</b>，'
       +'所以常态就是「两轮」。轮次是<b>队伍级</b>字段，场次里的队伍由「赛台 × 赛项 × 组别 × 轮次」<b>派生</b>；'
       +'只在某队确实只打一轮时才改它。<br>'+
-      '<b>⑥ 本页是唯一的归台入口</b>：一键自动分台 = 按<b>编号顺序</b>排队后平均铺到各赛台（结果可预期、可对着名单核对）；'
-      +'要只重排一部分就勾选后用「按编号均分选中队伍」。<br>'+
-      '<b>⑦ 留痕</b>：均分、改派、调顺位、改轮次、清空都写入操作审计（「分台」类型）。'+
+      '<b>⑥ 本页是唯一的归台入口</b>：一键自动分台 = 按<b>编号顺序</b>排队后平均铺到各赛台（结果可预期、可对着名单核对）。<br>'+
+      '<b>⑦ 留痕</b>：自动分台、改派、调顺位、改轮次、清空都写入操作审计（「分台」类型）。'+
     '</div>'+
   '</div>';
 }
@@ -3654,25 +3653,6 @@ function autoDistributeSeats(){if(!perm('ref'))return;
   logAudit('分台','一键自动分台（按编号顺序）',pool.length+' 支待分台',detail,'自动均分（可手动调整）');
   save();render();
 }
-function autoDistributeSeatsSel(){
-  if(!perm('ref'))return;
-  var ev=find(CUR_EVENT);if(!ev)return;
-  var ids=[];var nodes=document.querySelectorAll('.seatpick:checked');
-  for(var ni=0;ni<nodes.length;ni++)ids.push(nodes[ni].value);
-  ids=ids.filter(function(id){var t=findTeam(id);return t&&t.eventId===ev.id&&t.status!=='withdrawn';});
-  if(!ids.length){alert('请先在下方列表左侧勾选要均分的队伍（勾选后会按编号均衡铺到各赛台；未勾选的队伍保持原分台不动）。');return;}
-  if(!S.seats.length){alert('还没有配置赛台，请先到「赛台与赛程编排」新建赛台');return;}
-  ids.sort(function(a,b){return Number(findTeam(a).no||0)-Number(findTeam(b).no||0);});
-  var buckets={};S.seats.forEach(function(x){buckets[x.id]=[];});
-  ids.forEach(function(id,i){buckets[S.seats[i%S.seats.length].id].push(id);});
-  S.seats.forEach(function(x){
-    buckets[x.id].forEach(function(tid,k){var t=findTeam(tid);if(t){t.seatId=x.id;t.order=k+1;}});
-  });
-  var detail=S.seats.map(function(x){return x.name+' '+buckets[x.id].length+' 队';}).join('；');
-  logAudit('分台','按编号均分选中队伍',ids.length+' 支勾选',detail,'按编号均分（保留未勾选队伍原分台）');
-  save();render();
-}
-
 function clearTeamSeats(){if(!perm('ref'))return;
   var ev=find(CUR_EVENT);if(!ev)return;
   if(!confirm('清空该赛项全部队伍的分台与顺位？\n\n'
