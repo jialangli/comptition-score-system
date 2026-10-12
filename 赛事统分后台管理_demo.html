@@ -2631,6 +2631,22 @@ var BULK_SAMPLE=[
   '5001,星河队,小学组,杭州实验小学,张老师,张三/李四'
 ].join('\n');
 var EVENT_BY_NAME={'脑机星球':'brain_planet','火星救援':'mars_rescue','未来之城':'future_city'};
+/* 赛项别名映射（2026/10/12，真实成绩册测试发现）：官方成绩册的赛项列写法与系统名不一致
+   ——「脑机(未来·火星)」「脑机（未来 · 火星）」都是火星救援（全角括号 / 夹空格等变体）。
+   解析顺序：归一化（去空白 + 全角括号转半角）→ 系统名精确 → 别名表 → 包含式兜底（系统名
+   出现在单元格文字里即命中，如「2026 WRC 脑机星球赛项」）。
+   「脑机竞技场」是独立赛项、系统未建 —— 刻意不进别名表：宁可冲突让人工裁决，也不猜。 */
+function normEventName(t){return String(t||'').replace(/\s/g,'').replace(/（/g,'(').replace(/）/g,')');}
+var EVENT_ALIAS={'脑机(未来·火星)':'mars_rescue'};
+function eventCodeToId(raw){
+  var t=normEventName(raw);
+  if(!t)return '';
+  if(EVENT_BY_NAME[t])return EVENT_BY_NAME[t];
+  if(EVENT_ALIAS[t])return EVENT_ALIAS[t];
+  var names=Object.keys(EVENT_BY_NAME).sort(function(a,b){return b.length-a.length;});
+  for(var i=0;i<names.length;i++){if(t.indexOf(names[i])>=0)return EVENT_BY_NAME[names[i]];}
+  return '';
+}
 var DIFF_META={
   insert:{t:'🟢 新增',cls:'ok'},
   update:{t:'🟡 更新',cls:'warn'},
@@ -2786,11 +2802,14 @@ function impDiffRow(o,counts){
   impFields().forEach(function(f){if(f.required&&!o[f.k])errs.push('缺少「'+f.label+'」');});
   if(o.team_number&&!/^\d+$/.test(o.team_number))errs.push('队伍编号须为纯数字（当前「'+o.team_number+'」）');
   /* bulk 通道不带「赛项」列 —— 整批落到第 2 步选定的赛项 */
-  var evId=impIsBulk()?IMP.bulkEvent:EVENT_BY_NAME[o.event_code];
-  if(!impIsBulk()&&o.event_code&&!evId)errs.push('未知赛项「'+o.event_code+'」');
+  var evId=impIsBulk()?IMP.bulkEvent:eventCodeToId(o.event_code);
+  if(!impIsBulk()&&o.event_code&&!evId)errs.push('赛项「'+o.event_code+'」不在系统赛项内（'
+    +Object.keys(EVENT_BY_NAME).join(' / ')+'）—— 若为同一赛项的别名口径请先统一名称，若为独立赛项则本行不应导入');
   if(impIsBulk()&&!evId)errs.push('未选定本批写入的赛项');
   var ev=evId?find(evId):null;
-  if(ev&&o.group_code&&(ev.groups||[]).indexOf(o.group_code)<0)errs.push('组别「'+o.group_code+'」不属于赛项「'+ev.name+'」');
+  if(ev&&o.group_code&&(ev.groups||[]).indexOf(o.group_code)<0)
+    errs.push('组别「'+o.group_code+'」不属于赛项「'+ev.name+'」（该赛项可选组别：'+(ev.groups||[]).join(' / ')
+      +'）—— 疑似其它赛项 / 组别的队伍混入了本表，请核对本行归属');
   if(o.team_number&&counts&&counts[o.team_number]>1)errs.push('编号在文件中出现 '+counts[o.team_number]+' 次，需人工裁决');
   if(errs.length)return {status:'conflict',errs:errs,changes:[],canFile:false,reason:'invalid'};
   var mt=null;
@@ -2911,7 +2930,7 @@ function impCommit(){
   IMP.diff.forEach(function(it){
     var e=impEff(it);
     if((e!=='insert'&&e!=='update')||!it.checked)return;
-    var o=it.o,bulk=impIsBulk(),evId=bulk?IMP.bulkEvent:EVENT_BY_NAME[o.event_code];
+    var o=it.o,bulk=impIsBulk(),evId=bulk?IMP.bulkEvent:eventCodeToId(o.event_code);
     var src=bulk?'excel_bulk':'excel';   /* 来源分开记 —— 审计里能看清是哪个通道进来的 */
     if(e==='insert'){
       var nid=uid('tm');
