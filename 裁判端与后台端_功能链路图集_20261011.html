@@ -80,7 +80,7 @@ function renderFig(d){
   var extras=[];
   (d.X||[]).forEach(function(x){
     var r=rows[x.lv], cx=r.cw*x.i+r.cw/2;
-    extras.push({x:cx-260/2,y:r.y+r.h+LG-10,t:x.t,sub:x.sub||'',warn:x.warn!==false});
+    extras.push({x:cx-260/2,y:r.y+r.h+LG-10,t:x.t,sub:x.sub||'',warn:x.warn!==false,green:x.green===true});
     r.extraBelow=true;
     y=Math.max(y, r.y+r.h+LG-10+XH+LG-36+LG);
   });
@@ -104,8 +104,9 @@ function renderFig(d){
   /* extra 连线（父节点直下） */
   (d.X||[]).forEach(function(x){
     var r=rows[x.lv], cx=r.cw*x.i+r.cw/2, y1=r.y+r.h+LG-10;
-    s+='<path d="M'+cx+' '+(y1-16)+' V'+(y1-23+16)+'" fill="none" stroke="'+(x.warn!==false?'#d69e2e':'#a0aec0')+'" stroke-width="1.4"/>';
-    s+='<polygon points="'+(cx-4.5)+','+(y1-8)+' '+(cx+4.5)+','+(y1-8)+' '+cx+','+y1+'" fill="'+(x.warn!==false?'#d69e2e':'#a0aec0')+'"/>';
+    var lc=x.warn!==false?'#d69e2e':(x.green===true?'#9ae6b4':'#a0aec0');
+    s+='<path d="M'+cx+' '+(y1-16)+' V'+(y1-23+16)+'" fill="none" stroke="'+lc+'" stroke-width="1.4"/>';
+    s+='<polygon points="'+(cx-4.5)+','+(y1-8)+' '+(cx+4.5)+','+(y1-8)+' '+cx+','+y1+'" fill="'+lc+'"/>';
   });
   /* 节点 */
   rows.forEach(function(r){
@@ -131,8 +132,11 @@ function renderFig(d){
   });
   /* extra 节点本体 */
   extras.forEach(function(e){
-    s+='<rect x="'+e.x+'" y="'+e.y+'" width="260" height="46" rx="8" fill="'+(e.warn?'#fdf6e3':'#f1f3f5')+'" stroke="'+(e.warn?'#d69e2e':'#cbd5e0')+'"/>';
-    s+='<text x="'+(e.x+130)+'" y="'+(e.y+19)+'" font-size="12.5" fill="'+(e.warn?'#7b341e':'#2d3748')+'" text-anchor="middle">'+esc(e.t)+'</text>';
+    var fill=e.warn?'#fdf6e3':(e.green?'#f0fff4':'#f1f3f5');
+    var stroke=e.warn?'#d69e2e':(e.green?'#9ae6b4':'#cbd5e0');
+    var tc=e.warn?'#7b341e':(e.green?'#276749':'#2d3748');
+    s+='<rect x="'+e.x+'" y="'+e.y+'" width="260" height="46" rx="8" fill="'+fill+'" stroke="'+stroke+'"/>';
+    s+='<text x="'+(e.x+130)+'" y="'+(e.y+19)+'" font-size="12.5" fill="'+tc+'" text-anchor="middle">'+esc(e.t)+'</text>';
     if(e.sub)s+='<text x="'+(e.x+130)+'" y="'+(e.y+36)+'" font-size="11" fill="#718096" text-anchor="middle">'+esc(e.sub)+'</text>';
   });
   return s+'</svg>';
@@ -145,9 +149,9 @@ var FIGS=[
 {s:'bg',id:'bg-dash',t:'总览（开赛就绪度）',scope:'全链路已实现（demo / web / Go）· Go 聚合接口 GET /api/v1/readiness（10/11 补齐）',levels:[
  ['赛项与规则配置就绪 | ok:已实现','队伍已导入（按赛事） | ok:已实现','裁判 / 场次就位 | ok:已实现'],
  ['开赛就绪度检查（逐项核对） | hub'],
- ['可以开赛（N 队 / N 裁判 / N 场次全就位） | ok:已实现','还差 N 项 → 逐项列出点名 | ok:已实现']
+ ['可以开赛（N 队 / N 裁判 / N 场次全就位）· 还差 N 项 → 逐项列出点名 | ok:已实现']
   ],
- X:[{lv:1,i:0,t:'本图已全部实现',sub:'后端聚合接口 GET /api/v1/readiness（10/11 补齐）：七项检查逐项点名，排班项随 0021 并入；gaps 声明位现为空',warn:false}],
+ X:[{lv:2,i:0,t:'本图已全部实现',sub:'后端聚合接口 GET /api/v1/readiness（10/11 补齐）：七项检查逐项点名，排班项随 0021 并入',warn:false,green:true}],
  notes:['「就绪度」不是新算分：它把赛项校验、队伍归台、场次派生、裁判激活拼成一屏（与 demo readinessOf 同口径）。','切赛事后整屏随数据空间切换（X-Contest 请求头分区）。','七项检查：规则已校验 / 队伍已导入 / 队伍已分台 / 分台已排进场次 / 场次已排队伍 / 场次已排班 / 裁判已激活；弃赛队未分台照样亮红（口径不放水）。']},
 
 {s:'bg',id:'bg-contests',t:'赛事管理（多赛事 · 隔离与归档）',scope:'demo 全功能 · web 未做（单赛事代际）· Go 已支持（contests + contest_rules + 请求头切赛事）',levels:[
