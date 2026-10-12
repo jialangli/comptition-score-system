@@ -142,12 +142,12 @@ function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 /* ---------- 图数据 ---------- */
 var FIGS=[
 /* ============ 后台端 ============ */
-{s:'bg',id:'bg-dash',t:'总览（开赛就绪度）',scope:'后台 demo 全功能 · web 有此页 · Go 已接（10/11：GET /api/v1/readiness 只读聚合）',levels:[
+{s:'bg',id:'bg-dash',t:'总览（开赛就绪度）',scope:'全链路已实现（demo / web / Go）· Go 聚合接口 GET /api/v1/readiness（10/11 补齐）',levels:[
  ['赛项与规则配置就绪 | ok:已实现','队伍已导入（按赛事） | ok:已实现','裁判 / 场次就位 | ok:已实现'],
  ['开赛就绪度检查（逐项核对） | hub'],
  ['可以开赛（N 队 / N 裁判 / N 场次全就位） | ok:已实现','还差 N 项 → 逐项列出点名 | ok:已实现']
   ],
- X:[{lv:1,i:0,t:'Go 就绪度聚合接口已补齐（10/11）',sub:'GET /api/v1/readiness：七项检查逐项点名（排班项随 0021 并入）+ gaps 留作「后端暂无法评估」的显式声明位（现为空）',warn:false}],
+ X:[{lv:1,i:0,t:'本图已全部实现',sub:'后端聚合接口 GET /api/v1/readiness（10/11 补齐）：七项检查逐项点名，排班项随 0021 并入；gaps 声明位现为空',warn:false}],
  notes:['「就绪度」不是新算分：它把赛项校验、队伍归台、场次派生、裁判激活拼成一屏（与 demo readinessOf 同口径）。','切赛事后整屏随数据空间切换（X-Contest 请求头分区）。','七项检查：规则已校验 / 队伍已导入 / 队伍已分台 / 分台已排进场次 / 场次已排队伍 / 场次已排班 / 裁判已激活；弃赛队未分台照样亮红（口径不放水）。']},
 
 {s:'bg',id:'bg-contests',t:'赛事管理（多赛事 · 隔离与归档）',scope:'demo 全功能 · web 未做（单赛事代际）· Go 已支持（contests + contest_rules + 请求头切赛事）',levels:[
