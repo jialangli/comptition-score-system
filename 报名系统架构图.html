@@ -97,7 +97,7 @@
 <body>
 
 <h1>赛事报名数据接入 · 架构图（WRC 官网版）</h1>
-<p class="sub">V0.3 · 2026-08-31 · 报名源头 = WRC 官网（外部），本系统职责 = 接收报名 Excel → 核对 → <b>重新编号</b> → 手动编辑 → 锁定下发 · 三大赛项：脑机星球 / 火星救援 / 未来之城</p>
+<p class="sub">V0.4 · 2026-10-13 · 报名源头 = WRC 官网（外部），本系统职责 = 接收报名 Excel → 核对 → <b>重新编号</b> → 手动编辑 → 锁定下发 · 三大赛项：脑机星球 / 火星救援 / 未来之城</p>
 
 <!-- ============ 〇、全链路定位 ============ -->
 <h2>〇、在全链路中的位置（V0.3 修订）</h2>
@@ -181,7 +181,7 @@
       </div>
       <div class="box">
         <b>🔢 编号分配服务（重编号引擎）</b>
-        <span>按"赛项×组别"分段发号 · 一键重排 · 手动指定/调整编号<br>冲突检测（撞号自动提示）· 保留空号位</span>
+        <span>按「字母前缀 + 三位补零」分段发号（前缀进 numbering_rules）· 一键重排 · 手动指定/调整编号<br>冲突检测（撞号自动提示）· 保留空号位</span>
         <span><span class="tag purple">V0.3 新增</span></span>
       </div>
       <div class="box">
@@ -353,24 +353,29 @@
       </div>
       <div class="box" style="border-color:#8e44ad; background:#f4ecf7;">
         <b>🔢 team_number · 系统编号（业务唯一键）</b>
-        <span>本系统按"赛项×组别"分段重新发号 · 裁判端/排名/<br>公示表/PPT 展示的唯一编号 · 队呼号（现场叫号用）</span>
+        <span>本系统按「字母前缀 + 三位补零」重新发号（如 N001）· 裁判端/排名/<br>公示表展示的唯一编号 · 队呼号（现场叫号用）</span>
         <span><span class="tag purple">V0.3 新增 · 全链路展示用</span></span>
       </div>
     </div>
   </div>
   <div class="note" style="margin-top:12px;">
     <b>为什么要重新编号而不是沿用 WRC 号：</b>① WRC 编号是全大赛统一发号，跨赛项连号无规律，现场裁判按号找队效率低；
-    ② 本系统分段编号（如"脑机星球·小学组 100-199"）天然携带赛项+组别信息，叫号/分场/公示分组一目了然；
+    ② 本系统分段编号（如 N001、W001、H010 这类「前缀 + 三位补零」）天然携带赛项+组别信息，叫号/分场/公示分组一目了然；
     ③ WRC 编号保留为对账字段，两边不冲突。<b>Diff 匹配始终用 wrc_number</b>，与重编号互不干扰。
   </div>
 
-  <h3 style="font-size:15px; margin:24px 0 12px;">4.2 编号规则（按赛项 × 组别分段）</h3>
+  <h3 style="font-size:15px; margin:24px 0 12px;">4.2 编号规则（字母前缀 + 三位补零 · 对齐真实号码簿）</h3>
   <table class="branch">
-    <tr><th>赛项</th><th>小学组</th><th>初中组</th><th>高中组</th><th>编号规则</th></tr>
-    <tr><td>🪐 脑机星球（BCSTAR）</td><td>100 – 199</td><td>200 – 299</td><td>300 – 399</td><td rowspan="3" style="vertical-align:middle;">每段末尾预留 10 个空号位<br>（补录队伍用，不挤占已有编号）</td></tr>
-    <tr><td>🚀 火星救援（MARS）</td><td>400 – 499</td><td>500 – 599</td><td>600 – 699</td></tr>
-    <tr><td>🏙️ 未来之城（FUTURE）</td><td>700 – 799</td><td>800 – 899</td><td>900 – 999</td></tr>
+    <tr><th>号码簿样例（真实）</th><th>结构</th><th>规则</th></tr>
+    <tr><td><b>N001 – N033</b>（33 支，连号）</td><td rowspan="3" style="vertical-align:middle;"><b>字母前缀 + 三位补零序号</b><br>前缀按「赛项（×组别）」配置，写入 <code>numbering_rules</code>；<br>序号三位补零，段内唯一，支持换号 / 末尾预留空号位（补录不挤占已有编号）</td></tr>
+    <tr><td><b>W001 – W024</b>（重排后可乱序呈现）</td></tr>
+    <tr><td><b>H010 – H020</b>（段独立，可与其它段并存）</td></tr>
   </table>
+  <div class="note" style="margin-top:10px;">
+    <b>V0.4 修订（2026-10-13）：</b>作废 V0.3 的「纯数字分段」（100–199 / 400–499…）方案——现场实际使用的是
+    <b>字母前缀 + 三位补零</b> 的号码簿（如 N / W / H 段）。前缀与「赛项 × 组别」的映射关系配置化，
+    改映射不改代码；WRC 编号仍降级为外部对账字段，Diff 匹配不受影响。
+  </div>
   <div style="font-size:12.5px; color:#7f8c8d; padding:8px 4px; line-height:1.8;">
     编号配置存在 <code>numbering_rules</code> 规则表里（赛项×组别×起始号×终止号），<b>改分段规则不改代码</b>；
     一键"重新编号"按导入顺序 × 分段规则顺序发号；单支队伍也可点"换号"手动指定（校验段内唯一，撞号即时提示）。
@@ -424,7 +429,8 @@
         <tr><th>字段</th><th>类型</th><th>说明</th></tr>
         <tr><td><code>rule_id</code></td><td>INT <span class="pk">PK</span></td><td>规则ID</td></tr>
         <tr><td><code>event_code</code> × <code>group_code</code></td><td>VARCHAR <span class="uk">UK</span></td><td>赛项 × 组别（联合唯一）</td></tr>
-        <tr><td><code>range_start</code> / <code>range_end</code></td><td>INT</td><td>编号段，如 100 / 199</td></tr>
+        <tr><td><code>prefix</code></td><td>VARCHAR(1) <span class="uk">UK</span></td><td>字母前缀（如 N / W / H，与赛项×组别联合唯一）</td></tr>
+        <tr><td><code>seq_start</code> / <code>seq_end</code></td><td>INT</td><td>序号段（不含前缀），如 1 / 99；展示时三位补零 → N001</td></tr>
         <tr><td><code>reserve_tail</code></td><td>INT</td><td>末尾预留空号数（补录用），默认 10</td></tr>
         <tr><td><code>enabled</code></td><td>BOOLEAN</td><td>启用开关（组别不设时停用）</td></tr>
       </table>
@@ -459,7 +465,7 @@
   </div>
   <div class="note">
     <b>对 V0.1/V0.2 架构的演进总结：</b>V0.1（自建报名，全职责）→ V0.2（WRC 报名，沿用 WRC 编号）→
-    <b>V0.3（WRC 报名 + 本系统重新编号 + 手动编辑）</b>。删——H5 报名端、表单服务、审核工作流、报名侧表；
+    <b>V0.3（WRC 报名 + 本系统重新编号 + 手动编辑）</b>→ <b>V0.4（编号规则对齐真实号码簿：字母前缀 + 三位补零，替换纯数字分段）</b>。删——H5 报名端、表单服务、审核工作流、报名侧表；
     留——Excel 导入链路（列映射/校验/Diff/审计）；<b>回归</b>——编号分配（以重编号引擎形态，配置驱动）。
   </div>
 </div>

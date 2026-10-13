@@ -27,7 +27,7 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 | 赛事统分后台管理 wireframe（20 页 · 对齐 2026-10-12 口径 · **可打印/导 PDF**） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_wireframe.html) |
 | 裁判打分系统 wireframe（平板端 · 40 页） | [打开](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html) |
 | 业务架构图（V0.6 · 一页全景 · 对齐 2026-10-13 口径） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
-| 报名系统架构图（WRC 官网接入 · V0.3） | [打开](https://jialangli.github.io/comptition-score-system/%E6%8A%A5%E5%90%8D%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
+| 报名系统架构图（WRC 官网接入 · V0.4 编号规则对齐真实号码簿） | [打开](https://jialangli.github.io/comptition-score-system/%E6%8A%A5%E5%90%8D%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
 | 队伍导入架构图（V0.1） | [打开](https://jialangli.github.io/comptition-score-system/%E9%98%9F%E4%BC%8D%E5%AF%BC%E5%85%A5%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
 | 早期单页版原型（保留作对比） | [打开](https://jialangli.github.io/comptition-score-system/) |
 
@@ -53,7 +53,7 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 五个板块：业务角色盘点 → 端到端业务主流程（赛前/赛中/赛后）→ 业务能力地图 → 核心业务对象与状态 → 已有业务与业务能力的对应关系。
 可交互版本：[打开 HTML](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.html)（缩放/悬停查看细节）。
 
-### 报名系统架构图（WRC 官网接入 · V0.3）
+### 报名系统架构图（WRC 官网接入 · V0.4）
 
 ![报名系统架构图](docs/%E6%8A%A5%E5%90%8D%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
 
@@ -73,7 +73,7 @@ WRC / 批量双通道导入管线（解析 → 映射 → 比对 → 裁决 → 
 赛事统分后台管理_wireframe.html  后台管理端线框（20 页 · 对齐 2026-10-12 口径 · 可打印/导 PDF）
 裁判打分系统_wireframe.html     平板端裁判打分 wireframe（40 页单屏 UI）
 赛事统分系统_业务架构图.html    业务架构图（一页全景 · V0.6）
-报名系统架构图.html             报名数据接入架构图（WRC 官网版 · V0.3）
+报名系统架构图.html             报名数据接入架构图（WRC 官网版 · V0.4）
 队伍导入架构图.html             队伍导入双通道架构图（V0.1）
 docs/                           架构图整页截图（README 内嵌用）
 docs/业务架构图.png             业务架构图整页截图（README 内嵌用）
