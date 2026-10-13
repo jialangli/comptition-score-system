@@ -15,7 +15,7 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 
 ## 目录
 
-- [在线预览](#在线预览github-pages) · [仓库结构](#仓库结构) · [功能模块](#后台管理-demo--功能模块) · [裁判端](#裁判打分-wireframe平板端)
+- [在线预览](#在线预览github-pages) · [业务架构图](#业务架构图) · [仓库结构](#仓库结构) · [功能模块](#后台管理-demo--功能模块) · [裁判端](#裁判打分-wireframe平板端)
 - [技术特点](#技术特点) · [数据与隐私](#数据与隐私) · [开发](#开发)
 - [参与贡献](#参与贡献) · [文档](#文档) · [致谢](#致谢) · [许可](#许可)
 
@@ -26,6 +26,7 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 | 赛事统分后台管理 demo（多赛事版 · 主交付物 · 可交互） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_demo.html) |
 | 赛事统分后台管理 wireframe（16 页 · **可打印/导 PDF**） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_wireframe.html) |
 | 裁判打分系统 wireframe（平板端 · 40 页） | [打开](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html) |
+| 业务架构图（V0.5 · 一页全景） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
 | 早期单页版原型（保留作对比） | [打开](https://jialangli.github.io/comptition-score-system/) |
 
 也可以直接把对应 `.html` 下载到本地双击打开 —— 单文件、零依赖、离线可运行。
@@ -41,12 +42,21 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 **后台 wireframe 打印方法**：浏览器 `Ctrl/Cmd + P` → 目标「另存为 PDF」→ 纸张 **A4 横向** → 勾选「背景图形」。
 已内置 `@page` 与 `@media print`，每页自动分页。
 
+## 业务架构图
+
+![赛事统分系统 · 业务架构图](docs/%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
+
+五个板块：业务角色盘点 → 端到端业务主流程（赛前/赛中/赛后）→ 业务能力地图 → 核心业务对象与状态 → 已有业务与业务能力的对应关系。
+可交互版本：[打开 HTML](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.html)（缩放/悬停查看细节）。
+
 ## 仓库结构
 
 ```
 赛事统分后台管理_demo.html      后台管理端交互原型（多赛事版 · 单文件 · 零依赖）
 赛事统分后台管理_wireframe.html  后台管理端线框（16 页 · 可打印/导 PDF）
 裁判打分系统_wireframe.html     平板端裁判打分 wireframe（40 页单屏 UI）
+赛事统分系统_业务架构图.html    业务架构图（一页全景 · V0.5）
+docs/业务架构图.png             业务架构图整页截图（README 内嵌用）
 index.html                      早期单页版原型（保留作对比）
 
 cmd/                         进程装配（main）
