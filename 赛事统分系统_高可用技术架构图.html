@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赛事统分系统 · 高可用技术架构图</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --color-paper:#fafafa;--color-paper-2:#f4f4f5;
+  --color-ink:#18181b;--color-muted:#71717a;--color-soft:#a1a1aa;
+  --color-rule:rgba(24,24,27,.10);
+  --color-accent:#e21e1e;--color-link:#2566d8;
+  --c-term:#2566d8;   /* 终端层 蓝 */
+  --c-sync:#0d9488;   /* 同步层 青 */
+  --c-svc:#7c3aed;    /* 服务层 紫 */
+  --c-net:#ea580c;    /* 网络层 橙 */
+  --c-fail:#e21e1e;   /* 兜底层 红 */
+  --c-audit:#0f766e;  /* 审计层 墨绿 */
+  --c-mon:#52525b;    /* 监控 灰 */
+  --font-sans:'Geist','Noto Sans SC','PingFang SC',sans-serif;
+  --font-serif:'Inter','Noto Sans SC',sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,monospace;
+}
+body{font-family:var(--font-sans);background:var(--color-paper);min-height:100vh;padding:3rem 2rem;color:var(--color-ink);-webkit-font-smoothing:antialiased}
+.container{max-width:1240px;margin:0 auto}
+.header{margin-bottom:1.5rem}
+.header-eyebrow{font-family:var(--font-mono);font-size:.66rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--color-muted);margin-bottom:.75rem}
+h1{font-family:var(--font-serif);font-size:clamp(1.6rem,2.6vw,2.3rem);font-weight:600;letter-spacing:-.02em;line-height:1.12;margin-bottom:.5rem}
+.subtitle{font-size:.95rem;line-height:1.6;color:#52525b;max-width:80ch}
+.role-strip{display:flex;gap:.5rem;flex-wrap:wrap;margin:1.25rem 0 1.75rem}
+.role-pill{display:inline-flex;align-items:center;gap:.4rem;font-size:.74rem;color:var(--color-muted);background:#fff;border:1px solid var(--color-rule);border-radius:999px;padding:.32rem .8rem}
+.role-pill .dot{width:7px;height:7px;border-radius:50%}
+.role-pill .dot.t{background:var(--c-term)}.role-pill .dot.s{background:var(--c-sync)}
+.role-pill .dot.v{background:var(--c-svc)}.role-pill .dot.n{background:var(--c-net)}
+.role-pill .dot.f{background:var(--c-fail)}.role-pill .dot.m{background:var(--c-mon)}.role-pill .dot.a{background:var(--c-audit)}
+.role-pill b{font-weight:600;color:var(--color-ink)}
+
+/* ===== 分层架构 ===== */
+.layer{display:flex;gap:1rem;align-items:stretch;margin-bottom:0}
+.layer-label{width:128px;flex:0 0 128px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:.5rem .4rem}
+.layer-label .ln{font-family:var(--font-mono);font-size:.7rem;font-weight:600;letter-spacing:.08em}
+.layer-label .lt{font-size:.92rem;font-weight:600;margin-top:.25rem;line-height:1.2}
+.layer-label .ld{font-size:.66rem;color:var(--color-soft);margin-top:.3rem;line-height:1.35}
+.layer-body{flex:1;display:flex;gap:1rem;flex-wrap:wrap;align-items:stretch}
+.comp{background:#fff;border:1px solid var(--color-rule);border-left:4px solid var(--c-term);border-radius:11px;padding:1rem 1.1rem;flex:1;min-width:240px;box-shadow:0 1px 2px rgba(24,24,27,.04)}
+.comp h3{font-size:.84rem;font-weight:600;display:flex;align-items:center;gap:.45rem;margin-bottom:.6rem}
+.comp h3 .badge{font-family:var(--font-mono);font-size:.56rem;letter-spacing:.1em;padding:.12rem .4rem;border-radius:5px;background:var(--color-paper-2);color:var(--color-muted);text-transform:uppercase}
+.comp ul{list-style:none;font-size:.74rem;line-height:1.5;color:var(--color-muted)}
+.comp li{margin-bottom:.4rem;padding-left:.85rem;position:relative}
+.comp li::before{content:'—';position:absolute;left:0;color:rgba(24,24,27,.22)}
+.comp li b{color:var(--color-ink);font-weight:600}
+.comp li code{font-family:var(--font-mono);font-size:.68rem;background:var(--color-paper-2);padding:.05rem .3rem;border-radius:4px;color:var(--c-svc)}
+.comp li small{display:block;color:var(--color-soft);font-size:.66rem;margin-top:.08rem}
+
+/* 机制框 */
+.mech{background:#fffdf5;border:1px dashed #d97706;border-radius:10px;padding:.8rem 1rem;flex:1;min-width:230px;box-shadow:0 1px 2px rgba(24,24,27,.03)}
+.mech .mt{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#b45309;margin-bottom:.45rem;font-weight:600}
+.mech .mb{font-size:.72rem;line-height:1.55;color:#7c5e10}
+.mech .mb b{color:#92400e}
+.flow{font-family:var(--font-mono);font-size:.7rem;background:var(--color-paper-2);border-radius:6px;padding:.25rem .5rem;display:inline-block;margin:.12rem .25rem .12rem 0;color:var(--color-ink)}
+
+/* 连接条 */
+.connector{display:flex;align-items:center;gap:.6rem;padding:.35rem 0 .35rem 128px;color:var(--color-muted)}
+.connector .line{flex:1;height:2px;background:repeating-linear-gradient(90deg,var(--color-rule) 0 6px,transparent 6px 12px);position:relative}
+.connector .line::after{content:'';position:absolute;right:-2px;top:-4px;border-left:7px solid var(--color-rule);border-top:5px solid transparent;border-bottom:5px solid transparent}
+.connector .ct{font-size:.68rem;font-family:var(--font-mono);background:#fff;border:1px solid var(--color-rule);border-radius:999px;padding:.2rem .7rem;white-space:nowrap}
+.connector .ct b{color:var(--color-ink);font-weight:600}
+
+/* 横切监控条 */
+.monbar{background:var(--color-paper-2);border:1px solid var(--color-rule);border-radius:11px;padding:1rem 1.2rem;margin-top:1.25rem;display:flex;gap:1.5rem;flex-wrap:wrap;align-items:center}
+.monbar .mh{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--c-mon);font-weight:600;flex:0 0 auto}
+.monbar .mi{font-size:.73rem;color:var(--color-muted);line-height:1.4}
+.monbar .mi b{color:var(--color-ink)}
+
+/* 故障切换时序 */
+.timeline{margin-top:1.5rem}
+.timeline .th{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--color-muted);font-weight:600;margin-bottom:.8rem}
+.tl-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+@media(max-width:880px){.tl-grid{grid-template-columns:1fr 1fr}.layer-label{width:96px;flex-basis:96px}.connector{padding-left:96px}}
+@media(max-width:520px){.tl-grid{grid-template-columns:1fr}}
+.tl-card{background:#fff;border:1px solid var(--color-rule);border-top:3px solid var(--c-fail);border-radius:10px;padding:.9rem 1rem}
+.tl-card .step{font-family:var(--font-mono);font-size:.66rem;color:var(--c-fail);font-weight:600;margin-bottom:.4rem}
+.tl-card .tt{font-size:.8rem;font-weight:600;margin-bottom:.4rem}
+.tl-card .td{font-size:.7rem;line-height:1.5;color:var(--color-muted)}
+.tl-card .td code{font-family:var(--font-mono);font-size:.66rem;background:var(--color-paper-2);padding:.04rem .28rem;border-radius:4px}
+
+/* 各层左边框色 */
+.l-term .layer-label .ln,.l-term .layer-label .lt{color:var(--c-term)} .l-term .comp{border-left-color:var(--c-term)}
+.l-sync .layer-label .ln,.l-sync .layer-label .lt{color:var(--c-sync)} .l-sync .comp{border-left-color:var(--c-sync)}
+.l-svc  .layer-label .ln,.l-svc  .layer-label .lt{color:var(--c-svc)}  .l-svc  .comp{border-left-color:var(--c-svc)}
+.l-net  .layer-label .ln,.l-net  .layer-label .lt{color:var(--c-net)}  .l-net  .comp{border-left-color:var(--c-net)}
+.l-fail .layer-label .ln,.l-fail .layer-label .lt{color:var(--c-fail)} .l-fail .comp{border-left-color:var(--c-fail)}
+
+/* 横切 · 不可变审计日志 */
+.auditbox{background:#f0fdfa;border:1px solid #0f766e;border-left:4px solid var(--c-audit);border-radius:11px;padding:1rem 1.2rem;margin-top:1rem;display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start}
+.auditbox .ah{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--c-audit);font-weight:600;flex:0 0 auto;display:flex;flex-direction:column;gap:.3rem}
+.auditbox .ah .tag{font-size:.68rem;background:var(--c-audit);color:#fff;padding:.15rem .55rem;border-radius:5px;font-family:var(--font-sans);font-weight:600;letter-spacing:0}
+.auditbox .ab{flex:1;min-width:250px}
+.auditbox .ab h4{font-size:.78rem;font-weight:600;margin-bottom:.4rem;color:var(--color-ink)}
+.auditbox .ab ul{list-style:none;font-size:.72rem;line-height:1.55;color:var(--color-muted)}
+.auditbox .ab li{margin-bottom:.3rem;padding-left:.8rem;position:relative}
+.auditbox .ab li::before{content:'>';position:absolute;left:0;color:var(--c-audit)}
+.auditbox .ab code{font-family:var(--font-mono);font-size:.66rem;background:var(--color-paper-2);padding:.04rem .28rem;border-radius:4px;color:var(--c-audit)}
+
+.footer{margin-top:2rem;padding-top:1.4rem;border-top:1px solid rgba(24,24,27,.08);font-family:var(--font-mono);font-size:.7rem;letter-spacing:.05em;color:var(--color-soft);display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+.kpi{display:flex;gap:1.5rem;flex-wrap:wrap;margin:1rem 0 1.5rem;padding:1rem 1.2rem;background:#fff;border:1px solid var(--color-rule);border-radius:11px}
+.kpi .k{display:flex;flex-direction:column;gap:.2rem}
+.kpi .kv{font-size:1.4rem;font-weight:700;font-family:var(--font-serif);letter-spacing:-.02em}
+.kpi .kl{font-size:.66rem;color:var(--color-muted);font-family:var(--font-mono);letter-spacing:.06em}
+.kpi .kv.t{color:var(--c-term)}.kpi .kv.s{color:var(--c-sync)}.kpi .kv.v{color:var(--c-svc)}.kpi .kv.f{color:var(--c-fail)}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <p class="header-eyebrow">High-Availability Technical Architecture · Dual Insurance</p>
+    <h1>赛事统分系统 · 高可用技术架构（双重保险）</h1>
+    <p class="subtitle">针对「赛场 Wi-Fi 不可靠 / 中央服务器单点故障」的四层冗余设计。核心原则：<b>提交先落本地、后台异步同步、主备无感切换、极端情况纸质兜底</b>，确保网络崩了也打得完分、丢不了分。</p>
+  </div>
+
+  <div class="role-strip">
+    <span class="role-pill"><span class="dot t"></span><b>裁判平板</b>· 离线 PWA 打分端</span>
+    <span class="role-pill"><span class="dot t"></span><b>记分员 PC</b>· 健康看板 + 应急开关</span>
+    <span class="role-pill"><span class="dot v"></span><b>主服务器</b>· 192.168.1.10</span>
+    <span class="role-pill"><span class="dot v"></span><b>备服务器</b>· 192.168.1.11</span>
+    <span class="role-pill"><span class="dot n"></span><b>双网络</b>· Wi-Fi + 应急热点</span>
+    <span class="role-pill"><span class="dot f"></span><b>纸质</b>· 灾难级兜底</span>
+    <span class="role-pill"><span class="dot a"></span><b>不可变审计</b>· WORM 追溯</span>
+  </div>
+
+  <!-- KPI 目标 -->
+  <div class="kpi">
+    <div class="k"><span class="kv t">&lt;10s</span><span class="kl">RTO · 主备切换</span></div>
+    <div class="k"><span class="kv s">0</span><span class="kl">打分数据丢失目标</span></div>
+    <div class="k"><span class="kv v">2×</span><span class="kl">服务器 + 网络冗余</span></div>
+    <div class="k"><span class="kv f">100%</span><span class="kl">极端断网可继续打分</span></div>
+  </div>
+
+  <!-- ===================== Layer 0 终端层 ===================== -->
+  <div class="layer l-term">
+    <div class="layer-label">
+      <span class="ln">LAYER 0</span>
+      <span class="lt">终端层</span>
+      <span class="ld">裁判平板 / 记分员 PC · 本地优先</span>
+    </div>
+    <div class="layer-body">
+      <div class="comp">
+        <h3>裁判端离线 PWA <span class="badge">Client</span></h3>
+        <ul>
+          <li><b>本地权威库 IndexedDB</b><small>score_records（打分记录）· op_log（操作日志）· sync_state（待同步标记）</small></li>
+          <li><b>Service Worker</b>：静态资源离线缓存，断网也能打开 App</li>
+          <li><b>提交状态机</b>：草稿 → 本地已存 ✓ → 同步中 → 已同步（服务器 ACK）→ 失败回退本地</li>
+          <li><b>双态徽标</b>：<code>● 本地已存 · 已同步</code> 断网时显示本地态</li>
+        </ul>
+      </div>
+      <div class="comp">
+        <h3>记分员端 PC <span class="badge">Client</span></h3>
+        <ul>
+          <li>同构本地库 + <b>服务器健康看板</b><small>主/备在线态 · 复制延迟 · 待同步队列数</small></li>
+          <li><b>应急模式开关</b>：正常 / 本地+纸质</li>
+          <li>赛后<b>应急补录</b>通道：带标记，区分正式/应急数据</li>
+        </ul>
+      </div>
+      <div class="mech">
+        <div class="mt">机制 · 本地优先提交</div>
+        <div class="mb">
+          <span class="flow">写本地(瞬时)</span><span class="flow">返回成功</span><span class="flow">后台异步 POST</span><span class="flow">服务器 ACK</span><span class="flow">标记已同步</span><br>
+          网络异常 → 留<b>本地队列</b>，恢复后<b>自动重发</b>；平板断电/刷新不丢（IndexedDB 持久化）。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><span class="ct">打分数据 · <b>增量同步</b></span><div class="line"></div></div>
+
+  <!-- ===================== Layer 1 同步层 ===================== -->
+  <div class="layer l-sync">
+    <div class="layer-label">
+      <span class="ln">LAYER 1</span>
+      <span class="lt">同步层</span>
+      <span class="ld">增量同步网关 · 冲突 / 续传</span>
+    </div>
+    <div class="layer-body">
+      <div class="comp">
+        <h3>增量同步网关 <span class="badge">Edge</span></h3>
+        <ul>
+          <li><b>op-log 拉取</b>：基于 checkpoint 的增量同步，<b>断点续传</b>（offset 记录）</li>
+          <li><b>冲突检测</b>：version（版本号）+ timestamp<small>高版本胜 · 同版本以服务器权威 · 疑似冲突标记「待仲裁」</small></li>
+          <li><b>双链路探测</b>：主 Wi-Fi / 应急热点，应用层选优；写失败入本地队列</li>
+          <li><b>重试策略</b>：指数退避，最多 N 次后转人工提示</li>
+        </ul>
+      </div>
+      <div class="mech">
+        <div class="mt">机制 · 冲突解决</div>
+        <div class="mb">
+          每条目带 <code>(version, timestamp)</code>：<br>
+          • <b>version 高者胜</b>；version 相同 → 服务器权威<br>
+          • 同队同轮收到 2 份不同成绩 → 标<b>待仲裁</b>，进 S5 人工裁决<br>
+          • 所有覆盖写写入<b>不可变审计日志(WORM)</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><span class="ct">HTTP · <b>写主读主</b> · 心跳探测</span><div class="line"></div></div>
+
+  <!-- ===================== Layer 2 服务层 ===================== -->
+  <div class="layer l-svc">
+    <div class="layer-label">
+      <span class="ln">LAYER 2</span>
+      <span class="lt">服务层</span>
+      <span class="ld">主备双服务器 · 自动 Failover</span>
+    </div>
+    <div class="layer-body">
+      <div class="comp">
+        <h3>主服务器 <span class="badge">192.168.1.10</span></h3>
+        <ul>
+          <li>应用服务 + <b>主 DB</b>（读写）</li>
+          <li>对外暴露<b>虚拟 IP（VIP）</b>，终端始终连 VIP</li>
+          <li>WAL/binlog <b>异步流复制</b>到备</li>
+        </ul>
+      </div>
+      <div class="comp">
+        <h3>备服务器 <span class="badge">192.168.1.11</span></h3>
+        <ul>
+          <li>应用服务 + <b>备 DB</b>（副本，待升主）</li>
+          <li>实时接收主库复制流，<b>复制延迟监控</b></li>
+          <li>心跳失联时 <b>升主</b> 并接管 VIP</li>
+        </ul>
+      </div>
+      <div class="mech">
+        <div class="mt">机制 · 心跳 & Failover</div>
+        <div class="mb">
+          <b>心跳</b>：3s/次，连续 <b>3 次失联</b> → 判定故障<br>
+          <b>Failover</b>：VIP 漂移到备，<b>RTO &lt;10s</b>，终端<b>无感切换</b><br>
+          所有切换事件写入<b>不可变审计日志(WORM)</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><span class="ct">双链路 · <b>任一通即可服务</b></span><div class="line"></div></div>
+
+  <!-- ===================== Layer 3 网络层 ===================== -->
+  <div class="layer l-net">
+    <div class="layer-label">
+      <span class="ln">LAYER 3</span>
+      <span class="lt">网络层</span>
+      <span class="ld">双网络冗余</span>
+    </div>
+    <div class="layer-body">
+      <div class="comp">
+        <h3>主链路 · 赛场 Wi-Fi <span class="badge">SSID WRC-Score</span></h3>
+        <ul>
+          <li>场馆部署的专用无线，独立供电 AP</li>
+          <li>承载常态所有平板 / PC 流量</li>
+        </ul>
+      </div>
+      <div class="comp">
+        <h3>备链路 · 应急热点 <span class="badge">SSID WRC-Failover</span></h3>
+        <ul>
+          <li><b>4G/5G 应急热点</b>，与主 Wi-Fi 物理隔离</li>
+          <li>路由器 / AP <b>独立 UPS 供电</b></li>
+          <li>主链路断 → 应用层自动切备，无需人工</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><span class="ct">灾难级断网 · <b>降级到本地+纸质</b></span><div class="line"></div></div>
+
+  <!-- ===================== Layer 4 兜底层 ===================== -->
+  <div class="layer l-fail">
+    <div class="layer-label">
+      <span class="ln">LAYER 4</span>
+      <span class="lt">兜底层</span>
+      <span class="ld">应急模式 · 纸质对账</span>
+    </div>
+    <div class="layer-body">
+      <div class="comp">
+        <h3>应急模式 / 纸质对账 <span class="badge">Fallback</span></h3>
+        <ul>
+          <li>一键切换「<b>本地 + 纸质</b>」：预印每队纸质打分表</li>
+          <li>灾难级断网：人工打分 → 赛后<b>应急补录</b>通道录入</li>
+          <li>数据收敛：恢复后<b>增量同步 + 补录合并</b>，最终一致</li>
+        </ul>
+      </div>
+      <div class="mech">
+        <div class="mt">机制 · 数据收敛</div>
+        <div class="mb">
+          应急数据带 <code>is_emergency</code> 标记，<br>
+          与正式库<b>合并去重</b>（按 <code>(team,round)</code> 主键），<br>
+          赛后生成<b>差异报告</b>供裁判长复核。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 横切监控 ===================== -->
+  <div class="monbar">
+    <span class="mh">可观测性监控（横切）</span>
+    <span class="mi"><b>健康看板数据源</b>：服务器在线态 / 复制延迟 / 待同步队列长度 / 双链路状态</span>
+    <span class="mi"><b>监控告警</b>：主备失联 / 复制延迟超阈 / 待同步队列积压 → 记分员端提示</span>
+  </div>
+
+  <!-- ===================== 横切 · 不可变审计日志（新增层） ===================== -->
+  <div class="auditbox">
+    <span class="ah">不可变审计日志<span class="tag">WORM · 横切</span></span>
+    <div class="ab">
+      <h4>性质 · Write-Once-Read-Many</h4>
+      <ul>
+        <li><b>append-only</b>：任何记录不可修改、不可删除，仅可追加</li>
+        <li>主备双写 + 随 WAL 复制；终端 IndexedDB 本地审计队列同步时一并上传</li>
+        <li>可选<b>哈希链</b>防篡改：每条 hash = H(prev_hash + content)，篡改即检出</li>
+      </ul>
+    </div>
+    <div class="ab">
+      <h4>记录事件（写入点）</h4>
+      <ul>
+        <li>每条打分提交（本地→同步状态、<code>version</code>、source）</li>
+        <li>同步 / 补传（offset、成败）</li>
+        <li>冲突解决（胜方 version、被覆盖原值）</li>
+        <li>Failover 切换、应急模式开关、补录（<code>is_emergency</code> 标记、操作人）</li>
+        <li>任何覆盖写 / 修正（before→after、理由）</li>
+      </ul>
+    </div>
+    <div class="ab">
+      <h4>字段 &amp; 用途</h4>
+      <ul>
+        <li><code>event_id/op_type/entity(team,round)/before/after/actor/ts/version/source</code></li>
+        <li>用途：<b>赛后复盘 · 争议追溯 · 合规定责 · 与 L4 差异报告对账</b></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===================== 故障切换时序 ===================== -->
+  <div class="timeline">
+    <div class="th">故障切换时序 · 四种典型场景</div>
+    <div class="tl-grid">
+      <div class="tl-card">
+        <div class="step">SCENARIO 1</div>
+        <div class="tt">平板断网</div>
+        <div class="td">提交写本地 <code>✓本地已存</code>，后台重试同步；恢复后<b>自动补传</b>，不打断裁判。</div>
+      </div>
+      <div class="tl-card">
+        <div class="step">SCENARIO 2</div>
+        <div class="tt">主服务器宕</div>
+        <div class="td">心跳失联 → <b>VIP 漂到备</b> → 终端<b>无感切换</b>，打分不中断（RTO&lt;10s）。</div>
+      </div>
+      <div class="tl-card">
+        <div class="step">SCENARIO 3</div>
+        <div class="tt">双网络断</div>
+        <div class="td">全<b>本地模式</b> + 纸质兜底，数据暂存本地，待网络恢复再收敛。</div>
+      </div>
+      <div class="tl-card">
+        <div class="step">SCENARIO 4</div>
+        <div class="tt">全面恢复</div>
+        <div class="td"><b>增量同步 + 补录合并</b> → 数据收敛一致，审计留痕，出差异报告。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>BRAINCO · 赛事统分系统 · 高可用技术架构 v1.0</span>
+    <span>双重保险：本地优先 + 主备 Failover + 双网络 + 纸质兜底 + 不可变审计</span>
+  </div>
+
+</div>
+</body>
+</html>

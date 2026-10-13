@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>赛事报名数据接入 · 架构图（WRC 官网版）V0.3</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Microsoft YaHei","PingFang SC",sans-serif; background:#f0f2f5; color:#2c3e50; padding:30px; }
+  h1 { text-align:center; font-size:26px; margin-bottom:6px; }
+  .sub { text-align:center; color:#7f8c8d; font-size:13px; margin-bottom:30px; }
+  h2 { font-size:18px; margin:36px 0 16px; padding-left:10px; border-left:4px solid #3498db; }
+  .diagram { background:#fff; border-radius:12px; padding:28px; box-shadow:0 2px 10px rgba(0,0,0,.06); overflow-x:auto; }
+
+  /* 全链路 */
+  .chain { display:flex; align-items:stretch; }
+  .chain .node { flex:1; border:2px solid #bdc3c7; border-radius:10px; padding:10px 8px; text-align:center; font-size:13px; background:#fff; }
+  .chain .node b { display:block; font-size:14px; margin-bottom:3px; }
+  .chain .node span { font-size:11px; color:#7f8c8d; }
+  .chain .node.hot { border-color:#8e44ad; background:#f9f0fb; box-shadow:0 0 0 3px rgba(142,68,173,.12); }
+  .chain .node.ext { border-color:#95a5a6; background:#f8f9f9; border-style:dashed; }
+  .chain .node.next { margin-left:22px; position:relative; }
+  .chain .node.next::before { content:"➜"; position:absolute; left:-20px; top:50%; transform:translateY(-50%); color:#95a5a6; font-size:16px; }
+
+  /* 层 */
+  .layer { display:flex; align-items:stretch; gap:16px; }
+  .layer-label { writing-mode:vertical-lr; text-orientation:upright; letter-spacing:4px; font-size:13px; font-weight:bold; color:#fff; border-radius:8px; padding:12px 6px; display:flex; align-items:center; justify-content:center; min-width:34px; }
+  .layer-body { flex:1; display:flex; gap:14px; flex-wrap:wrap; }
+  .l-cli .layer-label { background:#8e44ad; }
+  .l-svc .layer-label { background:#2980b9; }
+  .l-data .layer-label { background:#16a085; }
+  .l-int .layer-label { background:#d35400; }
+  .l-ext .layer-label { background:#7f8c8d; }
+
+  .box { background:#fff; border:2px solid #bdc3c7; border-radius:10px; padding:12px 14px; flex:1; min-width:185px; }
+  .box b { display:block; font-size:14px; margin-bottom:5px; }
+  .box span { font-size:12px; color:#7f8c8d; line-height:1.6; display:block; }
+  .ext .box { border-color:#d5dbdb; background:#f8f9f9; border-style:dashed; }
+  .cli .box { border-color:#d7bde2; background:#fbf5fd; }
+  .svc .box { border-color:#aed6f1; background:#f2faff; }
+  .data .box { border-color:#a9dfbf; background:#f4fcf7; }
+  .int .box { border-color:#f5cba7; background:#fef9f2; }
+
+  .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; margin:2px 3px 0 0; }
+  .tag.green { background:#d5f5e3; color:#1e8449; }
+  .tag.red { background:#fadbd8; color:#c0392b; }
+  .tag.blue { background:#d6eaf8; color:#2471a3; }
+  .tag.orange { background:#fdebd0; color:#b9770e; }
+  .tag.purple { background:#ebdef0; color:#7d3c98; }
+  .tag.gray { background:#eaeded; color:#7f8c8d; }
+
+  .arrow-row { text-align:center; font-size:22px; color:#95a5a6; padding:10px 0; line-height:1; }
+  .arrow-row small { display:block; font-size:12px; color:#7f8c8d; }
+
+  /* 流程步骤 */
+  .flow { display:flex; gap:0; align-items:stretch; flex-wrap:wrap; }
+  .step { flex:1; min-width:140px; background:#fff; border:2px solid #3498db; border-radius:10px; padding:12px; position:relative; }
+  .step .num { position:absolute; top:-12px; left:-12px; background:#3498db; color:#fff; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:bold; }
+  .step b { display:block; font-size:13px; margin-bottom:6px; }
+  .step span { font-size:11.5px; color:#7f8c8d; line-height:1.6; }
+  .step.next { margin-left:26px; }
+  .step.next::before { content:"➜"; position:absolute; left:-24px; top:50%; transform:translateY(-50%); color:#3498db; font-size:18px; }
+  .step.ext { border-style:dashed; border-color:#7f8c8d; }
+  .step.ext .num { background:#7f8c8d; }
+  .step.warn { border-color:#e67e22; } .step.warn .num { background:#e67e22; }
+
+  /* 状态机 */
+  .sm { display:flex; align-items:center; gap:0; flex-wrap:wrap; margin:14px 0; }
+  .state { padding:10px 16px; border-radius:22px; font-size:13px; font-weight:bold; border:2px solid; }
+  .s-draft { border-color:#95a5a6; background:#f4f6f7; color:#7f8c8d; }
+  .s-sub { border-color:#2980b9; background:#d6eaf8; color:#21618c; }
+  .s-rej { border-color:#c0392b; background:#fadbd8; color:#c0392b; }
+  .s-ok { border-color:#1e8449; background:#d5f5e3; color:#1e8449; }
+  .s-lock { border-color:#b9770e; background:#fdebd0; color:#b9770e; }
+  .sm-arrow { margin:0 10px; color:#95a5a6; font-size:15px; text-align:center; }
+  .sm-arrow small { display:block; font-size:10.5px; color:#7f8c8d; white-space:nowrap; }
+
+  /* 数据表 */
+  .tables { display:flex; gap:18px; flex-wrap:wrap; }
+  .dtable { flex:1; min-width:280px; border:2px solid #16a085; border-radius:10px; overflow:hidden; }
+  .dtable h3 { background:#16a085; color:#fff; font-size:14px; padding:8px 12px; }
+  .dtable table { width:100%; border-collapse:collapse; font-size:12px; }
+  .dtable th, .dtable td { padding:6px 10px; border-bottom:1px solid #e8f6f3; text-align:left; }
+  .dtable th { background:#eafaf1; color:#16a085; }
+  .dtable td code { background:#f4f6f7; padding:1px 5px; border-radius:3px; font-size:11px; }
+  .pk { color:#c0392b; font-weight:bold; }
+  .uk { color:#b9770e; font-weight:bold; }
+  .fk { color:#2471a3; font-weight:bold; }
+
+  .note { background:#fff9e6; border-left:4px solid #f1c40f; padding:10px 14px; font-size:12.5px; line-height:1.8; margin-top:14px; border-radius:0 6px 6px 0; }
+  .note b { color:#b9770e; }
+
+  .branch { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+  .branch th, .branch td { border:1px solid #d5dbdb; padding:8px 12px; text-align:left; }
+  .branch th { background:#eaf2f8; }
+</style>
+</head>
+<body>
+
+<h1>赛事报名数据接入 · 架构图（WRC 官网版）</h1>
+<p class="sub">V0.3 · 2026-08-31 · 报名源头 = WRC 官网（外部），本系统职责 = 接收报名 Excel → 核对 → <b>重新编号</b> → 手动编辑 → 锁定下发 · 三大赛项：脑机星球 / 火星救援 / 未来之城</p>
+
+<!-- ============ 〇、全链路定位 ============ -->
+<h2>〇、在全链路中的位置（V0.3 修订）</h2>
+<div class="diagram">
+  <div class="chain">
+    <div class="node ext"><b>⓪ WRC 官网报名</b><span>外部系统<br>队伍注册·缴费·审核</span></div>
+    <div class="node next hot"><b>① 名单接入·核对·编号</b><span>本图范围<br>导入→核对→重编号→锁定</span></div>
+    <div class="node next"><b>② 裁判打分</b><span>已出wireframe<br>题卡+自动切队</span></div>
+    <div class="node next"><b>③ 排序排名</b><span>两轮最佳<br>按组别</span></div>
+    <div class="node next"><b>④ 公示发布</b><span>按赛项×组别<br>CSV/Excel</span></div>
+    <div class="node next"><b>⑤ 颁奖PPT</b><span>python-pptx<br>自动生成</span></div>
+  </div>
+  <div class="note">
+    <b>V0.3 修订说明：</b>在 V0.2（WRC 官网报名 + Excel 导入）基础上新增两个需求：
+    ① <b>选手重新编号</b>——不沿用 WRC 编号，由本系统按"赛项×组别"规则重新发号（WRC 编号降级为外部参考字段）；
+    ② <b>手动编辑</b>——名单工作台支持行内编辑队伍信息（改名/换组别/修正学校），全程留痕。
+    V0.2 的结论不变：报名/缴费/审核仍由 WRC 承担，本系统职责 = <b>名单接入 + 核对 + 编号 + 锁定</b>。
+  </div>
+</div>
+
+<!-- ============ 一、分层架构 ============ -->
+<h2>一、总体分层架构</h2>
+<div class="diagram">
+
+  <!-- 外部系统层 -->
+  <div class="layer l-ext">
+    <div class="layer-label">外部系统</div>
+    <div class="layer-body ext">
+      <div class="box">
+        <b>🌐 WRC 官网（报名平台）</b>
+        <span>队伍在 WRC 官网完成报名（信息填报 / 缴费 / 组别选择）<br>主办方在 WRC 后台按赛项导出报名 Excel</span>
+        <span><span class="tag gray">外部系统 · 不在本系统边界内</span></span>
+      </div>
+      <div class="box">
+        <b>📄 WRC 导出报名 Excel</b>
+        <span>标准导出表：队伍编号 / 名称 / 学校 / 教练 / 组别 / 联系方式<br>列结构以 WRC 导出模板为准，列映射可配置</span>
+        <span><span class="tag purple">✅ 唯一的名单进入通道</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-row">⬇<small>人工导出 → 上传到本系统（Excel 文件）</small></div>
+
+  <!-- 管理端 -->
+  <div class="layer l-cli">
+    <div class="layer-label">管理端</div>
+    <div class="layer-body cli">
+      <div class="box">
+        <b>🖥️ 名单管理端（PC Web）</b>
+        <span>上传 WRC Excel · 列映射配置 · Diff 确认 · 名单核对工作台 · <b>行内手动编辑</b> · 重新编号 · 退赛/补录 · 锁定下发</span>
+        <span><span class="tag purple">角色：记分员 / 赛事主办方</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-row">⬇<small>HTTPS / REST API + JWT 鉴权</small></div>
+
+  <!-- 服务层 -->
+  <div class="layer l-svc">
+    <div class="layer-label">服务层</div>
+    <div class="layer-body svc">
+      <div class="box">
+        <b>📥 WRC Excel 解析服务</b>
+        <span>pandas + openpyxl 解析 · 列映射（编号/名称/学校/组别列可配置）· 表头识别 · 脏数据清洗</span>
+        <span><span class="tag blue">WRC 模板变更只改映射配置</span></span>
+      </div>
+      <div class="box">
+        <b>✅ 校验器</b>
+        <span>队伍编号唯一 · 正则校验 · 组别/赛项合法性 · 必填完整</span>
+        <span><span class="tag red">失败标红拦截</span></span>
+      </div>
+      <div class="box">
+        <b>🔀 Diff 合并器</b>
+        <span>重复导出场景：🟢新增/🟡更新/⚪跳过/🔴冲突<br>四色清单 + 人工确认</span>
+        <span><span class="tag green">合并式，不覆盖</span></span>
+      </div>
+      <div class="box">
+        <b>🔍 名单核对工作流</b>
+        <span>导入后人工核对（学校名/组别/联系方式抽查）<br>核对通过才允许锁定</span>
+        <span><span class="tag orange">WRC 数据也要人工把关</span></span>
+      </div>
+      <div class="box">
+        <b>🔢 编号分配服务（重编号引擎）</b>
+        <span>按"赛项×组别"分段发号 · 一键重排 · 手动指定/调整编号<br>冲突检测（撞号自动提示）· 保留空号位</span>
+        <span><span class="tag purple">V0.3 新增</span></span>
+      </div>
+      <div class="box">
+        <b>✏️ 手动编辑服务</b>
+        <span>行内编辑队伍信息（名称/学校/教练/组别/编号）<br>字段级校验 · 修改前后快照 · 审计留痕</span>
+        <span><span class="tag purple">V0.3 新增</span></span>
+      </div>
+      <div class="box">
+        <b>🔒 锁定与下发服务</b>
+        <span>名单冻结 · 生成当赛季基准名单<br>WebSocket 广播裁判端</span>
+        <span><span class="tag green">锁定后修改三步留痕</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-row">⬇<small>事务读写 · 审计日志</small></div>
+
+  <!-- 数据层 -->
+  <div class="layer l-data">
+    <div class="layer-label">数据层</div>
+    <div class="layer-body data">
+      <div class="box">
+        <b>teams 队伍主表</b>
+        <span>系统编号（唯一键）/ WRC编号（外部参考）/ 名称 / 学校 / 教练 / 组别 / 赛项 / 核对状态</span>
+        <span><span class="tag green">打分系统唯一队伍数据源</span></span>
+      </div>
+      <div class="box">
+        <b>wrc_import_batches 导入批次表</b>
+        <span>每次 WRC Excel 上传一个批次：文件指纹 / 导入结果 / 变更明细</span>
+        <span><span class="tag green">可追溯每一次导出</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-row">⬇<small>锁定名单只读下发 · 变更 WebSocket 广播</small></div>
+
+  <!-- 集成层 -->
+  <div class="layer l-int">
+    <div class="layer-label">集成层</div>
+    <div class="layer-body int">
+      <div class="box">
+        <b>👨‍⚖️ → 裁判打分系统</b>
+        <span>锁定名单直接进入打分队列<br>退赛/补录变更实时广播</span>
+      </div>
+      <div class="box">
+        <b>📊 → 排名 / 公示 / PPT</b>
+        <span>队伍信息随成绩展示（学校/组别）<br>公示表与颁奖 PPT 的队伍信息来源</span>
+      </div>
+      <div class="box">
+        <b>☁️ → API 直连（远期可选）</b>
+        <span>若后续与 WRC 后台打通接口，可免人工导出 Excel，自动定时拉取——服务层已预留通道</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>V0.3 关键变化：</b>① 队伍唯一键从"WRC 编号"改回<b>本系统编号 team_number</b>（WRC 编号降为外部参考字段）；
+    ② 服务层<b>新增编号分配服务 + 手动编辑服务</b>（V0.2 删掉的编号分配以"重编号引擎"形态回归，且只对已导入名单工作）；
+    ③ 新增 <code>numbering_rules</code> 规则表 + teams 表 <code>team_number / numbered</code> 字段；
+    ④ <b>锁定前置条件从"全部核对"升级为"全部核对 + 全员编号"</b>；
+    ⑤ 编号/编辑有严格时序约束（4.4 节），越接近比赛窗口编辑权限越收紧。
+  </div>
+</div>
+
+<!-- ============ 二、接入流程 ============ -->
+<h2>二、名单接入流程（WRC Excel → 打分系统）</h2>
+<div class="diagram">
+  <div class="flow">
+    <div class="step ext">
+      <div class="num">1</div>
+      <b>WRC 官网报名</b>
+      <span>队伍在 WRC 完成报名与缴费<br>（外部系统）</span>
+    </div>
+    <div class="step ext next">
+      <div class="num">2</div>
+      <b>WRC 后台导出 Excel</b>
+      <span>主办方按赛项导出报名表<br>（外部系统）</span>
+    </div>
+    <div class="step next">
+      <div class="num">3</div>
+      <b>上传 + 列映射</b>
+      <span>系统识别表头，确认编号/名称/组别列，首行示例预览</span>
+    </div>
+    <div class="step warn next">
+      <div class="num">4</div>
+      <b>字段校验</b>
+      <span>编号唯一/正则、组别合法<br>失败 → 行内标红可修正</span>
+    </div>
+    <div class="step next">
+      <div class="num">5</div>
+      <b>Diff 合并确认</b>
+      <span>四色清单：🟢🟡⚪🔴<br>冲突强制逐条裁决</span>
+    </div>
+    <div class="step next">
+      <div class="num">6</div>
+      <b>入库 + 核对</b>
+      <span>写 teams + 批次表<br>核对工作台人工抽查</span>
+    </div>
+    <div class="step warn next">
+      <div class="num">7</div>
+      <b>重新编号 + 手动编辑</b>
+      <span>按赛项×组别重发号<br>行内修正队伍信息</span>
+    </div>
+    <div class="step next">
+      <div class="num">8</div>
+      <b>锁定下发</b>
+      <span>核对+编号确认 → 锁定<br>广播裁判端队列</span>
+    </div>
+  </div>
+  <div class="note">
+    <b>回答核心问题的直接结论：WRC 导出的报名 Excel 完全可以导入到这个系统。</b><br>
+    链路就是上面 8 步——其中 1、2 步发生在 WRC（人工），3~8 步全部在本系统内自动 + 人工确认。
+    <b>V0.3 新增第 7 步"重新编号 + 手动编辑"</b>：导入核对后、锁定之前，是编号与信息的"自由编辑窗口"。
+    需要注意的只有一点：<b>拿到 WRC 的导出模板后，先在系统里配一次列映射</b>（编号在哪列、组别在哪列），
+    之后每次导出直接上传即可；如果 WRC 改模板，只需改映射配置，不用改代码。
+  </div>
+</div>
+
+<!-- ============ 三、核对状态机 ============ -->
+<h2>三、名单核对状态机（导入后的队伍记录）</h2>
+<div class="diagram">
+  <div class="sm">
+    <div class="state s-sub">已导入</div>
+    <div class="sm-arrow">➜<small>人工核对通过</small></div>
+    <div class="state s-ok">已核对</div>
+    <div class="sm-arrow">➜<small>报名截止+全部核对+全员编号</small></div>
+    <div class="state s-lock">已锁定<br><small>(下发打分系统)</small></div>
+  </div>
+  <div class="sm" style="margin-top:10px;">
+    <div class="state s-sub">已导入</div>
+    <div class="sm-arrow">➜<small>发现问题</small></div>
+    <div class="state s-rej">待修正</div>
+    <div class="sm-arrow">➜<small>行内修正 / 反馈WRC后台改</small></div>
+    <div class="state s-sub">已导入</div>
+  </div>
+  <div class="sm" style="margin-top:10px;">
+    <div class="state s-lock">已锁定</div>
+    <div class="sm-arrow">➜<small>退赛申请</small></div>
+    <div class="state s-draft">已退赛<br><small>(status=withdrawn 软删除)</small></div>
+    <div class="sm-arrow">➜<small>临时补录队伍</small></div>
+    <div class="state s-sub">已导入<br><small>(source=manual 走核对)</small></div>
+  </div>
+  <table class="branch">
+    <tr><th style="width:130px">状态</th><th style="width:220px">进入条件</th><th>谁能操作</th><th style="width:230px">对打分系统的影响</th></tr>
+    <tr><td>🔵 已导入</td><td>WRC Excel 完成导入</td><td>记分员核对 / 修正</td><td>不可见（不下发）</td></tr>
+    <tr><td>🔴 待修正</td><td>核对发现数据问题</td><td>行内修正，或反馈 WRC 后台改后重新导出导入</td><td>不可见</td></tr>
+    <tr><td>🟢 已核对</td><td>人工确认信息无误</td><td>等待截止 + 完成编号后锁定</td><td>预览可见（灰色占位）</td></tr>
+    <tr><td>🟡 已锁定</td><td>报名截止且全部核对、全员编号</td><td>超管解锁（留审计）</td><td>✅ 进入打分队列</td></tr>
+    <tr><td>🩶 已退赛</td><td>锁定后退赛申请</td><td>主办方审批</td><td>队列移除，历史成绩保留</td></tr>
+  </table>
+  <div class="note">
+    <b>为什么保留"核对"环节而不是导入了事：</b>WRC 是统一报名平台，跨赛项共用，导出数据里常见
+    组别错报（小学组报成初中组）、学校名不规范（简称/错字）、联系方式缺失等问题——
+    这些错进入打分系统后，改起来代价是公示返工。核对 30 分钟，省掉赛后的麻烦。
+  </div>
+</div>
+
+<!-- ============ 四、编号体系与手动编辑 ============ -->
+<h2>四、编号体系与手动编辑（V0.3 新增核心）</h2>
+<div class="diagram">
+  <h3 style="font-size:15px; margin-bottom:12px;">4.1 双编号体系：WRC 编号 ≠ 系统编号</h3>
+  <div class="layer l-data">
+    <div class="layer-label" style="background:#8e44ad;">双编号</div>
+    <div class="layer-body">
+      <div class="box" style="border-color:#c39bd3; background:#fbf5fd;">
+        <b>🏷️ wrc_number · WRC 编号（外部参考）</b>
+        <span>WRC 官网分配的原始编号 · 用于与 WRC 后台对账、<br>重复导入时匹配同一支队伍（Diff 的关联键）</span>
+        <span><span class="tag gray">不唯一展示 · 不进打分界面</span></span>
+      </div>
+      <div class="box" style="border-color:#8e44ad; background:#f4ecf7;">
+        <b>🔢 team_number · 系统编号（业务唯一键）</b>
+        <span>本系统按"赛项×组别"分段重新发号 · 裁判端/排名/<br>公示表/PPT 展示的唯一编号 · 队呼号（现场叫号用）</span>
+        <span><span class="tag purple">V0.3 新增 · 全链路展示用</span></span>
+      </div>
+    </div>
+  </div>
+  <div class="note" style="margin-top:12px;">
+    <b>为什么要重新编号而不是沿用 WRC 号：</b>① WRC 编号是全大赛统一发号，跨赛项连号无规律，现场裁判按号找队效率低；
+    ② 本系统分段编号（如"脑机星球·小学组 100-199"）天然携带赛项+组别信息，叫号/分场/公示分组一目了然；
+    ③ WRC 编号保留为对账字段，两边不冲突。<b>Diff 匹配始终用 wrc_number</b>，与重编号互不干扰。
+  </div>
+
+  <h3 style="font-size:15px; margin:24px 0 12px;">4.2 编号规则（按赛项 × 组别分段）</h3>
+  <table class="branch">
+    <tr><th>赛项</th><th>小学组</th><th>初中组</th><th>高中组</th><th>编号规则</th></tr>
+    <tr><td>🪐 脑机星球（BCSTAR）</td><td>100 – 199</td><td>200 – 299</td><td>300 – 399</td><td rowspan="3" style="vertical-align:middle;">每段末尾预留 10 个空号位<br>（补录队伍用，不挤占已有编号）</td></tr>
+    <tr><td>🚀 火星救援（MARS）</td><td>400 – 499</td><td>500 – 599</td><td>600 – 699</td></tr>
+    <tr><td>🏙️ 未来之城（FUTURE）</td><td>700 – 799</td><td>800 – 899</td><td>900 – 999</td></tr>
+  </table>
+  <div style="font-size:12.5px; color:#7f8c8d; padding:8px 4px; line-height:1.8;">
+    编号配置存在 <code>numbering_rules</code> 规则表里（赛项×组别×起始号×终止号），<b>改分段规则不改代码</b>；
+    一键"重新编号"按导入顺序 × 分段规则顺序发号；单支队伍也可点"换号"手动指定（校验段内唯一，撞号即时提示）。
+  </div>
+
+  <h3 style="font-size:15px; margin:24px 0 12px;">4.3 手动编辑能力（名单工作台）</h3>
+  <table class="branch">
+    <tr><th style="width:150px">能力</th><th>说明</th><th style="width:170px">约束</th></tr>
+    <tr><td><b>行内编辑</b></td><td>表格内直接点击单元格修改：队伍名称 / 学校 / 教练 / 联系方式 / 组别</td><td>改组别 = 触发编号段校验</td></tr>
+    <tr><td><b>手动指定编号</b></td><td>单队"换号"：输入或选号，段内唯一性即时校验</td><td>锁定后禁用</td></tr>
+    <tr><td><b>一键重排</b></td><td>按当前筛选范围（赛项×组别）顺序重发号，支持"仅空号"模式</td><td>锁定后禁用</td></tr>
+    <tr><td><b>补录队伍</b></td><td>手动新增（吃预留空号位），source=manual，走同样核对流程</td><td>补录也占唯一号</td></tr>
+    <tr><td><b>修改留痕</b></td><td>每次编辑写 check_logs：字段级 old_value → new_value + 操作人 + 时间</td><td>不可删除日志</td></tr>
+  </table>
+
+  <h3 style="font-size:15px; margin:24px 0 12px;">4.4 编号与编辑的时序约束（什么时候能改，什么时候不能）</h3>
+  <table class="branch">
+    <tr><th style="width:190px">阶段</th><th>重新编号</th><th>手动编辑信息</th><th>说明</th></tr>
+    <tr><td>🔵 已导入 / 待修正</td><td>✅ 自由重排</td><td>✅ 自由编辑</td><td>自由窗口，改多少次都行</td></tr>
+    <tr><td>🟢 已核对</td><td>⚠️ 允许（重排后需重新抽查）</td><td>✅ 允许（小改动）</td><td>改了要复核，防止改出新错</td></tr>
+    <tr><td>🟡 已锁定（下发打分）</td><td>❌ 禁止</td><td>❌ 信息冻结<br><small>退赛除外（软删除）</small></td><td>超管可"解锁→改→重锁"三步留痕</td></tr>
+    <tr><td>🏆 已有成绩</td><td>❌ 绝对禁止</td><td>仅限错别字级修正<br><small>（学校名错字等）</small></td><td>成绩通过 team_id 关联，改编号技术上不丢成绩，但会破坏公示公信力——<b>编号一旦上裁判端就是对外承诺，不再变</b></td></tr>
+  </table>
+</div>
+
+<!-- ============ 五、数据模型 ============ -->
+<h2>五、核心数据模型（V0.3 修订）</h2>
+<div class="diagram">
+  <div class="tables">
+    <div class="dtable">
+      <h3>teams 队伍主表</h3>
+      <table>
+        <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+        <tr><td><code>team_id</code></td><td>INT <span class="pk">PK</span></td><td>自增主键（成绩表关联用，永不变化）</td></tr>
+        <tr><td><code>team_number</code></td><td>VARCHAR <span class="uk">UK</span></td><td><b>系统编号（V0.3 新增，业务唯一键）</b>：按赛项×组别分段发号</td></tr>
+        <tr><td><code>wrc_number</code></td><td>VARCHAR</td><td>WRC 编号（外部参考：Diff 匹配 / WRC 对账用）</td></tr>
+        <tr><td><code>team_name</code></td><td>VARCHAR</td><td>队伍名称</td></tr>
+        <tr><td><code>school</code></td><td>VARCHAR</td><td>学校（核对时可修正）</td></tr>
+        <tr><td><code>coach</code> / <code>phone</code></td><td>VARCHAR</td><td>教练 / 联系方式</td></tr>
+        <tr><td><code>event_code</code></td><td>VARCHAR</td><td>BCSTAR / MARS / FUTURE</td></tr>
+        <tr><td><code>group_code</code></td><td>VARCHAR</td><td>小学组 / 初中组 / 高中组</td></tr>
+        <tr><td><code>check_status</code></td><td>VARCHAR</td><td>imported / fixing / checked / locked / withdrawn</td></tr>
+        <tr><td><code>numbered</code></td><td>BOOLEAN</td><td>是否已完成编号（V0.3：锁定前必须全员编号）</td></tr>
+        <tr><td><code>source</code></td><td>VARCHAR</td><td>wrc_excel / manual</td></tr>
+        <tr><td><code>batch_id</code></td><td>INT <span class="fk">FK</span></td><td>最近一次导入批次</td></tr>
+      </table>
+    </div>
+    <div class="dtable">
+      <h3>numbering_rules 编号规则表</h3>
+      <table>
+        <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+        <tr><td><code>rule_id</code></td><td>INT <span class="pk">PK</span></td><td>规则ID</td></tr>
+        <tr><td><code>event_code</code> × <code>group_code</code></td><td>VARCHAR <span class="uk">UK</span></td><td>赛项 × 组别（联合唯一）</td></tr>
+        <tr><td><code>range_start</code> / <code>range_end</code></td><td>INT</td><td>编号段，如 100 / 199</td></tr>
+        <tr><td><code>reserve_tail</code></td><td>INT</td><td>末尾预留空号数（补录用），默认 10</td></tr>
+        <tr><td><code>enabled</code></td><td>BOOLEAN</td><td>启用开关（组别不设时停用）</td></tr>
+      </table>
+    </div>
+    <div class="dtable">
+      <h3>wrc_import_batches 导入批次表</h3>
+      <table>
+        <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+        <tr><td><code>batch_id</code></td><td>INT <span class="pk">PK</span></td><td>批次号</td></tr>
+        <tr><td><code>file_name</code> / <code>file_hash</code></td><td>VARCHAR</td><td>文件名 / SHA256 指纹（防重复上传）</td></tr>
+        <tr><td><code>mapping_config</code></td><td>JSON</td><td>本次使用的列映射配置</td></tr>
+        <tr><td><code>summary</code></td><td>JSON</td><td>{insert:N, update:M, skip:K, conflict:C}</td></tr>
+        <tr><td><code>operator</code> / <code>created_at</code></td><td>VARCHAR / DATETIME</td><td>操作人 / 时间</td></tr>
+      </table>
+    </div>
+    <div class="dtable">
+      <h3>check_logs 核对与修正日志</h3>
+      <table>
+        <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+        <tr><td><code>log_id</code></td><td>INT <span class="pk">PK</span></td><td>日志ID</td></tr>
+        <tr><td><code>team_id</code></td><td>INT <span class="fk">FK</span></td><td>关联队伍</td></tr>
+        <tr><td><code>action</code></td><td>VARCHAR</td><td>check_pass / fix / renumber / renumber_all / withdraw / lock / unlock</td></tr>
+        <tr><td><code>old_value</code> / <code>new_value</code></td><td>JSON</td><td>修正前后快照</td></tr>
+        <tr><td><code>operator</code> / <code>created_at</code></td><td>VARCHAR / DATETIME</td><td>操作人 / 时间</td></tr>
+      </table>
+      <div style="padding:10px 12px; font-size:12px; color:#7f8c8d;">
+        💡 V0.1 中 registrations / members / accounts 等报名侧表全部移除（职责在 WRC）。
+        本系统四张表即可支撑名单管理（teams / numbering_rules / wrc_import_batches / check_logs）。
+        score 成绩表通过 <code>team_id</code> 外键关联——<b>编号改不改都不影响成绩归属</b>，这也是敢做"重新编号"的技术底气。
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <b>对 V0.1/V0.2 架构的演进总结：</b>V0.1（自建报名，全职责）→ V0.2（WRC 报名，沿用 WRC 编号）→
+    <b>V0.3（WRC 报名 + 本系统重新编号 + 手动编辑）</b>。删——H5 报名端、表单服务、审核工作流、报名侧表；
+    留——Excel 导入链路（列映射/校验/Diff/审计）；<b>回归</b>——编号分配（以重编号引擎形态，配置驱动）。
+  </div>
+</div>
+
+</body>
+</html>

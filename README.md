@@ -15,7 +15,7 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 
 ## 目录
 
-- [在线预览](#在线预览github-pages) · [业务架构图](#业务架构图) · [仓库结构](#仓库结构) · [功能模块](#后台管理-demo--功能模块) · [裁判端](#裁判打分-wireframe平板端)
+- [在线预览](#在线预览github-pages) · [架构图集](#架构图集) · [仓库结构](#仓库结构) · [功能模块](#后台管理-demo--功能模块) · [裁判端](#裁判打分-wireframe平板端)
 - [技术特点](#技术特点) · [数据与隐私](#数据与隐私) · [开发](#开发)
 - [参与贡献](#参与贡献) · [文档](#文档) · [致谢](#致谢) · [许可](#许可)
 
@@ -27,6 +27,9 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 | 赛事统分后台管理 wireframe（20 页 · 对齐 2026-10-12 口径 · **可打印/导 PDF**） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_wireframe.html) |
 | 裁判打分系统 wireframe（平板端 · 40 页） | [打开](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html) |
 | 业务架构图（V0.5 · 一页全景） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
+| 报名系统架构图（WRC 官网接入 · V0.3） | [打开](https://jialangli.github.io/comptition-score-system/%E6%8A%A5%E5%90%8D%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
+| 队伍导入架构图（V0.1） | [打开](https://jialangli.github.io/comptition-score-system/%E9%98%9F%E4%BC%8D%E5%AF%BC%E5%85%A5%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
+| 高可用技术架构图 | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E9%AB%98%E5%8F%AF%E7%94%A8%E6%8A%80%E6%9C%AF%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
 | 早期单页版原型（保留作对比） | [打开](https://jialangli.github.io/comptition-score-system/) |
 
 也可以直接把对应 `.html` 下载到本地双击打开 —— 单文件、零依赖、离线可运行。
@@ -42,12 +45,32 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 **后台 wireframe 打印方法**：浏览器 `Ctrl/Cmd + P` → 目标「另存为 PDF」→ 纸张 **A4 横向** → 勾选「背景图形」。
 已内置 `@page` 与 `@media print`，每页自动分页。
 
-## 业务架构图
+## 架构图集
+
+### 业务架构图（V0.5）
 
 ![赛事统分系统 · 业务架构图](docs/%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
 
 五个板块：业务角色盘点 → 端到端业务主流程（赛前/赛中/赛后）→ 业务能力地图 → 核心业务对象与状态 → 已有业务与业务能力的对应关系。
 可交互版本：[打开 HTML](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.html)（缩放/悬停查看细节）。
+
+### 报名系统架构图（WRC 官网接入 · V0.3）
+
+![报名系统架构图](docs/%E6%8A%A5%E5%90%8D%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
+
+WRC 官网报名数据 → 报名中转 → 统分系统的接入链路；可交互版本：[打开 HTML](https://jialangli.github.io/comptition-score-system/%E6%8A%A5%E5%90%8D%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E5%9B%BE.html)。
+
+### 队伍导入架构图（V0.1）
+
+![队伍导入架构图](docs/%E9%98%9F%E4%BC%8D%E5%AF%BC%E5%85%A5%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
+
+WRC / 批量双通道导入管线（解析 → 映射 → 比对 → 裁决 → 任务 → 撤回）；可交互版本：[打开 HTML](https://jialangli.github.io/comptition-score-system/%E9%98%9F%E4%BC%8D%E5%AF%BC%E5%85%A5%E6%9E%B6%E6%9E%84%E5%9B%BE.html)。
+
+### 高可用技术架构图
+
+![高可用技术架构图](docs/%E9%AB%98%E5%8F%AF%E7%94%A8%E6%8A%80%E6%9C%AF%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
+
+局域网单二进制 + 双端离线策略的高可用分层设计；可交互版本：[打开 HTML](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E9%AB%98%E5%8F%AF%E7%94%A8%E6%8A%80%E6%9C%AF%E6%9E%B6%E6%9E%84%E5%9B%BE.html)。
 
 ## 仓库结构
 
@@ -56,6 +79,10 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 赛事统分后台管理_wireframe.html  后台管理端线框（20 页 · 对齐 2026-10-12 口径 · 可打印/导 PDF）
 裁判打分系统_wireframe.html     平板端裁判打分 wireframe（40 页单屏 UI）
 赛事统分系统_业务架构图.html    业务架构图（一页全景 · V0.5）
+报名系统架构图.html             报名数据接入架构图（WRC 官网版 · V0.3）
+队伍导入架构图.html             队伍导入双通道架构图（V0.1）
+赛事统分系统_高可用技术架构图.html 高可用分层设计架构图
+docs/                           架构图整页截图（README 内嵌用）
 docs/业务架构图.png             业务架构图整页截图（README 内嵌用）
 index.html                      早期单页版原型（保留作对比）
 
