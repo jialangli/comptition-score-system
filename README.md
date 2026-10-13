@@ -29,7 +29,6 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 | 业务架构图（V0.5 · 一页全景） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
 | 报名系统架构图（WRC 官网接入 · V0.3） | [打开](https://jialangli.github.io/comptition-score-system/%E6%8A%A5%E5%90%8D%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
 | 队伍导入架构图（V0.1） | [打开](https://jialangli.github.io/comptition-score-system/%E9%98%9F%E4%BC%8D%E5%AF%BC%E5%85%A5%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
-| 高可用技术架构图 | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E9%AB%98%E5%8F%AF%E7%94%A8%E6%8A%80%E6%9C%AF%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
 | 早期单页版原型（保留作对比） | [打开](https://jialangli.github.io/comptition-score-system/) |
 
 也可以直接把对应 `.html` 下载到本地双击打开 —— 单文件、零依赖、离线可运行。
@@ -66,11 +65,6 @@ WRC 官网报名数据 → 报名中转 → 统分系统的接入链路；可交
 
 WRC / 批量双通道导入管线（解析 → 映射 → 比对 → 裁决 → 任务 → 撤回）；可交互版本：[打开 HTML](https://jialangli.github.io/comptition-score-system/%E9%98%9F%E4%BC%8D%E5%AF%BC%E5%85%A5%E6%9E%B6%E6%9E%84%E5%9B%BE.html)。
 
-### 高可用技术架构图
-
-![高可用技术架构图](docs/%E9%AB%98%E5%8F%AF%E7%94%A8%E6%8A%80%E6%9C%AF%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
-
-局域网单二进制 + 双端离线策略的高可用分层设计；可交互版本：[打开 HTML](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E9%AB%98%E5%8F%AF%E7%94%A8%E6%8A%80%E6%9C%AF%E6%9E%B6%E6%9E%84%E5%9B%BE.html)。
 
 ## 仓库结构
 
@@ -81,7 +75,6 @@ WRC / 批量双通道导入管线（解析 → 映射 → 比对 → 裁决 → 
 赛事统分系统_业务架构图.html    业务架构图（一页全景 · V0.5）
 报名系统架构图.html             报名数据接入架构图（WRC 官网版 · V0.3）
 队伍导入架构图.html             队伍导入双通道架构图（V0.1）
-赛事统分系统_高可用技术架构图.html 高可用分层设计架构图
 docs/                           架构图整页截图（README 内嵌用）
 docs/业务架构图.png             业务架构图整页截图（README 内嵌用）
 index.html                      早期单页版原型（保留作对比）
