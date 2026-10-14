@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![PR](https://img.shields.io/badge/PR-welcome-success.svg)](CONTRIBUTING.md)
 
-BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原型（单文件 HTML）+ Go 后端**。
+赛事评分系统：**可交互产品原型（单文件 HTML）+ Go 后端**。
 本仓库用于需求评审、交互验证与后端开发。
 
 > 仓库内所有队伍、学校、成绩均为**虚构演示数据**，仅保存在浏览器本地 localStorage，不会上传到任何服务器。
