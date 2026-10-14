@@ -435,7 +435,7 @@
               <span style="font-size:13px; color:#2b6cb0; font-weight:bold;">改后成绩（待授权）</span>
               <span style="font-size:22px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">620 <span style="color:#38a169; font-size:14px;">（+150）</span></span>
             </div>
-            <div class="qrow" style="font-size:12px; color:#718096;"><span>用时（<b>可改 · 改分模式专属</b>）</span><span>02:41 → 可修正 · 须填原因并随本单审批（原值由计时器带出）</span></div>
+            <div class="qrow" style="font-size:12px; color:#718096;"><span>用时（<b>可改 · 改分模式专属</b>）</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-family:Consolas,monospace; color:#4a5568;">02:41</span><span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">修正用时 →</span></span></div>
             <div class="qrow"><span style="color:#718096;">改分/改时原因（<b style="color:#c53030;">必填</b>）</span><span style="font-size:12px; color:#a0aec0;">如：任务③ 矿石运输漏记 1 颗，复核后补记 +150</span></div>
             <div class="qrow" style="border-bottom:none; font-size:12px;"><span style="color:#718096;">判罚记录（<b style="color:#2b6cb0;">可改</b> · 随本单审批）</span><span>🚩 黄牌 ×1 · 红牌 ×0 &nbsp;<span style="color:#c05621; font-weight:bold; cursor:pointer;">记红牌 →</span></span></div>
           </div>
@@ -464,6 +464,51 @@
     <span class="num">11</span> <b>未提交就返回 → 先拦一下（不再用常驻按钮）</b>：本页底部<b>没有</b>「放弃修改」按钮——改动过成绩又点「← 返回队列」时，才浮出<b>确认弹窗</b>问一句「是否放弃本次修改」（完整呈现见 <b>P2f</b>）。<b>没有改动时直接回队列、不打扰</b>；弹窗里「继续修改」留在本页（改动不丢），「放弃修改」才丢弃。打分页（P3 / P4 / P5 / P5.5 / P5.6 / P5.7）<b>同口径</b>。<br>
     <span class="num">12</span> <b>改牌也走审批（为什么）</b>：黄牌数虽不计分，却是排名<b>第三排序键</b>（总分 → 用时 → 黄牌数少者前，见 <b>P11 公示页</b>），且会进公示 —— 漏记一张就可能改变并列队伍的先后。所以改牌与改分走<b>同一条链</b>：改完随本单提交 → <b>裁判长 P9 授权后才生效</b>；若改了牌，「改后成绩（待授权）」区会多出一行「黄牌 ×1 → ×2（待授权）」。<br>
     <span class="num">13</span> <b>本页为什么不设「⚠ 上报争议」入口</b>：P2b 的修正路径本身就是「改分申请 → P9 审批」这一条链，若再叠一个上报入口，同一件修正会变成<b>两条并行链</b>（改分单 × 争议工单），审批时反而分不清以哪条为准。争议类问题走<b>打分页底部</b>与<b>P2 / P7 顶栏</b>的上报入口（见 <b>P5.10</b>）——那些是比赛中 / 完赛前的问题，而本页是“回到已经打完分的队伍做修正”，语义不同。<br>
+  </div>
+</div>
+
+<!-- ============ P2b-改时 修正用时（浮层 · 点「修正用时 →」唤起） ============ -->
+<div class="page">
+  <div class="page-title">P2b-改时 · 修正用时（<b>浮层</b> · 点 P2b「修正用时 →」唤起）</div>
+  <div class="page-desc">用时是<b>客观计时数据</b>，改分模式下可<b>修正</b>，但语义是<b>纠错</b>（停表误差 / 计时器故障）而非微调——点「修正用时 →」弹出本浮层：<b>输入正确值</b>或<b>从计时器重取</b>，<b>必须填原因</b>，随本单交裁判长在 P9 授权后生效</div>
+  <div class="tablet" style="position:relative;">
+    <div class="appbar" style="opacity:.45;"><span>⛓ 赛台 A · T-001 智创未来队 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px; color:#fed7d7;">⏱ 已结束</span><span style="font-size:13px; font-weight:bold; background:#fbd38d; color:#744210; border-radius:6px; padding:3px 12px;">⚠ 改分模式</span></span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
+    <div class="screen">
+      <div class="main" style="opacity:.3;">
+        <div style="font-size:13px; color:#718096;">（P2b 保持原状，仅被遮罩压暗——确认修正后回到本页，用时行变为「02:41 → 02:30 · 待授权」）</div>
+      </div>
+    </div>
+    <div style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(26,32,44,.5); display:flex; align-items:center; justify-content:center; padding:16px;">
+      <div style="width:100%; max-width:540px; background:#fff; border-radius:10px; box-shadow:0 16px 48px rgba(0,0,0,.4); overflow:hidden;">
+        <div style="background:#2b6cb0; color:#fff; padding:11px 16px; font-size:14px; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
+          <span>✏️ 修正用时</span>
+          <span style="font-size:12px; font-weight:normal; opacity:.95;">随本单审批 · P9 授权后生效</span>
+        </div>
+        <div style="padding:14px 16px;">
+          <div style="font-size:13px; color:#4a5568; line-height:1.8;">
+            用时是<b>客观计时数据</b>，本浮层仅用于<b>纠错</b>（停表早按 / 计时器故障），不做「+1 秒」式微调。
+          </div>
+          <div style="border:1px solid #e2e8f0; border-radius:8px; background:#f7fafc; padding:6px 12px; margin:10px 0 4px;">
+            <div class="qrow" style="border-bottom:1px dashed #e2e8f0; padding:6px 0;"><span>原用时（计时器带出）</span><span style="font-family:Consolas,monospace; color:#718096;">02:41</span></div>
+            <div class="qrow" style="border-bottom:none; padding:6px 0;"><span>修正为</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="border:1px solid #2b6cb0; border-radius:6px; padding:3px 10px; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:30</span><span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">从计时器重取</span></span></div>
+          </div>
+          <div style="font-size:11.5px; color:#a0aec0; margin-top:6px;">↑ 改时<b style="color:#c53030;">必须填原因</b>（下方「改分/改时原因」），否则无法提交。</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 16px; border-top:1px solid #e2e8f0; background:#f7fafc;">
+          <span style="font-size:11.5px; color:#a0aec0; line-height:1.6;">修正仅改「用时」<br>不改任务分</span>
+          <span style="display:flex; gap:8px;">
+            <span class="btn-gray btn-sm">取消</span>
+            <span class="btn-primary btn-sm">确认修正</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>语义＝纠错，不是微调</b>：用时是客观计时数据，行业惯例里不改（改分只改主观评分项）。本页允许改，是<b>纠错通道</b>——停表早按、计时器故障时才用；所以是「一次性改成正确值」＋「强制原因」，不是 stepper 逐秒调。<br>
+    <span class="num">2</span> <b>正确值两个来源</b>：① 手输正确值（mm:ss）；② 「从计时器重取」——若计时器仍停在正确读数上，一键回填，杜绝手输笔误。<br>
+    <span class="num">3</span> <b>强制原因 + 随单审批</b>：改时复用 P2b 的「改分/改时原因（必填）」字段，原因不填不能提交；提交后改时随改分申请单一起，交裁判长 P9 授权后才写入正式成绩。<br>
+    <span class="num">4</span> <b>确认后回到 P2b</b>：用时行由「02:41 修正用时 →」变为「02:41 → 02:30（待授权）」diff，与改分同源；「取消」则回到原样，不改动。
   </div>
 </div>
 

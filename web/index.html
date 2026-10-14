@@ -209,6 +209,8 @@ var RANK_EVENT='brain_planet';    // 榜单页当前赛项
 var PUB_EVENT='brain_planet';     // 公示页当前赛项
 var PUB_ANON=false;
 var SCORE_ENTRY_ROLE='ops';       // 后台录入身份：ops=运营代录 / sync=现场回传（平板）
+var SCORE_ORIG_TEAM=null;         // 改分模式：进入打分页时快照的队伍 id 与原用时（秒）
+var SCORE_ORIG_TIME=null;         // —— 判定「改分是否动了用时」用：动了就随单提交 afterTime，0 秒也要显式传
 
 /* ---------- 身份与赛事维度（每次请求都声明）----------
    后端 internal/api/middleware.go 用两个请求头定位一次请求的归属：
@@ -2349,6 +2351,9 @@ function scoreForm(ev){
   var team=S.teams.find(function(t){return t.id===CUR_TEAM;});
   var rec=S.scores[CUR_TEAM]||(S.scores[CUR_TEAM]={tasks:{},time:0,yellow:0,red:0,signed:false});
   rec.tasks=rec.tasks||{};
+  /* 改分模式原值快照：进入「某队」打分页时记下原用时，队伍变了才重记。
+     已签字成绩在此页的改动须走「改分申请」审批，用时改动要随单提交（P2b「用时·可改·改分模式专属」）。 */
+  if(SCORE_ORIG_TEAM!==CUR_TEAM){SCORE_ORIG_TEAM=CUR_TEAM;SCORE_ORIG_TIME=Number(rec.time)||0;}
   var items=getInputItems(ev);
   var fields=items.map(function(it){
     var v=rec.tasks[it.id];
@@ -2380,7 +2385,8 @@ function scoreForm(ev){
     fields+
     '<hr class="sep">'+
     '<div class="grid g3">'+
-      '<div class="fld"><label>用时（秒）</label><input type="number" min="0" value="'+(rec.time||'')+'" oninput="setMeta(\'time\',this.value)"></div>'+
+      '<div class="fld"><label>用时（秒）'+(rec.signed?' <span class="tag warn">改分模式 · 可改</span>':'')+'</label><input type="number" min="0" value="'+(rec.time||'')+'" oninput="setMeta(\'time\',this.value)">'+
+        (rec.signed?'<div class="small muted">原值 '+mmss(SCORE_ORIG_TIME)+'（'+SCORE_ORIG_TIME+' 秒）· 改时随本单审批</div>':'')+'</div>'+
       '<div class="fld"><label>黄牌数</label><input type="number" min="0" value="'+(rec.yellow||'')+'" oninput="setMeta(\'yellow\',this.value)"></div>'+
       '<div class="fld"><label>红牌数</label><input type="number" min="0" value="'+(rec.red||'')+'" oninput="setMeta(\'red\',this.value)"></div>'+
     '</div>'+
@@ -2414,10 +2420,41 @@ function requestScoreChange(){
   if(!ev||!r||!CUR_TEAM){alert('请先选择队伍。');return;}
   var t=null;for(var i=0;i<S.teams.length;i++){if(S.teams[i].id===CUR_TEAM){t=S.teams[i];break;}}
   var before=computeTotal(ev,r).total.toFixed(1);
+  /* 改分模式专属的「用时」：进入本队时快照了原用时，本页若动过它，就随本单一起提交。
+     0 秒是合法用时 —— 用显式字段传，不能因为 0 就当成「没改」（后端据此区分 nil 与 0）。 */
+  var timeChanged=(SCORE_ORIG_TEAM===CUR_TEAM)&&((Number(r.time)||0)!==Number(SCORE_ORIG_TIME));
+  var afterTime=timeChanged?(Number(r.time)||0):null;
   var reason=prompt('改分申请：请填写申诉 / 复核原因（裁判长授权后生效）','申诉复核');
   if(!reason)return;
-  logAudit('改分',(t?t.name+'（'+t.no+'）':CUR_TEAM)+' · '+ev.name,'总分 '+before,'总分 '+before+'（待裁判长授权）',(SCORE_ENTRY_ROLE==='ops'?'运营代录 ':'')+reason);
-  alert('改分申请已记录，等待裁判长授权。\n依据：裁判提交后禁止直接改分，须走审批并留痕。');
+  var timeNote=timeChanged?(' · 用时 '+mmss(SCORE_ORIG_TIME)+' → '+mmss(afterTime)):'';
+  /* 本地留痕兜底：未连后端 / 后端不可达时，申请仍落审计，不丢。 */
+  logAudit('改分',(t?t.name+'（'+t.no+'）':CUR_TEAM)+' · '+ev.name,'总分 '+before,'总分 '+before+'（待裁判长授权）',(SCORE_ENTRY_ROLE==='ops'?'运营代录 ':'')+reason+timeNote);
+  if(backendMode&&t&&t.bId){
+    var body={after:Number(before),reason:reason};
+    if(timeChanged)body.afterTime=afterTime;
+    backendFetch('/teams/'+t.bId+'/scores/1/change-requests',{method:'POST',body:body,timeout:8000})
+    .then(function(resp){
+      if(resp.ok){
+        var d=(resp.body&&resp.body.data)||{};
+        var bt=(d.beforeTime!=null)?(mmss(d.beforeTime)+'（'+d.beforeTime+' 秒）'):'—';
+        var at=(d.afterTime!=null)?(mmss(d.afterTime)+'（'+d.afterTime+' 秒）'):'—';
+        var no=(d.id!=null)?(' #'+d.id):'';
+        setBackendStatus('online','改分申请已提交');
+        alert('改分申请已提交'+no+'，等待裁判长授权。\n'+
+          (timeChanged?('用时 '+bt+' → '+at+'（原值由服务端带出）\n'):'')+
+          '依据：裁判提交后禁止直接改分，须走审批并留痕。');
+      }else{
+        var m=(resp.body&&resp.body.message)||('HTTP '+resp.status);
+        setBackendStatus('error',m);
+        alert('改分申请未提交：'+m);
+      }
+    }).catch(function(e){
+      setBackendStatus('offline','后端不可达，已存本地');
+      alert('后端不可达，改分申请已记本地留痕，联网后可重新发起。');
+    });
+  }else{
+    alert('改分申请已记录，等待裁判长授权。\n依据：裁判提交后禁止直接改分，须走审批并留痕。');
+  }
   render();
 }
 
