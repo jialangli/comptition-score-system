@@ -124,7 +124,7 @@ func (s *Server) handleScoreChangeRequest(w http.ResponseWriter, r *http.Request
 		Fail(w, r, err)
 		return
 	}
-	req, err := s.svc.ScoreChangeRequest(r.Context(), id, round, body.After, body.Reason)
+	req, err := s.svc.ScoreChangeRequest(r.Context(), id, round, body.After, body.AfterTime, body.Reason)
 	if err != nil {
 		Fail(w, r, err)
 		return

@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // ============================================================================
 // 打分记录与计分结果
@@ -90,7 +93,39 @@ type ScoreChangeRequest struct {
 	Approver string  `json:"approver,omitempty"`
 	// AppealEvidenceID 关联的申述书照片证据（evidence.id）。
 	// 争议触发的授权改分单由 P8b 生成时从争议单继承同一张，实现「两处都挂」。
-	AppealEvidenceID *int64     `json:"appealEvidenceId,omitempty"`
-	CreatedAt        time.Time  `json:"createdAt"`
-	DecidedAt        *time.Time `json:"decidedAt,omitempty"` // 处理时间；待审批为 nil
+	AppealEvidenceID *int64 `json:"appealEvidenceId,omitempty"`
+	// BeforeTime / AfterTime 单内的「用时」（秒）—— 对应 wireframe P2b
+	// 「用时（可改 · 改分模式专属）」：改分模式下可连同用时一起修正，
+	// 但必须走同一张申请单审批，不能绕过。
+	//
+	// 两列都可为 nil，语义是「本单不涉及用时」（只改分不改时的申请、以及
+	// 0022 之前落库的历史单）。**不要用 0 当"没改"**：0 秒是合法用时。
+	//
+	// 为什么必须进申请单：用时既是时间奖励的计算输入，又是并列裁决的
+	// tiebreak（总分 ↓ → 用时 ↑ → 轮次小者）—— 不入单就等于「能改名次却不留痕」。
+	BeforeTime *float64   `json:"beforeTime,omitempty"`
+	AfterTime  *float64   `json:"afterTime,omitempty"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	DecidedAt  *time.Time `json:"decidedAt,omitempty"` // 处理时间；待审批为 nil
+}
+
+// ChangesTime 本单是否涉及用时修正。
+//
+// 判据只此一处：service 校验、审计文案、告警详情都读它，
+// 避免各自写 `AfterTime != nil` 而在某处漏掉（漏掉的表现是"改了却看不见"）。
+func (r ScoreChangeRequest) ChangesTime() bool {
+	return r.AfterTime != nil
+}
+
+// FormatDuration 秒 → "mm:ss"（用时在界面与留痕里的统一写法）。
+//
+// 放在 model 而不是各调用点：demo 前端、wireframe 文案、审计留痕三处必须同形，
+// 各写一份必然漂移（例如 161 秒在 A 处显示 02:41、B 处显示 2:41）。
+// 负数按 0 处理：用时不存在负值，出现负数只可能是上游算错，不该显示成 "-1:-1"。
+func FormatDuration(sec float64) string {
+	if sec < 0 {
+		sec = 0
+	}
+	total := int(sec + 0.5) // 四舍五入到秒：0.5 秒的差在成绩上无意义，显示要稳
+	return fmt.Sprintf("%02d:%02d", total/60, total%60)
 }

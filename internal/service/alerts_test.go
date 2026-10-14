@@ -160,7 +160,7 @@ func TestAlertsAggregation(t *testing.T) {
 
 	// ① 待审批改分 → 改分待审批
 	mustScoreFor(t, svc, ctx, teamA.ID)
-	if _, err := svc.ScoreChangeRequest(ctx, teamA.ID, 1, 95.0, "申诉复核"); err != nil {
+	if _, err := svc.ScoreChangeRequest(ctx, teamA.ID, 1, 95.0, nil, "申诉复核"); err != nil {
 		t.Fatalf("发起改分失败: %v", err)
 	}
 	rep, err := svc.Alerts(ctx)
@@ -195,7 +195,7 @@ func TestAlertsAggregation(t *testing.T) {
 
 	// ④ 自批：申请人与审批人同一账号（可自批但必须告警可见）
 	mustScoreFor(t, svc, ctx, teamB.ID)
-	if _, err := svc.ScoreChangeRequest(ctx, teamB.ID, 1, 90.0, "自批验证"); err != nil {
+	if _, err := svc.ScoreChangeRequest(ctx, teamB.ID, 1, 90.0, nil, "自批验证"); err != nil {
 		t.Fatalf("发起改分失败: %v", err)
 	}
 	rec, err := svc.GetScore(ctx, teamB.ID, 1)
@@ -254,7 +254,7 @@ func TestAlertsContestScoped(t *testing.T) {
 	evA := mustEventAt(t, svc, ctxA, brainPlanetEvent())
 	teamA := mustTeamAt(t, svc, ctxA, evA.ID, "2001", "B场队", "小学组")
 	mustScoreFor(t, svc, ctxA, teamA.ID)
-	if _, err := svc.ScoreChangeRequest(ctxA, teamA.ID, 1, 95.0, "B 场申诉"); err != nil {
+	if _, err := svc.ScoreChangeRequest(ctxA, teamA.ID, 1, 95.0, nil, "B 场申诉"); err != nil {
 		t.Fatalf("B 场发起改分失败: %v", err)
 	}
 

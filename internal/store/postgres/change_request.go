@@ -13,7 +13,7 @@ type ChangeStore struct{ q querier }
 
 const changeColumns = `id, score_id, team_id, round_no::int, before_total::float8,
 	after_total::float8, reason, operator, approved, approver, created_at, decided_at,
-	appeal_evidence_id`
+	appeal_evidence_id, before_time, after_time`
 
 func scanChange(row interface{ Scan(...any) error }) (*model.ScoreChangeRequest, error) {
 	var r model.ScoreChangeRequest
@@ -21,7 +21,7 @@ func scanChange(row interface{ Scan(...any) error }) (*model.ScoreChangeRequest,
 	if err := row.Scan(
 		&r.ID, &r.ScoreID, &r.TeamID, &r.RoundNo, &r.Before, &r.After,
 		&r.Reason, &r.Operator, &r.Approved, &r.Approver, &r.CreatedAt, &decided,
-		&r.AppealEvidenceID,
+		&r.AppealEvidenceID, &r.BeforeTime, &r.AfterTime,
 	); err != nil {
 		return nil, notFoundIfNoRows(err)
 	}
@@ -34,13 +34,18 @@ func scanChange(row interface{ Scan(...any) error }) (*model.ScoreChangeRequest,
 // 不做「先查有没有待审批再插」——那样在并发下两个请求都会查到「没有」然后都插入。
 // 直接插入，让 ux_scr_one_pending 部分唯一索引来裁决；冲突时 mapError 会把
 // 23505 翻译成 store.ErrDuplicate，上层据此提示「该队该轮已有待审批申请」。
+//
+// before_time / after_time 传指针原样落库：nil 写成 SQL NULL（语义「本单不涉及用时」），
+// 0 写成 0（语义「改成 0 秒」）—— 两者必须能区分，否则「把用时改成 0」会被读成「没改用时」。
 func (s *ChangeStore) Create(ctx context.Context, r *model.ScoreChangeRequest) error {
 	return mapError(s.q.QueryRow(ctx, `
 		INSERT INTO score_change_requests
-			(score_id, team_id, round_no, before_total, after_total, reason, operator)
-		VALUES ($1,$2,$3,$4,$5,$6,$7)
+			(score_id, team_id, round_no, before_total, after_total, reason, operator,
+			 before_time, after_time)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 		RETURNING id, created_at`,
 		r.ScoreID, r.TeamID, r.RoundNo, r.Before, r.After, r.Reason, r.Operator,
+		r.BeforeTime, r.AfterTime,
 	).Scan(&r.ID, &r.CreatedAt))
 }
 
@@ -150,7 +155,8 @@ func (s *ChangeStore) ListByContest(ctx context.Context) ([]model.ScoreChangeReq
 		SELECT c.id, c.score_id, c.team_id, c.round_no::int,
 		       c.before_total::float8, c.after_total::float8,
 		       c.reason, c.operator, c.approved, c.approver,
-		       c.created_at, c.decided_at, c.appeal_evidence_id
+		       c.created_at, c.decided_at, c.appeal_evidence_id,
+		       c.before_time, c.after_time
 		FROM score_change_requests c
 		JOIN teams t ON t.id = c.team_id
 		WHERE t.contest_id=$1

@@ -167,8 +167,12 @@ type scoreChangeReq struct {
 	Round      int            `json:"roundNo"`
 	TaskValues map[string]any `json:"tasks,omitempty"`
 	After      float64        `json:"after,omitempty"`
-	Reason     string         `json:"reason"`
-	Approver   string         `json:"approver,omitempty"` // 仅授权改分时提供
+	// AfterTime 拟改用时（秒，可空）。对应 wireframe P2b「用时（可改 · 改分模式专属）」：
+	// 省略 = 只改分不改时；给出 = 连用时一起修正，授权落库时提交的 time 必须与之一致。
+	// 用指针而非 float64：0 秒是合法用时，不能被 omitempty 当成「没传」。
+	AfterTime *float64 `json:"afterTime,omitempty"`
+	Reason    string   `json:"reason"`
+	Approver  string   `json:"approver,omitempty"` // 仅授权改分时提供
 }
 
 // seatBody 赛台请求体。

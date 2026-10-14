@@ -99,6 +99,16 @@ func (s *Service) AlertsAt(ctx context.Context, now time.Time) (*AlertsReport, e
 		ref := fmt.Sprintf("改分单 #%d", c.ID)
 		detail := fmt.Sprintf("%.1f → %.1f · 申请人 %s · %s",
 			c.Before, c.After, c.Operator, c.Reason)
+		// 单内声明了拟改用时 → 详情带上两端可读时间（2026/10/14）。
+		// 告警是裁判长判断「这单要不要批」的第一屏：改动涉及并列裁决的 tiebreak
+		// 时，必须在告警上就看得见，而不是点进详情才发现。
+		if c.ChangesTime() {
+			before := "—"
+			if c.BeforeTime != nil {
+				before = model.FormatDuration(*c.BeforeTime)
+			}
+			detail += fmt.Sprintf(" · 用时 %s → %s", before, model.FormatDuration(*c.AfterTime))
+		}
 		switch {
 		case !c.Approved:
 			age := ageMin(c.CreatedAt)

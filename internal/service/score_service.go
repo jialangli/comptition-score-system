@@ -104,6 +104,49 @@ func (s *Service) GetScore(ctx context.Context, teamID int64, round int) (*model
 	return s.ro().Scores.Get(ctx, teamID, round)
 }
 
+// sameTime 两个用时是否视为同一个值（秒）。
+//
+// 容差 1e-6 只用来吸收浮点表示误差，**不是"差不多就算一致"**：
+// 用时差 0.5 秒在并列裁决里可能就换了名次，所以这里不做四舍五入比较
+// （显示层用 model.FormatDuration 各自四舍五入，那是另一回事）。
+func sameTime(a, b float64) bool {
+	d := a - b
+	if d < 0 {
+		d = -d
+	}
+	return d < 1e-6
+}
+
+// timeChangeNote 申请侧的用时备注（拼进改分申请的审计 reason）。
+//
+// 只在申请单声明了拟改用时时追加，措辞保留「原值 → 拟改值」两端的可读时间，
+// 让审计页一眼看出这单不只是改分。
+func timeChangeNote(req *model.ScoreChangeRequest) string {
+	if req == nil || !req.ChangesTime() {
+		return ""
+	}
+	before := "—"
+	if req.BeforeTime != nil {
+		before = model.FormatDuration(*req.BeforeTime)
+	}
+	return fmt.Sprintf("；用时 %s → %s", before, model.FormatDuration(*req.AfterTime))
+}
+
+// timeChangeNote2 授权侧的用时备注（拼进 apply 的审计 reason）。
+//
+// declared 非 nil 表示这单是"按申请单落库"，备注里点名申请单声明的值 ——
+// 事后核对"落库值是否等于被批准的值"时，审计本身就是证据。
+func timeChangeNote2(beforeSec, afterSec float64, declared *float64) string {
+	if sameTime(beforeSec, afterSec) {
+		return ""
+	}
+	note := fmt.Sprintf("；用时 %s → %s", model.FormatDuration(beforeSec), model.FormatDuration(afterSec))
+	if declared != nil {
+		note += fmt.Sprintf("（按申请单声明 %s 落库）", model.FormatDuration(*declared))
+	}
+	return note
+}
+
 // ListScores 读取某队全部轮次。
 func (s *Service) ListScores(ctx context.Context, teamID int64) ([]model.ScoreRecord, error) {
 	return s.ro().Scores.ListByTeam(ctx, teamID)
@@ -113,11 +156,23 @@ func (s *Service) ListScores(ctx context.Context, teamID int64) ([]model.ScoreRe
 //
 // 不修改成绩，只写一条审计 —— 这正是「禁止直接改分」在代码层面的体现。
 // 返回值里的 Approved 恒为 false，供界面展示「待裁判长授权」。
+//
+// afterTime 是**可选**的拟改用时（秒），对应 wireframe P2b「用时（可改 · 改分模式专属）」：
+//   - nil  = 本单只改分不改时（绝大多数场景，也是 0022 之前的行为）；
+//   - 非 nil = 连用时一起修正，落库时写 after_time，且 ApplyScoreChange 会要求
+//     提交的 time 与此值一致（见该方法的校验）—— 用时是并列裁决的 tiebreak，
+//     不允许「申请时写一个数、落库时落另一个数」。
+//
+// before_time（原用时）**由服务端从成绩记录带出**，不接受调用方传入：
+// 前端传原值等于让申请人自证原值，而改分正是围绕原值合法性发生的争议。
 func (s *Service) ScoreChangeRequest(ctx context.Context, teamID int64, round int,
-	after float64, reason string) (*model.ScoreChangeRequest, error) {
+	after float64, afterTime *float64, reason string) (*model.ScoreChangeRequest, error) {
 
 	if err := requireReason(reason); err != nil {
 		return nil, err
+	}
+	if afterTime != nil && *afterTime < 0 {
+		return nil, &model.FieldError{Field: "afterTime", Msg: "用时不能为负数（单位：秒）"}
 	}
 	team, err := s.ro().Teams.Get(ctx, teamID)
 	if err != nil {
@@ -138,6 +193,10 @@ func (s *Service) ScoreChangeRequest(ctx context.Context, teamID int64, round in
 		Before: before, After: after,
 		Reason: reason, Operator: CurrentUser(ctx), Approved: false,
 	}
+	if afterTime != nil {
+		bt := old.DurationSec // 原用时：服务端真值，不信前端
+		req.BeforeTime, req.AfterTime = &bt, afterTime
+	}
 
 	// 申请单与审计写在同一事务里：要么「申请 + 留痕」一起成功，要么一起回滚，
 	// 不会出现「有一条申请但审计里查不到」的孤儿记录。
@@ -149,7 +208,7 @@ func (s *Service) ScoreChangeRequest(ctx context.Context, teamID int64, round in
 			fmt.Sprintf("%s 第 %d 轮", teamLabel(team), round),
 			fmt.Sprintf("总分 %.1f", before),
 			fmt.Sprintf("总分 %.1f（申请单 #%d，待裁判长授权）", after, req.ID),
-			reason)
+			reason+timeChangeNote(req)) // 用时一并进申请审计：留痕里要看得见"这单还要改用时"
 	}); err != nil {
 		// 唯一索引挡下的重复提交：给一句运营看得懂的话，而不是抛裸错误
 		if errors.Is(err, store.ErrDuplicate) {
@@ -205,7 +264,7 @@ func (s *Service) decideChange(ctx context.Context, id int64, approver string,
 			fmt.Sprintf("申请单 #%d · %s 第 %d 轮", id, teamLabel(team), req.RoundNo),
 			fmt.Sprintf("总分 %.1f", req.Before),
 			fmt.Sprintf("总分 %.1f（裁判长已%s）", req.After, verb),
-			req.Reason)
+			req.Reason+timeChangeNote(req))
 	}); err != nil {
 		return nil, err
 	}
@@ -258,6 +317,23 @@ func (s *Service) ApplyScoreChange(ctx context.Context, rec *model.ScoreRecord,
 	}
 	before := engine.Score(ev, *old, engine.RefTimeFor(ev, 0)).Total
 
+	// 用时一致性闸（2026/10/14）：
+	// 若该队该轮挂着一条**声明了拟改用时**的申请单，则本次落库的用时必须与之相等。
+	// 防的是「申请单上写 02:30、实际落 02:00」——用时是并列裁决的 tiebreak，
+	// 也是时间奖励的输入，审批人核对的是申请单，落库的必须是同一组数。
+	// 没有待审批单（裁判长紧急直改）或申请单不涉及用时（只改分）时，此闸不生效。
+	var pendingTime *float64
+	if pending, perr := s.ro().Changes.PendingOf(ctx, rec.TeamID, rec.RoundNo); perr == nil && pending != nil {
+		if pending.ChangesTime() {
+			if !sameTime(rec.DurationSec, *pending.AfterTime) {
+				return nil, &model.FieldError{Field: "time", Msg: fmt.Sprintf(
+					"用时与申请单 #%d 不一致：申请单声明 %s，本次提交 %s —— 请按申请单落库，或先驳回该单再另行发起",
+					pending.ID, model.FormatDuration(*pending.AfterTime), model.FormatDuration(rec.DurationSec))}
+			}
+			pendingTime = pending.AfterTime
+		}
+	}
+
 	// 保留原记分员：改分不改变「谁打的分」这个事实
 	if rec.Operator == "" {
 		rec.Operator = old.Operator
@@ -278,11 +354,12 @@ func (s *Service) ApplyScoreChange(ctx context.Context, rec *model.ScoreRecord,
 		}
 		// 审批人写进独立列而不是拼进 reason —— 否则「这个月裁判长批了几次改分」
 		// 这类问题只能靠文本模糊匹配来回答。
+		// 用时按 before/after 两列都写：审计页因此能直接看出"这次授权顺带改了用时"。
 		return logApproved(ctx, r, model.ActScore, approver,
 			fmt.Sprintf("%s 第 %d 轮", teamLabel(team), rec.RoundNo),
-			fmt.Sprintf("总分 %.1f", before),
-			fmt.Sprintf("总分 %.1f", after.Total),
-			reason)
+			fmt.Sprintf("总分 %.1f · 用时 %s", before, model.FormatDuration(old.DurationSec)),
+			fmt.Sprintf("总分 %.1f · 用时 %s", after.Total, model.FormatDuration(rec.DurationSec)),
+			reason+timeChangeNote2(old.DurationSec, rec.DurationSec, pendingTime))
 	}); err != nil {
 		return nil, err
 	}

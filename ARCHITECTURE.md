@@ -96,7 +96,7 @@ comptition-score-server/
 │       ├── reader.go                # ZIP + deflate + XML 扫描（与前端同算法）
 │       └── reader_test.go
 │
-├── migrations/                      # 手写顺序编号，up / down 成对（当前 0001 ~ 0014）
+├── migrations/                      # 手写顺序编号，up / down 成对（当前 0001 ~ 0022）
 │   ├── 0001_init.up.sql
 │   └── 0001_init.down.sql
 │
@@ -154,6 +154,7 @@ comptition-score-server/
 | `tasks` | 任务项：event_id / id / name / type / max_score / weight / **unit** / control / enum_map。`unit` = **量词**（迁移 `0020`）：题卡上的「每颗 +100」里那个「颗」，只对 `type=count` 有意义；**可空，空 = 界面回落「每单位 N 分」**。刻意**不建 CHECK / 不枚举** —— 量词是文案，穷举必然漏（个/颗/块/堆/轮…），漏了就把现场配置挡在数据库外；合法性交 `engine.ValidateEvent`（非计数项填了量词 → 警告；超过 4 字或首尾有空白 → 拦下）。**它不参与任何算分**：`weight` 才是每单位分，量词只影响题卡文案 |
 | `teams` | 队伍：**event_id / team_no（唯一）/ name / school / coach / group_code / status(active/withdrawn) / source(excel/manual/api) / seat_id(归台，NULL=未排台) / seat_order(台内顺位，从 1 起) / session(参赛轮次 1/2/both)** |
 | `scores` | 打分记录：team_id / round_no / task_values(JSONB) / duration_sec / yellow（**黄牌计数，0..阈值-1**）/ upgraded_red（**已升级出的红牌数**）/ red / signed / operator / created_at |
+| `score_change_requests` | 改分申请单：team_id / round_no / before_total / after_total / **before_time / after_time（迁移 `0022`，可空）** / reason / operator / approved / approver。`(team_id, round_no)` 有「仅未审批」的部分唯一索引（一队一轮最多一张待审批单）。`before_time/after_time` 的 **NULL = 本单不涉及用时**；改分模式下可连用时一起修（P2b「用时（可改 · 改分模式专属）」），授权落库时提交的 `time` 必须与 `after_time` 一致 |
 | `seats` | 赛台：event_id / name / sort_order |
 | `slots` | 场次：seat_id / period / time_range / event_id / group_code / **type(normal/extra/rematch)**（extra=加时赛、rematch=重赛，两者都是**独立场次**：不写队伍主库、成绩不自动进榜单）/ **round_no(1/2)**（迁移 `0017`；上午=第 1 轮、下午=第 2 轮，**落列而非现推**——1 轮赛项的下午场次仍是第 1 轮） |
 | `slot_teams` | 场次-队伍 关联 —— **已退化为历史表**：场次队伍改为**派生**后不再读写它（迁移 `0017` 同批把 `POST /slots/{id}/teams` 改成 410）。保留数据以备回溯，但任何新代码都不应再写它 |
@@ -225,7 +226,7 @@ comptition-score-server/
 | 报名导入 | `POST /imports/preview`（返回列映射 + 四色变更清单，不落库）· `POST /imports/commit` |
 | 赛事级规则 | `GET/PUT /contest/rules`（**挂在顶层 /contest 下**：作用域是赛事；`{id}` 在别的路由里一律指赛项，混在一起会让人以为递补规则是逐赛项配的） |
 | 赛台赛程 | `GET/POST /seats` · `GET/POST/PUT/DELETE /slots` · `POST /slots/{id}/auto-assign`（**一键自动分台**：写队伍级归台）· `GET /slots/{id}/teams`（**派生读**：本赛台队列的数据源）· `POST /slots/{id}/snapshot` · ⚠️ `POST /slots/{id}/teams` **已废弃 → 410**（改派走 `PUT /teams/{id}/seat`） |
-| 打分 | `GET/PUT /teams/{id}/scores` · `POST /scores/{id}/change-requests` |
+| 打分 | `GET/PUT /teams/{id}/scores` · `POST /scores/{id}/change-requests`（可带 `afterTime` 拟改用时）· `POST /scores/{id}/apply-change`（授权落库；申请单声明了 `after_time` 时，`time` 必须一致） |
 | 榜单 | `GET /events/{id}/standings?group=` |
 | 大屏 | `GET /screen/{eventId}`（**已脱敏**，返回当前屏数据 + 分页元信息）· `PUT /screen/{eventId}/config` |
 | 导出 | `GET /events/{id}/export/public`（公示表，仅排名）· `GET /events/{id}/export/detail`（成绩表，含明细） |

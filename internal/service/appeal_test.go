@@ -123,7 +123,7 @@ func TestAppealInheritToChangeRequest(t *testing.T) {
 	}
 
 	// 生成改分申请（P8b 真正落地处会调用；此处验证「两处都挂」接线）
-	cr, err := svc.ScoreChangeRequest(ctx, teamID, 1, 95.0, "申诉复核：要求重新核算第 1 轮成绩")
+	cr, err := svc.ScoreChangeRequest(ctx, teamID, 1, 95.0, nil, "申诉复核：要求重新核算第 1 轮成绩")
 	if err != nil {
 		t.Fatalf("生成改分申请失败: %v", err)
 	}

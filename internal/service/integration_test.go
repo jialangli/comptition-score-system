@@ -311,7 +311,7 @@ func TestEndToEndMainFlow(t *testing.T) {
 	}
 
 	// —— ⑦ 改分：裁判发起（只留痕）→ 裁判长授权后落库 ——
-	req, err := svc.ScoreChangeRequest(ctx, star.ID, 2, 99.0, "申诉复核：搭建任务漏计 1 个构件")
+	req, err := svc.ScoreChangeRequest(ctx, star.ID, 2, 99.0, nil, "申诉复核：搭建任务漏计 1 个构件")
 	if err != nil {
 		t.Fatalf("改分申请失败: %v", err)
 	}

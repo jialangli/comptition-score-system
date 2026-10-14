@@ -306,10 +306,10 @@ func TestScoreServiceBranches(t *testing.T) {
 	})
 
 	t.Run("改分申请与授权的参数校验", func(t *testing.T) {
-		if _, err := svc.ScoreChangeRequest(ctx, team.ID, 1, 99, ""); !errors.Is(err, service.ErrReasonRequired) {
+		if _, err := svc.ScoreChangeRequest(ctx, team.ID, 1, 99, nil, ""); !errors.Is(err, service.ErrReasonRequired) {
 			t.Errorf("改分未说明原因应返回 ErrReasonRequired，实际 %v", err)
 		}
-		if _, err := svc.ScoreChangeRequest(ctx, team.ID, 2, 99, "申请一个不存在的轮次"); !errors.Is(err, store.ErrNotFound) {
+		if _, err := svc.ScoreChangeRequest(ctx, team.ID, 2, 99, nil, "申请一个不存在的轮次"); !errors.Is(err, store.ErrNotFound) {
 			t.Errorf("轮次无记录应返回 ErrNotFound，实际 %v", err)
 		}
 		cur, err := svc.GetScore(ctx, team.ID, 1)
