@@ -468,10 +468,21 @@ function demoContests(){
 /* 演示数据规模：各场不同，清单里「赛项 / 队伍 / 已签字 / 已公示」才有层次。
    published 是**赛项下标**（0-based），不是赛项 id —— 免得写错 id 又静默失效。 */
 var DEMO_SPECS={
-  ct_demo_live:{key:'live',ev:3,teams:12,signed:8,published:[0]},
+  ct_demo_live:{key:'live',ev:3,teams:12,signed:8,published:[0],seats:4,refs:[
+    {name:'王长明',phone:'13805712234',role:'chief',code:'K7P4MX',status:'activated',bind:[0,'小学组',0],activatedAt:'激活 10-10 08:12',lastSeen:'10-10 08:40',device:'iPad-001'},
+    {name:'李慧',phone:'13968051142',role:'judge',code:'M3Q9TB',status:'activated',bind:[0,'初中组',1],activatedAt:'激活 10-10 08:20',lastSeen:'10-10 09:05',device:'iPad-002'},
+    {name:'张明远',phone:'13735689921',role:'judge',code:'T8W2RD',status:'issued',bind:[1,'小学组',2]},
+    {name:'陈曦',phone:'15068902217',role:'judge',code:'P6N4VC',status:'issued',bind:[1,'初中组',3]},
+    {name:'周天乐',phone:'18657102266',role:'judge',code:'Y2K7HS',status:'disabled',bind:[0,'小学组',0]},
+    {name:'吴新',phone:'13588473099',role:'judge',code:'R5T3QM',status:'issued',bind:null}
+  ]},
   ct_demo_live2:{key:'live2',ev:2,teams:8,signed:8,published:[]},
   ct_demo_prep:{key:'prep',ev:3,teams:0,signed:0,published:[]},
-  ct_demo_done:{key:'done',ev:3,teams:20,signed:20,published:[0,1,2]},
+  ct_demo_done:{key:'done',ev:3,teams:20,signed:20,published:[0,1,2],seats:2,refs:[
+    {name:'郑立群',phone:'13600983451',role:'chief',code:'H8G4KD',status:'activated',bind:[0,'小学组',0],activatedAt:'激活 06-15 08:05',lastSeen:'06-15 17:32',device:'iPad-011'},
+    {name:'孙雅雯',phone:'15868110239',role:'judge',code:'B5R9XT',status:'activated',bind:[1,'初中组',1],activatedAt:'激活 06-15 08:11',lastSeen:'06-15 17:40',device:'iPad-012'},
+    {name:'马涛',phone:'18957164402',role:'judge',code:'W3C6NP',status:'activated',bind:[2,'小学组',1],activatedAt:'激活 06-15 08:15',lastSeen:'06-15 16:58',device:'iPad-013'}
+  ]},
   ct_demo_arch:{key:'arch',ev:2,teams:16,signed:16,published:[0,1]},
   ct_demo_nodate:{key:'nd',ev:3,teams:0,signed:0,published:[]}
 };
@@ -513,6 +524,21 @@ function demoContestData(spec){
   (spec.published||[]).forEach(function(k){
     var e=d.events[k];if(e)d.published[e.id]={at:nowStr(),count:1};
   });
+  /* 演示裁判（模拟数据）：先铺赛台（预绑赛台要有台可绑），再按 spec.refs 造裁判档案。
+     状态刻意覆盖四种标签：已激活 / 已发码·未激活 / 已停用 / 未预绑赛台；
+     bind=[赛项下标,组别,赛台下标]，null=不绑 —— 与 viewReferees 的四档 KPI 一一对上。 */
+  var si;
+  for(si=0;si<(spec.seats||0);si++)d.seats.push({id:'dm_'+spec.key+'_seat'+si,name:(si+1)+' 号台'});
+  (spec.refs||[]).forEach(function(rf,ri){
+    var b=null;
+    if(rf.bind&&d.events[rf.bind[0]]){
+      b={eventId:d.events[rf.bind[0]].id,group:rf.bind[1],
+         seatId:(rf.bind[2]!=null&&d.seats[rf.bind[2]])?d.seats[rf.bind[2]].id:''};
+    }
+    d.referees.push({id:'dm_'+spec.key+'_rf'+ri,name:rf.name,phone:rf.phone||'',
+      role:rf.role||'judge',code:rf.code,status:rf.status||'issued',bind:b,
+      activatedAt:rf.activatedAt||'',lastSeen:rf.lastSeen||'',device:rf.device||''});
+  });
   return d;
 }
 
@@ -538,7 +564,7 @@ function dropTomb(ids){
 /* silent=true 供「首次进本页自动兜底」使用：不弹确认、不弹结果提示、不自己 render
    （调用方正在渲染中，改完 CONTESTS 让它接着渲染即可 —— 在里面 render 会递归）。 */
 function loadDemoContests(silent){
-  if(!silent&&!confirm('载入演示赛事\n\n将新增 6 场演示赛事，覆盖「筹备中 / 进行中 / 已结束 / 已归档」四种状态，\n并带并行举办、值守冲突、未填赛期三种边界样例；其中几场会写入演示队伍与成绩，\n让「赛项 / 队伍 / 已签字 / 已公示」四列有数字。\n\n① 你已有的赛事一律不动（演示赛事 id 带专属前缀 '+DEMO_PREFIX+'，与既有 id 不会撞）；\n② 可用同一处的「清除演示赛事」一键移除这 6 场。\n\n继续？'))return false;
+  if(!silent&&!confirm('载入演示赛事\n\n将新增 6 场演示赛事，覆盖「筹备中 / 进行中 / 已结束 / 已归档」四种状态，\n并带并行举办、值守冲突、未填赛期三种边界样例；其中几场会写入演示队伍与成绩，\n让「赛项 / 队伍 / 已签字 / 已公示」四列有数字；\n华东区 / 三亚两场另带演示裁判档案（四种状态标签齐）。\n\n① 你已有的赛事一律不动（演示赛事 id 带专属前缀 '+DEMO_PREFIX+'，与既有 id 不会撞）；\n② 可用同一处的「清除演示赛事」一键移除这 6 场。\n\n继续？'))return false;
   dropTomb(DEMO_IDS);
   var list=demoContests(),fail=[];
   list.forEach(function(c){
@@ -4501,9 +4527,16 @@ function doPublish(){if(!perm('publish'))return;
   var ph=S.handoff[PUB_EVENT]||{};
   S.handoff[PUB_EVENT]={by:ph.by||'',at:ph.at||'',note:ph.note||'',status:'已发布',
     publishedAt:S.published[PUB_EVENT].at,publishedBy:operatorName()};
-  (S.evidence||[]).forEach(function(e){
-    if(e.eventId===PUB_EVENT&&(e.type==='公示表'||e.type==='内部成绩表')){
-      e.ts=S.published[PUB_EVENT].at;e.refresh='重发刷新 · '+nowStr();e.sync='已同步';e.syncedAt=nowStr();
+  /* 发布产物留底：公示表 / 内部成绩表 —— 无则生成、有则刷新时间戳（重发标注） */
+  var pubTs=S.published[PUB_EVENT].at;
+  ['公示表','内部成绩表'].forEach(function(typ){
+    var hit=null;
+    (S.evidence||[]).forEach(function(e){if(!hit&&e.eventId===PUB_EVENT&&e.type===typ)hit=e;});
+    if(hit){
+      hit.ts=pubTs;hit.refresh='重发刷新 · '+nowStr();hit.sync='已同步';hit.syncedAt=nowStr();
+    }else{
+      addEvidence({type:typ,eventId:PUB_EVENT,group:(ev.groups||[]).join(' / '),owner:ev.name,
+        src:'发布执行方',file:typ+'_'+ev.name+'_v'+n+'.pdf'});
     }
   });
   logAudit(prev?'重发':'发布',ev.name+' · 成绩公示',
@@ -4892,16 +4925,10 @@ function viewRoles(){
       '<td>'+(ok?'<span class="tag ok">可执行</span>':'<span class="tag err">不可执行</span>')+'</td>'+
       '<td class="small muted">'+(ok?'—':'执行会被拒绝，并写入「账号」类型的越权留痕')+'</td></tr>';
   }).join('');
-  var denies=(S.auditLogs||[]).filter(function(l){return l.action==='账号'&&String(l.target).indexOf('越权')>=0;});
-  var denyRows=denies.map(function(l){
-    return '<tr><td class="small">'+esc(l.ts)+'</td><td>'+esc(l.operator)+'<div class="small muted">'+esc(roleName(l.role))+'</div></td>'+
-      '<td>'+esc(l.target)+'</td><td class="small">'+esc(l.before)+'</td><td class="small">'+esc(l.after)+'</td></tr>';
-  }).join('');
-  return '<div class="grid g4">'+
+  return '<div class="grid g3">'+
       kpi('当前登录',u.name,roleName(u.role))+
       kpi('可执行动作',keys.filter(function(k){return canDo(k);}).length+' / '+keys.length,'全部动作均可执行')+
       kpi('登录身份数','1','工作人员（无多角色）')+
-      kpi('越权尝试',denies.length+' 次','被拒绝并已留痕')+
     '</div>'+
   '<div class="card" style="margin-top:16px"><h2>登录身份 <small>本系统只有一个身份，不可切换</small></h2>'+
     '<div style="overflow:auto"><table><thead><tr><th>姓名</th><th style="width:120px">身份</th><th style="width:130px">可执行动作</th><th>职责范围</th></tr></thead>'+
@@ -4914,10 +4941,6 @@ function viewRoles(){
     '<div style="overflow:auto"><table><thead><tr><th style="width:270px">动作</th><th style="width:200px">允许身份</th><th style="width:150px">当前状态</th><th>说明</th></tr></thead>'+
     '<tbody>'+permRows+'</tbody></table></div>'+
   '</div>'+
-  '<div class="card"><h2>越权留痕 <small>共 '+denies.length+' 条 · 被拒绝的动作同样进审计</small></h2>'+
-    '<div style="overflow:auto"><table><thead><tr><th style="width:130px">时间</th><th style="width:150px">操作人</th><th>被拒动作</th><th style="width:230px">当时身份</th><th>系统处理</th></tr></thead>'+
-    '<tbody>'+(denyRows||'<tr><td colspan="5" class="muted">暂无越权尝试</td></tr>')+'</tbody></table></div>'+
-  '</div>'+
   '<div class="card"><h2>口径说明 <small>为什么只有一个身份</small></h2>'+
     '<div class="hint">'+
       '<b>① 单一登录身份</b>：平板端 P7 note 5 明确「后台管理系统仅工作人员登录，<b>不做裁判身份语义</b>」——'+
@@ -4926,7 +4949,7 @@ function viewRoles(){
         '不再出现「权限不足」的阻断路径 —— 现场就一个人一台机器，缺权限等于做不了事。<br>'+
       '<b>③ 权限矩阵为什么保留</b>：矩阵、校验层与 <b>31 处入口守卫</b>都在位，定位是<b>规格说明</b>而非空壳 ——'+
         '将来若引入多角色，直接改 roles 即可生效，无需返工。'+
-        '注意它保护的是「动作」而不是「身份」：所有动作当前身份均可执行，因此本页越权留痕通常为空。<br>'+
+        '注意它保护的是「动作」而不是「身份」：所有动作当前身份均可执行，越权拦截在多角色引入后才会真正触发。<br>'+
       '<b>④ 不靠权限管，靠留痕管</b>：既然全部动作都能做，约束就落在<b>留痕</b>上 —— 每条留痕都带操作人真实姓名与身份；'+
         '取消资格这类高危动作必须填写原因并生成告警记录，越权尝试同样写「账号」类型审计。<br>'+
       '<b>⑤ 与代录留痕的衔接</b>：成绩录入页的「录入来源（工作人员代录 / 现场回传）」+ 这里的真实姓名，'+
@@ -4940,7 +4963,22 @@ function viewRoles(){
    P11 发布产物留底、P9 申诉件（现场提交 · 检录台代传）。
    打分系统的核心承诺是「断网也能裁、也能留底，联网自动补传」—— 本页就是补传的目的地。 */
 var EV_TYPES=['成绩单','签名图','提交留底','裁定单','申诉件','公示表','内部成绩表'];
-var EV_FILTER={type:'',eventId:'',sync:''};
+/* 留底统一产生端：发布产物 / 裁定单等所有留底都从这里进证据库，
+   保证 id / ts / sync / 保留期等字段口径一致 —— 而不是各调用点各写一份。 */
+function addEvidence(e){
+  e=e||{};
+  e.id=e.id||('ev_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  e.ts=e.ts||nowStr();
+  e.sync=e.sync||'已同步';
+  e.syncedAt=e.syncedAt||nowStr();
+  e.size=e.size||'—';
+  e.configVersion=e.configVersion||configVersionOf(e.eventId);
+  e.keep=e.keep||'≥ 2 年';
+  S.evidence=S.evidence||[];
+  S.evidence.unshift(e);
+  return e;
+}
+var EV_FILTER={type:'',eventId:'',sync:'',q:''};
 var EV_PREVIEW=null;
 function evOf(id){var a=S.evidence||[];for(var i=0;i<a.length;i++){if(a[i].id===id)return a[i];}return null;}
 function evLocalPath(e){return '/sdcard/裁判留底/'+((find(e.eventId)||{name:e.eventId}).name)+'/'+e.ts.slice(0,10)+'/'+e.file;}
@@ -4948,6 +4986,14 @@ function evCloudPath(e){return 'evidence/'+e.ts.slice(0,7).replace('-','/')+'/'+
 function selEvType(v){EV_FILTER.type=v;render();}
 function selEvEvent(v){EV_FILTER.eventId=v;render();}
 function selEvSync(v){EV_FILTER.sync=v;render();}
+/* 关键字搜索：oninput 即时过滤；render 后把焦点还给输入框（光标到末尾），
+   否则每敲一个字符输入框就失焦，没法连续输入。 */
+function evSearch(v){
+  EV_FILTER.q=String(v||'').trim();
+  render();
+  var el=document.getElementById('evQ');
+  if(el){el.focus();try{el.setSelectionRange(el.value.length,el.value.length);}catch(err){}}
+}
 function previewEvidence(id){EV_PREVIEW=(EV_PREVIEW===id)?null:id;render();}
 function retryUpload(id){
   var e=evOf(id);if(!e)return;
@@ -4976,7 +5022,14 @@ function viewEvidence(){
   var list=all.filter(function(e){
     if(EV_FILTER.type&&e.type!==EV_FILTER.type)return false;
     if(EV_FILTER.eventId&&e.eventId!==EV_FILTER.eventId)return false;
-    if(EV_FILTER.sync&&e.sync!==EV_FILTER.sync)return false;
+    if(EV_FILTER.q){
+      var qk=String(EV_FILTER.q).trim().toLowerCase();
+      if(qk){
+        var hay=((e.file||'')+' '+(e.owner||'')+' '+(e.src||'')+' '+(e.type||'')+' '+(e.group||'')+' '
+          +((find(e.eventId)||{}).name||'')+' '+(e.ts||'')).toLowerCase();
+        if(hay.indexOf(qk)<0)return false;
+      }
+    }
     return true;
   });
   var pend=all.filter(function(e){return e.sync!=='已同步';}).length;
@@ -5045,6 +5098,7 @@ function viewEvidence(){
   '<div class="card" style="margin-top:16px"><div class="row">'+
       '<h2 style="margin:0">留底文件 <small>共 '+all.length+' 个 · 当前筛选 '+list.length+' 个</small></h2>'+
       '<span class="sp" style="flex:1"></span>'+
+      '<input id="evQ" style="max-width:210px" placeholder="搜索：文件名 / 归属 / 产生端 / 类型…" value="'+esc(EV_FILTER.q||'')+'" oninput="evSearch(this.value)" title="支持文件名、归属、产生端、类型、赛项、组别、时刻的模糊匹配">'+
       '<select style="max-width:140px" onchange="selEvEvent(this.value)">'+eOpts+'</select>'+
       '<select style="max-width:130px" onchange="selEvType(this.value)">'+tOpts+'</select>'+
       '<select style="max-width:140px" onchange="selEvSync(this.value)">'+sOpts+'</select>'+
@@ -5069,7 +5123,7 @@ function viewEvidence(){
       '<b>③ 签名图要真的能放大</b>：签名图是「同队同轮两份记录谁签的」这类争议的判定核心，'+
         '所以列表里必须能预览、能放大核对笔迹 —— 只列文件名等于没证据。<br>'+
       '<b>④ 同步状态可操作</b>：待补传的可以单独或批量补传（对应现场「联网后自动补传」，此处做手动兜底入口）。<br>'+
-      '<b>⑤ 保留期与审计一致</b>：留底与操作审计同为 <b>≥ 2 年</b>，导出清单可直接作为争议追溯与归档依据。<br>'+
+      '<b>⑤ 保留期与审计一致</b>：留底与操作审计同为 <b>≥ 2 年</b>（本机缓存最近 5000 条，全量由后端保证），导出清单可直接作为争议追溯与归档依据。<br>'+
       '<b>⑥ 与重发联动</b>：已发布赛项重新发布时，该赛项的公示表 / 内部成绩表留底会<b>自动刷新</b>（时间戳更新并标注「重发刷新」）。'+
     '</div>'+
   '</div>';
@@ -5153,6 +5207,9 @@ function dqRegister(){
     reason:reason,by:by,ts:nowStr(),status:'已生效',irrevocable:true,
     evidence:evi||'—',substituteDone:false,substituteAt:''});
   logAudit('取消资格',caseNo+' · '+teamLabel(tid),'—','已生效（成绩作废、不进榜单）',reason);
+  /* 裁定单留底：取消资格登记 → 证据库生成「裁定单」（后台是接收端，落库时补一条留底） */
+  addEvidence({type:'裁定单',eventId:ev.id,group:t.group||'',owner:t.name+'（'+t.no+'）',
+    src:'后台登记（接收端）',file:'裁定单_'+caseNo+'_'+t.no+'.pdf'});
   /* 最高危档，与改分自批同款「留痕威慑」：提交即推送后台收件箱，供事后抽样复核 */
   pushAlert('取消资格','danger',t.name+'（'+t.no+'）','成绩作废、不进榜单；待办：登记递补处理 + 重新发布',reason,by,'后台');
   /* 与重发联动：名次分布变了 → 已发布赛项必须置「待重发」（与切换递补规则同款处理） */
@@ -5775,7 +5832,7 @@ function logAudit(action,target,before,after,reason){
   S.auditLogs=S.auditLogs||[];
   S.auditLogs.unshift({ts:nowStr(),operator:operatorName(),role:currentUser().role,action:action,target:target,
     before:String(before==null?'—':before),after:String(after==null?'—':after),reason:reason||'—'});
-  S.auditLogs=S.auditLogs.slice(0,300);
+  S.auditLogs=S.auditLogs.slice(0,5000);
   save();
 }
 var AUDIT_TYPES=['改配置','改分','改组','调赛台','弃赛','删队','裁判码','排班','分台','锁定成绩','解锁','发布','重发','裁定','争议','递补','告警','留底','账号'];
@@ -5786,16 +5843,37 @@ var AUDIT_GROUPS=[
   {label:'裁定与合规',types:['裁定','争议','递补','告警']},
   {label:'证据与系统',types:['留底','账号']}
 ];
+var AUDIT_FILTER={type:'',q:''};
+function selAuditType(v){AUDIT_FILTER.type=v;render();}
+function auditSearch(v){
+  AUDIT_FILTER.q=String(v||'').trim();
+  render();
+  var el=document.getElementById('auditQ');
+  if(el){el.focus();try{el.setSelectionRange(el.value.length,el.value.length);}catch(err){}}
+}
 function viewAudit(){
-  var logs=(S.auditLogs||[]).slice();
+  var all=(S.auditLogs||[]).slice();
   var counts={};
   AUDIT_TYPES.forEach(function(t){counts[t]=0;});
-  logs.forEach(function(l){if(counts[l.action]!=null)counts[l.action]++;});
+  all.forEach(function(l){if(counts[l.action]!=null)counts[l.action]++;});
+  /* 表格行按筛选过滤；KPI 计数仍用全量（筛选只作用表格行，不作用统计） */
+  var logs=all.filter(function(l){
+    if(AUDIT_FILTER.type&&l.action!==AUDIT_FILTER.type)return false;
+    if(AUDIT_FILTER.q){
+      var qk=AUDIT_FILTER.q.toLowerCase();
+      var hay=((l.action||'')+' '+(l.target||'')+' '+(l.operator||'')+' '+(l.reason||'')+' '+(l.before||'')+' '+(l.after||'')).toLowerCase();
+      if(hay.indexOf(qk)<0)return false;
+    }
+    return true;
+  });
   var kpi=AUDIT_GROUPS.map(function(g){
     return '<div style="margin-top:10px"><div class="small" style="font-weight:bold">'+g.label+'</div>'+
       '<div class="grid g4">'+g.types.map(function(t){
         return '<div class="kpi"><div class="lb">'+t+'</div><div class="nm">'+counts[t]+'</div><div class="ft">已留痕条数</div></div>';
       }).join('')+'</div></div>';
+  }).join('');
+  var tOpts=[''].concat(AUDIT_TYPES).map(function(t){
+    return '<option value="'+esc(t)+'" '+(AUDIT_FILTER.type===t?'selected':'')+'>'+(t?esc(t):'全部类型')+'</option>';
   }).join('');
   var rows=logs.map(function(l){
     return '<tr><td class="small">'+esc(l.ts)+'</td><td>'+esc(l.operator)+'<div class="small muted">'+esc(roleName(l.role))+'</div></td>'+
@@ -5812,10 +5890,14 @@ function viewAudit(){
   }).join('');
   return '<div class="card"><h2>留痕范围 <small>'+AUDIT_TYPES.length+' 类操作 + 队伍导入全部记录；每条留痕带操作人真实身份；保留 ≥ 2 年</small></h2>'+
       '<div class="grid g3">'+kpi+'</div>'+
-      '<div class="hint" style="margin-top:10px">每条记录含：操作人 / 时间 / 操作对象 / <b>旧值 → 新值</b> / 原因。成绩提交后即进入终态，任何改动须走「裁定 P8 / 改分审批 P9」留痕链路（不提供直接解锁）。<b>每条留痕都带操作人的真实身份与角色</b>（工作人员），越权尝试同样会被记录（见「角色与权限」）。</div>'+
+      '<div class="hint" style="margin-top:10px">每条记录含：操作人 / 时间 / 操作对象 / <b>旧值 → 新值</b> / 原因。成绩提交后即进入终态，任何改动须走「裁定 P8 / 改分审批 P9」留痕链路（不提供直接解锁）。<b>每条留痕都带操作人的真实身份与角色</b>（工作人员），越权尝试同样会被记录（见本页「账号」类型）。</div>'+
     '</div>'+
-    '<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">操作日志 <small>共 '+logs.length+' 条</small></h2>'+
-      '<button class="btn sm" onclick="exportAudit()">导出审计</button></div>'+
+    '<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap"><h2 style="margin:0">操作日志 <small>共 '+all.length+' 条 · 当前筛选 '+logs.length+' 条</small></h2>'+
+      '<span class="row tight">'+
+        '<input id="auditQ" style="max-width:210px" placeholder="搜索：操作 / 对象 / 操作人 / 原因…" value="'+esc(AUDIT_FILTER.q||'')+'" oninput="auditSearch(this.value)">'+
+        '<select style="max-width:140px" onchange="selAuditType(this.value)">'+tOpts+'</select>'+
+        '<button class="btn sm" onclick="exportAudit()">导出审计</button>'+
+      '</span></div>'+
       '<table style="margin-top:10px"><thead><tr><th style="width:130px">时间</th><th style="width:90px">操作人</th><th style="width:92px">操作类型</th><th>操作对象</th><th style="width:120px">旧值</th><th style="width:140px">新值</th><th style="width:180px">原因</th></tr></thead>'+
       '<tbody>'+(rows||'<tr><td colspan="7" class="muted">暂无操作日志</td></tr>')+'</tbody></table>'+
     '</div>'+
