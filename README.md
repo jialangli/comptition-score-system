@@ -11,12 +11,12 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 
 > 仓库内所有队伍、学校、成绩均为**虚构演示数据**，仅保存在浏览器本地 localStorage，不会上传到任何服务器。
 
-**在线体验**：[后台管理 demo](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_demo.html) · [裁判端 wireframe](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html)
+**在线体验**：[后台管理 demo](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_demo.html) · [裁判端 wireframe](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html) · [裁判端纯净版](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe_clean.html)
 
 ## 目录
 
 - [在线预览](#在线预览github-pages) · [架构图集](#架构图集) · [仓库结构](#仓库结构) · [功能模块](#后台管理-demo--功能模块) · [裁判端](#裁判打分-wireframe平板端)
-- [技术特点](#技术特点) · [数据与隐私](#数据与隐私) · [开发](#开发)
+- [裁判端纯净版](#裁判端纯净版wireframe-clean) · [技术特点](#技术特点) · [数据与隐私](#数据与隐私) · [开发](#开发)
 - [参与贡献](#参与贡献) · [文档](#文档) · [致谢](#致谢) · [许可](#许可)
 
 ## 在线预览（GitHub Pages）
@@ -25,7 +25,8 @@ BrainCo（强脑科技）NeuroMaster 赛事评分系统：**可交互产品原�
 |---|---|
 | 赛事统分后台管理 demo（多赛事版 · 主交付物 · 可交互） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_demo.html) |
 | 赛事统分后台管理 wireframe（20 页 · 对齐 2026-10-12 口径 · **可打印/导 PDF**） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E5%90%8E%E5%8F%B0%E7%AE%A1%E7%90%86_wireframe.html) |
-| 裁判打分系统 wireframe（平板端 · 40 页） | [打开](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html) |
+| 裁判打分系统 wireframe（平板端 · 41 页 · 含口径注释） | [打开](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe.html) |
+| 裁判打分系统 wireframe · **纯净版**（平板端 · 41 页 · 无任何说明注释，像真软件） | [打开](https://jialangli.github.io/comptition-score-system/%E8%A3%81%E5%88%A4%E6%89%93%E5%88%86%E7%B3%BB%E7%BB%9F_wireframe_clean.html) |
 | 业务架构图（V0.6 · 一页全景 · 对齐 2026-10-13 口径） | [打开](https://jialangli.github.io/comptition-score-system/%E8%B5%9B%E4%BA%8B%E7%BB%9F%E5%88%86%E7%B3%BB%E7%BB%9F_%E4%B8%9A%E5%8A%A1%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
 | 报名系统架构图（WRC 官网接入 · V0.4 编号规则对齐真实号码簿） | [打开](https://jialangli.github.io/comptition-score-system/%E6%8A%A5%E5%90%8D%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
 | 队伍导入架构图（V0.1） | [打开](https://jialangli.github.io/comptition-score-system/%E9%98%9F%E4%BC%8D%E5%AF%BC%E5%85%A5%E6%9E%B6%E6%9E%84%E5%9B%BE.html) |
@@ -71,7 +72,8 @@ WRC / 批量双通道导入管线（解析 → 映射 → 比对 → 裁决 → 
 ```
 赛事统分后台管理_demo.html      后台管理端交互原型（多赛事版 · 单文件 · 零依赖）
 赛事统分后台管理_wireframe.html  后台管理端线框（20 页 · 对齐 2026-10-12 口径 · 可打印/导 PDF）
-裁判打分系统_wireframe.html     平板端裁判打分 wireframe（40 页单屏 UI）
+裁判打分系统_wireframe.html     平板端裁判打分 wireframe（41 页单屏 UI · 含口径注释）
+裁判打分系统_wireframe_clean.html 平板端裁判打分 wireframe 纯净版（41 页 · 无说明注释）
 赛事统分系统_业务架构图.html    业务架构图（一页全景 · V0.6）
 报名系统架构图.html             报名数据接入架构图（WRC 官网版 · V0.4）
 队伍导入架构图.html             队伍导入双通道架构图（V0.1）
@@ -122,7 +124,7 @@ _goenv.sh                    构建入口（隔离 GOROOT 与沙箱代理）
 
 ## 裁判打分 wireframe（平板端）
 
-- **40 页平板单屏 UI**：打分录入、改分审批（P9）、争议裁定台（P8）、锁定台（P10）、选手签字等完整现场链路
+- **41 页平板单屏 UI**（另有**纯净版**：同 41 页、剥掉全部页面标题 / 口径注释 / 版本脚注，只留实机画面）：打分录入、改分审批（P9）、争议裁定台（P8）、锁定台（P10）、选手签字等完整现场链路
 - 未来之城 V7.3 **双队对抗同场**模式；裁判码 6 位无歧义字符，首次登录联网激活后**断网可登录**，支撑离线评分
 - 一队两轮（上午第 1 轮 / 下午第 2 轮）：成绩按轮独立、名次**取优**（不是两轮相加）；
   **第 1 轮在册队伍未全部提交前第 2 轮硬锁**（无解锁入口），缺席的处置是标记弃赛
@@ -130,6 +132,18 @@ _goenv.sh                    构建入口（隔离 GOROOT 与沙箱代理）
   成绩要进榜单仍走「改分申请 → 审批」。发布门按**队伍参赛轮次**判，
   只缺某轮时改该队参赛轮次即可（成绩保留，榜单标「仅第 N 轮」）
 - 后台 demo 的双锁 / 告警 / 台账口径与平板端同源（P8 / P9 / P10 note 逐条对齐）
+
+
+### 纯净版（wireframe clean）
+
+**同一份 41 页实机画面的两种形态**：
+
+| 版本 | 文件 | 适用场景 |
+|---|---|---|
+| 讲解版 | `裁判打分系统_wireframe.html` | 需求评审：每页带页标题、口径与交互说明、版本脚注 |
+| **纯净版** | `裁判打分系统_wireframe_clean.html` | 演示 / 试用：**剥掉全部说明文字**，只保留平板实机画面（顶栏 / 侧栏 / 队列 / 打分页 / 弹层 / 成功条），看起来就是一套真软件的界面流 |
+
+纯净版同样保留全部交互态（返回拦截、确认提交裁定、黄牌升级、离线补传等叠加浮层）与 A4 横向打印分页。
 
 ## 技术特点
 
