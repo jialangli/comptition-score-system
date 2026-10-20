@@ -76,6 +76,8 @@
   /* 阻断角标：红点 + 文字，用于入口行提示「该项当前有硬阻断」 */
   .tag-block { display: inline-flex; align-items: center; gap: 4px; background: #fff5f5; border: 1px solid #feb2b2; color: #c53030; font-size: 11px; font-weight: bold; line-height: 1; border-radius: 10px; padding: 3px 8px 3px 7px; margin-left: 8px; vertical-align: middle; }
   .tag-block i { width: 6px; height: 6px; border-radius: 50%; background: #e53e3e; flex: none; }
+  /* 待办计数角标：数字 + 「件」，用于入口行提示「该项还有几单没处理」（与页签红色数字角标同源） */
+  .tag-count { display: inline-flex; align-items: center; background: #fed7d7; color: #9b2c2c; font-size: 11px; font-weight: bold; line-height: 1; border-radius: 10px; padding: 4px 8px; margin-left: 8px; vertical-align: middle; }
   /* 判罚事由序号圆角标：黄牌 / 红牌配色 */
   .snum { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: bold; margin-right: 6px; flex: none; vertical-align: middle; }
   .snum.y { background: #d69e2e; }
@@ -2028,8 +2030,8 @@
         </div>
         <div class="card">
           <div class="t-name">管理待办</div>
-          <div class="qrow"><span>① 争议裁定（申诉复核 · 重复打分；结论三态：维持原判 / 授权改分 / 取消资格）</span><span><span class="btn-outline btn-sm">进入裁定台 →</span></span></div>
-          <div class="qrow"><span>② 改分授权（裁判在<b>改分模式</b>提交改分申请 → 裁判长授权 → 留痕）</span><span><span class="btn-outline btn-sm">改分审批 →</span></span></div>
+          <div class="qrow"><span>① 争议裁定（申诉复核 · 重复打分；结论三态：维持原判 / 授权改分 / 取消资格）<span class="tag-count">1 件</span></span><span><span class="btn-outline btn-sm">进入裁定台 →</span></span></div>
+          <div class="qrow"><span>② 改分授权（裁判在<b>改分模式</b>提交改分申请 → 裁判长授权 → 留痕）<span class="tag-count">2 件</span></span><span><span class="btn-outline btn-sm">改分审批 →</span></span></div>
           <div class="qrow"><span>③ 发布前确认（完整性校验 → 移交工作人员发布）<span class="tag-block"><i></i>阻断</span></span><span><span class="btn-primary btn-sm">发布前确认 →</span></span></div>
         </div>
         <div style="font-size:12px; color:#2b6cb0; background:#ebf4ff; border:1px solid #bee3f8; border-radius:6px; padding:6px 10px; margin-top:8px;">💡 <b>流水处理</b>：在 P8 / P8b / P8c / P9 处理完一单后，自动回返该类队列顶部，<b>点队列里的下一条待处理行</b>（可点的蓝色队伍名）即载入该单；或点「← 返回工作台」回到本待办队列顶部 —— 无需反复进出本页。</div>
@@ -2043,7 +2045,7 @@
     <span class="num">3</span> <b>高危动作留痕</b>：裁定 / 改分授权 / 发布均触发版本复现与全量审计（旧值→新值 + 原因），改分后按各自绑定版本重算排名。<br>
     <span class="num">4</span> <b>4 项入口各自展开</b>：依次为 <b>P8 裁定台</b>、<b>P9 改分审批</b>、<b>P11 发布前确认</b>。注意<b>发布键不在裁判长手里</b>——裁判长只做“确认（完整性校验）”，实际发布由工作人员在后台执行；本册不提供“撤销发布”，改用常驻重发提示。<br>
     <span class="num">5</span> <b>两条到达路径（B+D 方案）</b>：<b>就地入口</b>——普通裁判端只在<b>打分页（P3–P5.9）底部操作栏</b>设上报入口（<b>比赛屏 P2 不设</b>：争议 / 申诉的处置对象是成绩与判罚，业务发生地在打分页）；<b>按身份分标签</b>——<b>裁判长端</b>为「<b>⚖ 争议 / 申诉</b>」+ 待裁定徽标（在 <b>P7 执裁</b>顶栏；本页顶栏不重复放，裁定入口即下方 ① 行「进入裁定台 →」），点击<b>直达 P8 裁定台</b>直接裁定；<b>普通裁判端</b>为「<b>⚠ 上报争议</b>」（无徽标），点击进入 <b>P5.10 上报浮层</b>，提交后工单进待裁定队列，由裁判长裁定。<b>两条路径全程留痕</b>（谁 / 何时 / 上报了什么），取代“口头喊裁判长”。<br>
-    <span class="num">6</span> <b>有待办时给提示（页签角标）</b>：待办数（争议 ＋ 改分 ＋ 发布阻断）为 0 时「裁判长管理权限」页签不显角标；&gt; 0 时显示红色数字——裁判长在<b>执裁页签</b>就能看到「哪里有活」，不必先点进管理权限逐个找。这与 <b>P7 顶栏「⚖ 争议 / 申诉」的待裁定徽标</b>（＝ 1，<b>只算争议</b>）、<b>P7c 空状态的待办卡</b>（待裁定 1 ＋ 待审批 2 ＝ <b>3 件</b>，算<b>全部待办</b>）同源——三处<b>口径必须对应</b>：顶栏徽标只算待裁定争议，P7b / P7c 算全部待办（争议 ＋ 改分）。<br>
+    <span class="num">6</span> <b>有待办时给提示（两级角标）</b>：待办数（争议 ＋ 改分 ＋ 发布阻断）为 0 时「裁判长管理权限」页签不显角标；&gt; 0 时显示红色数字——裁判长在<b>执裁页签</b>就能看到「哪里有活」，不必先点进管理权限逐个找。<b>进页后由行内角标接手</b>：① / ② 显示各自待办<b>件数</b>（1 件 / 2 件，与 P8 顶栏「待裁定 1 件」、P9 顶栏「待审批 2 件」同数），③ 显示「<b>阻断</b>」——它不是一个待办数量，而是「这一项当前卡住了发布」（红项口径见 <b>P11</b>），所以给<b>词</b>不给数。两级相加必须对得上：行内 1 ＋ 2 ＝ 页签 <b>3</b>（阻断不计数）。这与 <b>P7 顶栏「⚖ 争议 / 申诉」的待裁定徽标</b>（＝ 1，<b>只算争议</b>）、<b>P7c 空状态的待办卡</b>（待裁定 1 ＋ 待审批 2 ＝ <b>3 件</b>，算<b>全部待办</b>）同源——三处<b>口径必须对应</b>：顶栏徽标只算待裁定争议，P7b / P7c 算全部待办（争议 ＋ 改分）。<br>
     <span class="num">7</span> <b>多裁判长并存时的分工</b>：现场若 ≥2 位裁判长，管理权限按「赛项 × 组别」分区——各自只对自己辖区内的争议 / 改分 / 发布负责，P9 的审批人默认取<b>本人以外的裁判长</b>；若现场只有 1 位裁判长，则允许自批，按 P9 note 4 的<b>「留痕威慑」</b>处理（标红「自批」+ 独立告警 + 后台可抽查）。分区规则由后台人员档案的「管理范围」字段下发。<br>
     <span class="num">8</span> <b>待办流水处理（效率）</b>：本页四类待办支持「处理完 → 直接下一个」——处理完一单即自动回返该类队列顶部（见 <b>P8d</b> / <b>P9b</b> 的成功条），<b>点队列里的下一条待处理行</b>（待裁定 / 待审批，队伍名为可点的蓝色）即载入该单，无需退回入口页，避免反复进出（对应实战摩擦：原流程需 P7b 往返 5 次以上）。<b>不另设「处理下一单 →」按钮</b>：入口长在队列行上，少一个按钮、也少一种“按钮在、却已无下一单”的死键状态。
   </div>
