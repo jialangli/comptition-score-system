@@ -1884,7 +1884,7 @@
       <div class="main">
         <div class="tabbar">
           <span class="on">执裁</span>
-          <span>裁判长管理权限</span>
+          <span>裁判长管理权限<span style="background:#e53e3e; color:#fff; font-size:10px; line-height:1; border-radius:8px; padding:2px 6px; margin-left:5px; vertical-align:middle;">3</span></span>
         </div>
         <!-- 轮次切换 -->
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
@@ -1984,7 +1984,7 @@
       <div class="main">
         <div class="tabbar">
           <span class="on">执裁</span>
-          <span>裁判长管理权限</span>
+          <span>裁判长管理权限<span style="background:#e53e3e; color:#fff; font-size:10px; line-height:1; border-radius:8px; padding:2px 6px; margin-left:5px; vertical-align:middle;">3</span></span>
         </div>
         <!-- 空状态 hero -->
         <div class="card" style="text-align:center; padding:44px 20px; background:#f7fafc; border:2px dashed #cbd5e0;">
@@ -2021,13 +2021,13 @@
       <div class="main">
         <div class="tabbar">
           <span>执裁</span>
-          <span class="on">裁判长管理权限</span>
+          <span class="on">裁判长管理权限<span style="background:#e53e3e; color:#fff; font-size:10px; line-height:1; border-radius:8px; padding:2px 6px; margin-left:5px; vertical-align:middle;">3</span></span>
         </div>
         <div class="card">
-          <div class="t-name">裁判长专属能力（普通裁判界面不显示） <span class="pts">当前待办 3 件 · 1 项有阻断</span></div>
-          <div class="qrow"><span>① 争议裁定（申诉复核 · 重复打分；结论三态：维持原判 / 授权改分 / 取消资格）</span><span><span class="warn">待裁定 1 件</span> &nbsp;<span class="btn-outline btn-sm">进入裁定台 →</span></span></div>
-          <div class="qrow"><span>② 改分授权（裁判在<b>改分模式</b>提交改分申请 → 裁判长授权 → 留痕）</span><span><span class="warn">待审批 2 件</span> &nbsp;<span class="btn-outline btn-sm">改分审批 →</span></span></div>
-          <div class="qrow"><span>③ 发布前确认（完整性校验 → 移交工作人员发布）</span><span><span class="warn">有阻断</span> &nbsp;<span class="btn-primary btn-sm">发布前确认 →</span></span></div>
+          <div class="t-name">管理待办</div>
+          <div class="qrow"><span>① 争议裁定（申诉复核 · 重复打分；结论三态：维持原判 / 授权改分 / 取消资格）</span><span><span class="btn-outline btn-sm">进入裁定台 →</span></span></div>
+          <div class="qrow"><span>② 改分授权（裁判在<b>改分模式</b>提交改分申请 → 裁判长授权 → 留痕）</span><span><span class="btn-outline btn-sm">改分审批 →</span></span></div>
+          <div class="qrow"><span>③ 发布前确认（完整性校验 → 移交工作人员发布）</span><span><span class="btn-primary btn-sm">发布前确认 →</span></span></div>
         </div>
         <div style="font-size:12px; color:#2b6cb0; background:#ebf4ff; border:1px solid #bee3f8; border-radius:6px; padding:6px 10px; margin-top:8px;">💡 <b>流水处理</b>：在 P8 / P8b / P8c / P9 处理完一单后，自动回返该类队列顶部，<b>点队列里的下一条待处理行</b>（可点的蓝色队伍名）即载入该单；或点「← 返回工作台」回到本待办队列顶部 —— 无需反复进出本页。</div>
         <div style="font-size:12px; color:#718096; margin-top:6px;">⚠ 裁定 / 改分 / 发布均触发版本复现与全量审计（旧值→新值+原因）；改分后排名按各自绑定版本自动重算。</div>
@@ -2040,7 +2040,7 @@
     <span class="num">3</span> <b>高危动作留痕</b>：裁定 / 改分授权 / 发布均触发版本复现与全量审计（旧值→新值 + 原因），改分后按各自绑定版本重算排名。<br>
     <span class="num">4</span> <b>4 项入口各自展开</b>：依次为 <b>P8 裁定台</b>、<b>P9 改分审批</b>、<b>P11 发布前确认</b>。注意<b>发布键不在裁判长手里</b>——裁判长只做“确认（完整性校验）”，实际发布由工作人员在后台执行；本册不提供“撤销发布”，改用常驻重发提示。<br>
     <span class="num">5</span> <b>两条到达路径（B+D 方案）</b>：<b>就地入口</b>——普通裁判端只在<b>打分页（P3–P5.9）底部操作栏</b>设上报入口（<b>比赛屏 P2 不设</b>：争议 / 申诉的处置对象是成绩与判罚，业务发生地在打分页）；<b>按身份分标签</b>——<b>裁判长端</b>为「<b>⚖ 争议 / 申诉</b>」+ 待裁定徽标（在 <b>P7 执裁</b>顶栏；本页顶栏不重复放，裁定入口即下方 ① 行「进入裁定台 →」），点击<b>直达 P8 裁定台</b>直接裁定；<b>普通裁判端</b>为「<b>⚠ 上报争议</b>」（无徽标），点击进入 <b>P5.10 上报浮层</b>，提交后工单进待裁定队列，由裁判长裁定。<b>两条路径全程留痕</b>（谁 / 何时 / 上报了什么），取代“口头喊裁判长”。<br>
-    <span class="num">6</span> <b>工作台首页必须有待办计数</b>：4 项入口各自带「待裁定 / 待审批 / 无待办 / 有阻断」，卡片标题再给一次汇总（当前待办 3 件）——裁判长进工作台第一眼就知道「哪里有活」，而不是逐个点进去找。这与 <b>P7 顶栏「⚖ 争议 / 申诉」的待裁定徽标</b>（＝ 1，<b>只算争议</b>）、<b>P7c 空状态的待办卡</b>（待裁定 1 ＋ 待审批 2 ＝ <b>3 件</b>，算<b>全部待办</b>）同源——三处<b>口径必须对应</b>：顶栏徽标只算待裁定争议，P7b / P7c 算全部待办（争议 ＋ 改分）。<br>
+    <span class="num">6</span> <b>有待办时给提示（页签角标）</b>：待办数（争议 ＋ 改分 ＋ 发布阻断）为 0 时「裁判长管理权限」页签不显角标；&gt; 0 时显示红色数字——裁判长在<b>执裁页签</b>就能看到「哪里有活」，不必先点进管理权限逐个找。这与 <b>P7 顶栏「⚖ 争议 / 申诉」的待裁定徽标</b>（＝ 1，<b>只算争议</b>）、<b>P7c 空状态的待办卡</b>（待裁定 1 ＋ 待审批 2 ＝ <b>3 件</b>，算<b>全部待办</b>）同源——三处<b>口径必须对应</b>：顶栏徽标只算待裁定争议，P7b / P7c 算全部待办（争议 ＋ 改分）。<br>
     <span class="num">7</span> <b>多裁判长并存时的分工</b>：现场若 ≥2 位裁判长，管理权限按「赛项 × 组别」分区——各自只对自己辖区内的争议 / 改分 / 发布负责，P9 的审批人默认取<b>本人以外的裁判长</b>；若现场只有 1 位裁判长，则允许自批，按 P9 note 4 的<b>「留痕威慑」</b>处理（标红「自批」+ 独立告警 + 后台可抽查）。分区规则由后台人员档案的「管理范围」字段下发。<br>
     <span class="num">8</span> <b>待办流水处理（效率）</b>：本页四类待办支持「处理完 → 直接下一个」——处理完一单即自动回返该类队列顶部（见 <b>P8d</b> / <b>P9b</b> 的成功条），<b>点队列里的下一条待处理行</b>（待裁定 / 待审批，队伍名为可点的蓝色）即载入该单，无需退回入口页，避免反复进出（对应实战摩擦：原流程需 P7b 往返 5 次以上）。<b>不另设「处理下一单 →」按钮</b>：入口长在队列行上，少一个按钮、也少一种“按钮在、却已无下一单”的死键状态。
   </div>
@@ -2055,7 +2055,7 @@
     <div class="screen">
       <div class="main">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-          <span class="btn-gray btn-sm">← 返回工作台（待办队列顶部）</span>
+          <span class="btn-gray btn-sm">← 返回工作台</span>
           <span style="display:inline-flex; align-items:center; gap:8px; font-size:12px; color:#718096;"><span>待裁定 <span class="warn">1</span> 件 &nbsp;·&nbsp; 今日已裁定 4 件</span></span>
         </div>
         <table class="wf">
@@ -2153,7 +2153,7 @@
     <span class="num">6</span> <b>两层留底要分清（本页只呈现证据、不重复生成）</b>：① <b>证据层 ＝ 裁判端产生</b>——裁判在<b>提交成绩时</b>自动生成「成绩表 + 签名图 + 提交留底截图」并落本地，随成绩<b>异步同步</b>到本页；裁判长打开工单时三件已到齐，故其状态是「<b>已同步</b>」。本页<b>只读呈现、不重新生成证据</b>，签名图之所以要显示出来，就是为了当场核对两份记录的笔迹归属。② <b>裁定层 ＝ 裁判长端产生</b>——点「提交裁定」成功瞬间，系统自动截「本页裁定结论」并<b>先落本地</b>（路径 /sdcard/裁判留底/{赛事}/{日期}/{工单号}_{HHmmss}.jpg，同目录生成同名 .json 元数据：工单号 / 队伍 / 结论 / 裁判长 / 设备 ID / 时间 / config_version），有网时再异步上云，所以状态是「<b>已落本地 · 待同步</b>」。两层共用同一套「本地优先 · 异步同步」，但<b>触发点不同、不可混谈</b>——把裁定时截的图当作“原始证据”是错的。③ <b>证据只在「提交成绩」时生成</b>：成绩表 / 签名图 / 提交留底截图三件均由裁判端在提交瞬间自动生成并落本地，<b>全册不设任何手动补截 / 补录入口</b>（避免造出第二份来源不明的证据）；裁判长端以「提交裁定即自动截」为准。<br>
     <span class="num">7</span> <b>对抗场次（未来之城 A vs B）的裁定口径</b>：三态同样适用于对抗场次，但影响范围按「结论对象」区分——① <b>只涉一队的判罚 / 用时争议</b>：只改该队成绩，对手方成绩不变；② <b>涉及场次胜负或双队共用的道具 / 场地争议</b>：需同时评估 A / B 两队，取消资格后该场次改为「单队完赛」，对手方的净胜与名次会连带变化；③ 双队选手代表<b>均需在结论页签字确认</b>（与打分页的 A / B 双签同口径），只签一队不算结论成立。<br>
     <span class="num">8</span> <b>本页只承载「单张工单」</b>：队列与入口在 <b>P8</b>，本页只做该单的详情呈现 + 三档位结论 + 原因 / 签名 / 提交；点「← 返回待裁定队列」回 <b>P8</b>。<br>
-    <span class="num">9</span> <b>提交裁定后去哪（本册定义）</b>：点「提交裁定」成功后<b>顶部滑入成功条、2 秒自动回返待裁定队列顶部</b>（三态共用的成功条形态见 <b>P8d</b>）；回返后停在待裁定队列顶部——同类若还有其它待裁定工单，<b>点该行的队伍名即载入该单</b>（本册示例只有 D-003 一张，故无下一张）；否则点「← 返回工作台（待办队列顶部）」。
+    <span class="num">9</span> <b>提交裁定后去哪（本册定义）</b>：点「提交裁定」成功后<b>顶部滑入成功条、2 秒自动回返待裁定队列顶部</b>（三态共用的成功条形态见 <b>P8d</b>）；回返后停在待裁定队列顶部——同类若还有其它待裁定工单，<b>点该行的队伍名即载入该单</b>（本册示例只有 D-003 一张，故无下一张）；否则点「← 返回工作台」。
   </div>
 </div>
 
@@ -2365,7 +2365,7 @@
     <div class="screen">
       <div class="main">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-          <span class="btn-gray btn-sm">← 返回工作台（待办队列顶部）</span>
+          <span class="btn-gray btn-sm">← 返回工作台</span>
           <span style="font-size:12px; color:#718096;">待裁定 <b style="color:#38a169;">0</b> 件 &nbsp;·&nbsp; 今日已裁定 <b>5</b> 件</span>
         </div>
         <table class="wf">
@@ -2386,7 +2386,7 @@
     <span class="num">2</span> <b>三态共用本态，只有成功条文案与下游联动不同</b>：① <b>维持原判（P8）</b>＝申诉驳回，该队成绩与榜单<b>均不变</b>，只留裁定记录——<b>不生成改分单、不作废成绩</b>；② <b>授权改分（P8b）</b>＝<b>生成改分申请单 R-0xx 并推送 P9</b>，成功条额外提示「待 P9 授权后生效」，回返队列顶部后由「改分审批 →」处的<b>待审批计数 +1</b> 承接（P8b 按钮上写的「→ 转 P9」即由此承接，<b>本页不直接改分</b>）；③ <b>取消资格（P8c）</b>＝该队成绩<b>作废</b>，成功条额外提示「已触发该赛项重发提示」，后续递补与重发由工作人员在后台执行（见 P11）。<br>
     <span class="num">3</span> <b>为什么用非阻断成功条（防呆）</b>：裁定是<b>高频动作</b>（一个赛日可能裁十几单），不做整屏成功态；但它同时是<b>不可撤销</b>动作，所以成功条必须显式给出两件事——<b>结论已生效</b>、<b>如需推翻只能再裁定一次并留痕</b>（见 P8 note 5）。口径与 <b>P9b</b>（已批准成功条）、P2b note 9（已提交成功条）一致。<br>
     <span class="num">4</span> <b>提交即落库 + 裁定层留底</b>：点「提交裁定」的瞬间结论已在服务端生效（不可撤销），同时自动截「本页裁定结论」并<b>先落本地</b>、写入审计（旧值→新值 + 原因）——即 <b>P8 note 6 ②</b> 的<b>裁定层留底</b>；2 秒回返、断网、关页都不会让这次裁定失效或重复。<br>
-    <span class="num">5</span> <b>计数联动</b>：裁定瞬间「待裁定 <b>1 → 0</b>」「今日已裁定 <b>4 → 5</b>」；D-003 行状态由「去裁定」变「已裁定（维持原判）· 查看」；P7b 的「当前待办」随之由 <b>3</b> 件降为 <b>2</b> 件、P7c 空状态待办卡的「待裁定」项归 0（口径对应见 P7b note 6）。
+    <span class="num">5</span> <b>计数联动</b>：裁定瞬间「待裁定 <b>1 → 0</b>」「今日已裁定 <b>4 → 5</b>」；D-003 行状态由「去裁定」变「已裁定（维持原判）· 查看」；P7b / P7c 的「裁判长管理权限」页签角标随之由 <b>3</b> 降为 <b>2</b>、P7c 空状态待办卡的「待裁定」项归 0（口径对应见 P7b note 6）。
   </div>
 </div>
 
@@ -2477,7 +2477,7 @@
     <div class="screen">
       <div class="main">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-          <span class="btn-gray btn-sm">← 返回工作台（待办队列顶部）</span>
+          <span class="btn-gray btn-sm">← 返回工作台</span>
           <span style="display:inline-flex; align-items:center; gap:8px; font-size:12px; color:#718096;"><span>待审批 <span class="warn">2</span> 件 &nbsp;·&nbsp; 今日已批准 5 件</span></span>
         </div>
         <table class="wf">
@@ -2553,7 +2553,7 @@
     <div class="screen">
       <div class="main">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-          <span class="btn-gray btn-sm">← 返回工作台（待办队列顶部）</span>
+          <span class="btn-gray btn-sm">← 返回工作台</span>
           <span style="display:inline-flex; align-items:center; gap:8px; font-size:12px; color:#718096;"><span>待审批 <span class="warn">1</span> 件 &nbsp;·&nbsp; 今日已批准 6 件</span></span>
         </div>
         <table class="wf">
@@ -2588,7 +2588,7 @@
     <div class="screen">
       <div class="main">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-          <span class="btn-gray btn-sm">← 返回工作台（待办队列顶部）</span>
+          <span class="btn-gray btn-sm">← 返回工作台</span>
           <span style="font-size:12px; color:#718096;">当前发布单元：脑机星球 · 小学组</span>
         </div>
         <div class="card">
