@@ -362,7 +362,7 @@
             <div style="font-size:13px; font-weight:bold;">我的申请</div>
             <div style="font-size:12px; color:#718096;">实时回流至该队队列标记与 P2e 成绩单</div>
           </div>
-          <div style="max-height:200px; overflow:auto; border:1px solid #e2e8f0; border-radius:6px;">
+          <div style="max-height:250px; overflow:auto; border:1px solid #e2e8f0; border-radius:6px;">
             <table class="wf" style="margin-bottom:0;">
               <tr><th>类型</th><th class="l">队伍</th><th class="l">事项</th><th>状态 / 操作</th></tr>
               <tr><td>改分申请</td><td class="l">T-001 智创未来队</td><td class="l">470 → 620（R-008）</td><td style="color:#c53030;">待审批 <span style="color:#2b6cb0; font-weight:bold; font-size:11px; cursor:pointer;">· 撤回</span></td></tr>
@@ -1852,10 +1852,12 @@
           <div style="border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-top:8px; background:#f7fafc; font-size:12px; color:#718096;">
             上报后由<b>裁判长</b>在 P8 裁定台裁定（维持原判 / 授权改分 / 取消资格）——<b>本队成绩暂不锁定</b>，比赛可继续进行。
           </div>
-          <div style="display:flex; justify-content:flex-end; gap:8px; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid #e2e8f0;">
-            <span style="font-size:12px; color:#c53030; margin-right:auto;">两项必填未完成 —— 情况说明为空、申述书照片未上传；补齐后「提交上报」才可点（缺一不可提交）</span>
-            <span class="btn-gray btn-sm" style="white-space:nowrap; flex:none;">取消</span>
-            <span class="btn-primary btn-sm" style="background:#cbd5e0; color:#718096; white-space:nowrap; flex:none;">提交上报</span>
+          <div style="margin-top:12px; padding-top:10px; border-top:1px solid #e2e8f0;">
+            <div style="font-size:12px; color:#c53030; text-align:center; margin-bottom:8px;">两项必填未完成 —— 情况说明为空、申述书照片未上传；补齐后「提交上报」才可点（缺一不可提交）</div>
+            <div style="display:flex; justify-content:center; gap:10px;">
+              <span class="btn-gray btn-sm" style="white-space:nowrap; flex:none;">取消</span>
+              <span class="btn-primary btn-sm" style="background:#cbd5e0; color:#718096; white-space:nowrap; flex:none;">提交上报</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1952,14 +1954,15 @@
         <div class="card" style="margin-top:14px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <div style="font-size:13px; font-weight:bold;">待我处理 / 我已处理（裁判长视角）</div>
-            <div style="font-size:12px; color:#718096;">与裁判长管理待办同源</div>
+            <div style="font-size:12px; color:#718096;">待处理 <b style="color:#c53030;">3</b> 件 · 已处理 2 件 · 与「裁判长管理权限」同源</div>
           </div>
-          <div style="max-height:200px; overflow:auto; border:1px solid #e2e8f0; border-radius:6px;">
+          <div style="max-height:250px; overflow:auto; border:1px solid #e2e8f0; border-radius:6px;">
             <table class="wf" style="margin-bottom:0;">
               <tr><th>类型</th><th class="l">队伍</th><th class="l">事项</th><th>状态</th></tr>
               <tr><td>改分审批</td><td class="l">T-001 智创未来队</td><td class="l">470 → 620（R-008）</td><td style="color:#c53030;">待我批准</td></tr>
-              <tr><td>改分审批</td><td class="l">T-012 星海队</td><td class="l">750 → 850（R-007）</td><td style="color:#a0aec0;">已作废 · 随 D-002 裁定</td></tr>
+              <tr><td>改分审批</td><td class="l">T-013 火星探险小队</td><td class="l">970 → 1070（R-010）</td><td style="color:#c53030;">待我批准</td></tr>
               <tr><td>争议裁定</td><td class="l">T-005 飞向蓝天队</td><td class="l">重复打分（同队同轮 2 份记录 · D-003）</td><td style="color:#c53030;">待我裁定</td></tr>
+              <tr><td>改分审批</td><td class="l">T-012 星海队</td><td class="l">750 → 850（R-007）</td><td style="color:#a0aec0;">已作废 · 随 D-002 裁定</td></tr>
               <tr><td>改分审批</td><td class="l">T-002 星际探索队</td><td class="l">270 → 290（R-003）</td><td style="color:#38a169;">我已批准</td></tr>
             </table>
           </div>
@@ -1974,7 +1977,7 @@
     <span class="num">4</span> <b>权限隔离</b>：普通裁判由 P1.5 直达 P2，看不到本页签；最彻底的隔离是「入口不存在」，其次才是页签的显示控制。<br>
     <span class="num">5</span> <b>与后台区分</b>：裁判长执裁在平板端完成；后台管理系统仅工作人员登录，不做裁判身份语义（工作人员代录成绩以「工作人员代录」标识留痕）。
     <span class="num">6</span> <b>本赛台当日无场次 → P7c</b>：登录本身已要求预绑赛台（见 P1.6），因此触发条件是<b>「有赛台、无待执裁场次」</b>；此时执裁页签自动呈现 <b>P7c 空状态</b>（今日无需执裁 + 引导去管理权限），不强行展示空队列 / 空计时；一有场次即恢复本页完整执裁屏。<br>
-    <span class="num">7</span> <b>面板按身份换视角（唯一非零差异）</b>：本页「我的申请」替换为<b>「待我处理 / 我已处理」</b>——裁判长是裁定人 / 审批人，不存在「我的上报」；面板直接给出「待我批准 / 待我裁定」的状态一览，与 P7b 的管理待办同源。
+    <span class="num">7</span> <b>面板按身份换视角（唯一非零差异）</b>：本页「我的申请」替换为<b>「待我处理 / 我已处理」</b>——裁判长是裁定人 / 审批人，不存在「我的上报」；面板直接给出「待我批准 / 待我裁定」的<b>逐单明细</b>，与 P7b 的入口角标、P7c 的待办汇总<b>同源同数</b>——待裁定 1 件（D-003）＋ 待审批 2 件（R-008 / R-010）＝ <b>3 件</b>，三处必须对得上；已处理单（R-007 已作废 · R-003 已批准）只在本面板留痕，不计入待办数。
   </div>
 </div>
 
