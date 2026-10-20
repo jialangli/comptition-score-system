@@ -295,23 +295,25 @@
           <span style="font-size:12px; color:#718096;">切换轮次 · 队列与成绩按轮独立（第 1 轮全部完成前第 2 轮锁定 · 无解锁入口）</span>
         </div>
         <!-- 当前上场队伍卡 -->
-        <div class="card" style="background:#ebf4ff; border-color:#2b6cb0;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="card" style="background:#ebf4ff; border-color:#2b6cb0; position:relative; padding:14px 56px;">
+          <div style="position:absolute; left:0; top:0; bottom:0; width:44px; display:flex; align-items:center; justify-content:center; font-size:22px; line-height:1; color:#2b6cb0; cursor:pointer; border-right:1px solid #bee3f8; border-radius:7px 0 0 7px;" title="上一队（T-012）">‹</div>
+          <div style="position:absolute; right:0; top:0; bottom:0; width:44px; display:flex; align-items:center; justify-content:center; font-size:22px; line-height:1; color:#2b6cb0; cursor:pointer; border-left:1px solid #bee3f8; border-radius:0 7px 7px 0;" title="下一队（T-014）">›</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
             <div>
               <div style="font-size:12px; color:#718096;">当前上场队伍 <span class="badge">第 7 顺位 / 共 24 队</span></div>
               <div style="font-size:24px; font-weight:bold; margin-top:4px;">T-013 <span style="font-weight:normal; font-size:18px;">火星探险小队</span></div>
               <div style="font-size:12px; color:#718096; margin-top:2px;">A 赛台 ｜ 阳光小学 · 小学组 ｜ 选手：王小明 · 李华</div>
             </div>
-            <div style="text-align:right;">
-              <div style="font-size:12px; color:#718096;">剩余 / 总时长</div>
-              <div style="font-size:34px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">02:30 <span style="font-size:14px; color:#a0aec0; font-weight:normal;">/ 02:30</span></div>
-              <span class="btn-gray btn-sm" style="margin-top:4px;">开始 / 暂停</span>
+            <div style="display:flex; align-items:center; gap:20px;">
+              <div style="text-align:right;">
+                <div style="font-size:12px; color:#718096;">剩余 / 总时长</div>
+                <div style="font-size:34px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; line-height:1.15;">02:30 <span style="font-size:14px; color:#a0aec0; font-weight:normal;">/ 02:30</span></div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:7px; min-width:158px;">
+                <span class="btn-primary" style="text-align:center; white-space:nowrap;">进入打分表 →</span>
+                <span class="btn-gray btn-sm" style="text-align:center; white-space:nowrap;">开始 / 暂停</span>
+              </div>
             </div>
-          </div>
-          <div style="display:flex; gap:10px; margin-top:14px; align-items:center; flex-wrap:wrap;">
-            <span class="btn-outline">← 上一队（T-012）</span>
-            <span class="btn-outline">下一队（T-014）→</span>
-            <span class="btn-primary" style="margin-left:auto;">进入打分表 →</span>
           </div>
         </div>
         <!-- 本赛台队列 -->
@@ -369,7 +371,7 @@
     <span class="num">3</span> <b>队列透明</b>：完整候场队列撑满一屏，已完成 / 比赛中 / 候场一眼可辨，裁判与检录台信息一致，跳号时可发现异常。「第 1 轮」列显示的是该队<b>当前生效成绩</b>（改分批准后随之刷新），与 P2b / P2e 同源，不是「提交时的旧值」。<br>
     <span class="num">4</span> <b>页不空置</b>：队列随 24 队全量展示（第 15–24 顺位在卡内滚动），底部不再留大片空白，且当前队高亮常驻视线中心。<br>
     <span class="num">5</span> <b>对抗变体（未来之城）</b>：队列对象变为“场次”——当前上场卡展示 A / B 两队并排信息 + A、B 各自独立计时（各记各的，同见 P5.6 双侧计分板）；整场提交后才切下一场。<br>
-    <span class="num">6</span> <b>边界态（首 / 末队）</b>：当前为顺位 1 时「上一队」按钮置灰禁用并标注“已是首队”；当前为末位（顺位 24）时「下一队」置灰禁用并标注“已是末队”——按钮始终可见、不隐藏，让用户感知到导航边界；“第 X 顺位 / 共 24 队”徽标同步反映真实顺位。<br>
+    <span class="num">6</span> <b>边界态（首 / 末队）</b>：翻页箭头贴卡片左右边缘——当前为顺位 1 时左侧「‹」置灰不可点（hover 提示“已是首队”）；为末位（顺位 24）时右侧「›」置灰不可点（提示“已是末队”）——箭头始终可见、不隐藏，让用户感知到导航边界；“第 X 顺位 / 共 24 队”徽标同步反映真实顺位。<br>
     <span class="num">7</span> <b>搜索框 = 非顺序跳转入口</b>：输入即实时筛选本赛台队列（按队伍编号 / 名称匹配，命中行高亮）；补赛（迟到队）、<b>复核重打</b> / 申诉复核（已完成队）、跳退赛队均经搜索定位后点命中行即载入该队打分表——是自动轮转之外的手动入口。<span style="color:#718096;">（<b>重赛</b>是另一回事：由后台单独开「重赛（独立场次）」并以场内快照导入队伍，成绩不自动进榜单，本页队列里不出现。）</span><br>
     <span class="num">8</span> <b>轮次感知（两轮制）</b>：顶部“第 1 轮 / 第 2 轮”分段控件切换，同页面复用，队列、成绩列、当前队指针均按轮独立；<b>第 1 轮全部提交完成前，第 2 轮为硬锁</b>——控件置灰、<b>点击无响应，全册不提供任何解锁 / 强制切轮入口</b>（不做“先跳过去再回头补”）。现场若因队伍缺席导致第 1 轮凑不齐，处置是到后台「<b>分台与顺位</b>」把该队<b>参赛轮次</b>改成「仅第 1 轮」（成绩全部保留、榜单在总分下标「仅第 N 轮」），比整队弃赛轻；<b>整队退赛</b>才用<b>弃赛</b>（弃赛队不计入第 1 轮进度、也不占队列），<b>不让个别队伍卡住整个下午场</b>。第 1 轮末队提交后弹“第 1 轮已全部完成，是否开始第 2 轮？”确认即切轮并把指针重置回首队（T-001）重打。<b>成绩按轮独立存储</b>（第 1 轮提交后不锁住第 2 轮录入）；名次<b>取两轮中较好的一轮（取优）</b>，不是两轮相加（见 P11 公示页排名规则）。与 S 端“轮次：全部 / 第 1 轮 / 第 2 轮”筛选概念一致。<br>
     <span class="num">9</span> <b>裁判长变体（唯一差异）</b>：裁判长登录时<b>本页完全相同</b>，只在顶部多一组页签「执裁 / 裁判长管理权限」——「执裁」即本页、「裁判长管理权限」指向 P7b；普通裁判登录时这组页签不显示。即裁判长 = 本页 + 一个顶部权限入口，不另造执裁界面（见 <b>P7</b>）。<br>
@@ -1884,23 +1886,25 @@
           <span style="font-size:12px; color:#718096;">切换轮次 · 队列与成绩按轮独立（第 1 轮全部完成前第 2 轮锁定 · 无解锁入口）</span>
         </div>
         <!-- 当前上场队伍卡 -->
-        <div class="card" style="background:#ebf4ff; border-color:#2b6cb0;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="card" style="background:#ebf4ff; border-color:#2b6cb0; position:relative; padding:14px 56px;">
+          <div style="position:absolute; left:0; top:0; bottom:0; width:44px; display:flex; align-items:center; justify-content:center; font-size:22px; line-height:1; color:#2b6cb0; cursor:pointer; border-right:1px solid #bee3f8; border-radius:7px 0 0 7px;" title="上一队（T-012）">‹</div>
+          <div style="position:absolute; right:0; top:0; bottom:0; width:44px; display:flex; align-items:center; justify-content:center; font-size:22px; line-height:1; color:#2b6cb0; cursor:pointer; border-left:1px solid #bee3f8; border-radius:0 7px 7px 0;" title="下一队（T-014）">›</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
             <div>
               <div style="font-size:12px; color:#718096;">当前上场队伍 <span class="badge">第 7 顺位 / 共 24 队</span></div>
               <div style="font-size:24px; font-weight:bold; margin-top:4px;">T-013 <span style="font-weight:normal; font-size:18px;">火星探险小队</span></div>
               <div style="font-size:12px; color:#718096; margin-top:2px;">A 赛台 ｜ 阳光小学 · 小学组 ｜ 选手：王小明 · 李华</div>
             </div>
-            <div style="text-align:right;">
-              <div style="font-size:12px; color:#718096;">剩余 / 总时长</div>
-              <div style="font-size:34px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">02:30 <span style="font-size:14px; color:#a0aec0; font-weight:normal;">/ 02:30</span></div>
-              <span class="btn-gray btn-sm" style="margin-top:4px;">开始 / 暂停</span>
+            <div style="display:flex; align-items:center; gap:20px;">
+              <div style="text-align:right;">
+                <div style="font-size:12px; color:#718096;">剩余 / 总时长</div>
+                <div style="font-size:34px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; line-height:1.15;">02:30 <span style="font-size:14px; color:#a0aec0; font-weight:normal;">/ 02:30</span></div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:7px; min-width:158px;">
+                <span class="btn-primary" style="text-align:center; white-space:nowrap;">进入打分表 →</span>
+                <span class="btn-gray btn-sm" style="text-align:center; white-space:nowrap;">开始 / 暂停</span>
+              </div>
             </div>
-          </div>
-          <div style="display:flex; gap:10px; margin-top:14px; align-items:center; flex-wrap:wrap;">
-            <span class="btn-outline">← 上一队（T-012）</span>
-            <span class="btn-outline">下一队（T-014）→</span>
-            <span class="btn-primary" style="margin-left:auto;">进入打分表 →</span>
           </div>
         </div>
         <!-- 本赛台队列 -->
