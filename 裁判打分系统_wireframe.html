@@ -2000,11 +2000,19 @@
           <div style="font-size:12px; color:#a0aec0; margin-top:6px;">如排班有变，请由工作人员在后台调整；本状态按日实时判定。</div>
           <div style="margin-top:18px;"><span class="btn-primary">前往「裁判长管理权限」处理待办 →</span></div>
         </div>
-        <!-- 今日管理待办（轻量前置，便于一键跳转） -->
+        <!-- 待我处理 / 我已处理（与 P7 执裁页签同款面板、同数据） -->
         <div class="card" style="margin-top:14px;">
-          <div class="t-name">今日管理待办（来自「裁判长管理权限」）</div>
-          <div class="qrow"><span>待裁定（争议工单）</span><span class="warn">1 件</span></div>
-          <div class="qrow" style="border-bottom:none;"><span>待审批（改分申请）</span><span class="warn">2 件</span></div>
+          <div style="font-size:13px; font-weight:bold; margin-bottom:8px;">待我处理 / 我已处理</div>
+          <div style="max-height:250px; overflow:auto; border:1px solid #e2e8f0; border-radius:6px;">
+            <table class="wf" style="margin-bottom:0;">
+              <tr><th>类型</th><th class="l">队伍</th><th class="l">事项</th><th>状态</th></tr>
+              <tr><td>改分审批</td><td class="l">T-001 智创未来队</td><td class="l">470 → 620（R-008）</td><td style="color:#c53030;">待我批准</td></tr>
+              <tr><td>改分审批</td><td class="l">T-013 火星探险小队</td><td class="l">970 → 1070（R-010）</td><td style="color:#c53030;">待我批准</td></tr>
+              <tr><td>争议裁定</td><td class="l">T-005 飞向蓝天队</td><td class="l">重复打分（同队同轮 2 份记录 · D-003）</td><td style="color:#c53030;">待我裁定</td></tr>
+              <tr><td>改分审批</td><td class="l">T-012 星海队</td><td class="l">750 → 850（R-007）</td><td style="color:#a0aec0;">已作废 · 随 D-002 裁定</td></tr>
+              <tr><td>改分审批</td><td class="l">T-002 星际探索队</td><td class="l">270 → 290（R-003）</td><td style="color:#38a169;">我已批准</td></tr>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -2013,7 +2021,8 @@
     <span class="num">1</span> <b>按日实时判定</b>：进入 P7 时系统先判「已绑定赛台当日是否存在待执裁场次」；无则本页签直接呈现此空状态，不展示空队列 / 空计时。<b>前提是「有赛台、无场次」，而非「无赛台」</b>——登录本身已要求预绑赛台（见 P1.6）。<br>
     <span class="num">2</span> <b>页签不消失</b>：执裁页签仍与「裁判长管理权限」并列保留，保证“有排班即恢复完整执裁屏”的连续性；裁判长可随时切回。<br>
     <span class="num">3</span> <b>引导而非阻断</b>：空状态给出原因 + 一键切到管理权限页签，把空闲时间转化为处理裁定 / 审批 / 锁定 / 发布的窗口，不打扰但可见。<br>
-    <span class="num">4</span> <b>排班来源</b>：执裁 assignment 由后台赛程 / 赛台排班下发（与 P11 发布页同套赛事配置）；空状态文案可随排班类型微调（本赛台当日无赛程 / 赛项未开始）。
+    <span class="num">4</span> <b>排班来源</b>：执裁 assignment 由后台赛程 / 赛台排班下发（与 P11 发布页同套赛事配置）；空状态文案可随排班类型微调（本赛台当日无赛程 / 赛项未开始）。<br>
+    <span class="num">5</span> <b>待办面板与 P7 同款</b>：本页的「待我处理 / 我已处理」与 <b>P7 执裁页签里那块是同一块面板、同一份数据</b>（待裁定 1 件 D-003 ＋ 待审批 2 件 R-008 / R-010 ＝ <b>3 件</b>，与 P7b 角标、P8 / P9 队列同数）；区别只在排版——空状态下它没有队列压在上方，因而成为本页主内容。
   </div>
 </div>
 
