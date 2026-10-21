@@ -2148,9 +2148,9 @@
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
             <span class="seg"><span class="on">维持原判</span><span>授权改分</span><span>取消资格</span></span>
           </div>
-          <div class="qrow"><span>结论影响</span><span>记录 A 继续生效 · 记录 B 作废留痕</span></div>
           <div class="qrow"><span>分数变化</span><span>250 → 250（不变）</span></div>
-          <div class="qrow"><span>后续环节</span><span>不生成改分单 · 不作废成绩，可直接提交</span></div>
+          <div class="qrow"><span>判罚变化（黄牌 / 红牌）</span><span>黄牌 ×1 · 红牌 0（不变）</span></div>
+          <div class="qrow"><span>用时变化</span><span>02:18（不变）</span></div>
           <div style="border:1px solid #d2dae3; border-radius:6px; padding:10px; font-size:13px; color:#a0aec0; margin-bottom:10px;">裁定原因（必填）—— 写明依据：证据 / 规则条款 / 配置版本号</div>
           <div style="position:relative; border:2px dashed #a0aec0; border-radius:8px; height:100px; color:#a0aec0; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 裁判长手写签名（与选手签名一并存档）<span style="position:absolute; top:6px; right:8px; font-size:15px; line-height:1; opacity:.55; color:#4a5568;" title="放大查看签名">⛶</span></div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
@@ -2171,7 +2171,7 @@
     <span class="num">7</span> <b>对抗场次（未来之城 A vs B）的裁定口径</b>：三态同样适用于对抗场次，但影响范围按「结论对象」区分——① <b>只涉一队的判罚 / 用时争议</b>：只改该队成绩，对手方成绩不变；② <b>涉及场次胜负或双队共用的道具 / 场地争议</b>：需同时评估 A / B 两队，取消资格后该场次改为「单队完赛」，对手方的净胜与名次会连带变化；③ 双队选手代表<b>均需在结论页签字确认</b>（与打分页的 A / B 双签同口径），只签一队不算结论成立。<br>
     <span class="num">8</span> <b>本页只承载「单张工单」</b>：队列与入口在 <b>P8</b>，本页只做该单的详情呈现 + 三档位结论 + 原因 / 签名 / 提交；点「← 返回裁定台」回 <b>P8</b>。<br>
     <span class="num">9</span> <b>提交裁定后去哪（本册定义）</b>：点「提交裁定」成功后<b>顶部滑入成功条、2 秒自动回返待裁定队列顶部</b>（三态共用的成功条形态见 <b>P8d</b>）；回返后停在待裁定队列顶部——同类若还有其它待裁定工单，<b>点该行的队伍名即载入该单</b>（本册示例只有 D-003 一张，故无下一张）；否则点「← 返回工作台」。<br>
-    <span class="num">10</span> <b>结论区＝三行结构化摘要（为便于实现，不做长文案）</b>：固定三行——<b>结论影响</b>（对成绩做了什么）/ <b>分数变化</b>（from → to，或“作废”）/ <b>后续环节</b>（下一步由谁做什么）。三行由<b>结论档位枚举</b>驱动，开发侧只做“枚举 → 三组值”的映射，不拼句子、不在界面上复述规则；「取消资格 ≠ 红牌」「作废后由工作人员顺延」这类解释放在设计说明（note 2 / note 4）里，不上界面。
+    <span class="num">10</span> <b>结论区＝三行数据对照（只比数值，不讲流程）</b>：固定三行——<b>分数变化</b> / <b>判罚变化（黄牌 · 红牌）</b> / <b>用时变化</b>，每行都是 from → to 的对照，值由<b>结论档位枚举</b>驱动（开发侧只做“枚举 → 三组值”的映射，不拼句子）。<b>为什么不写“结论影响 / 后续环节”</b>：那两句是流程叙述（“记录 A 继续生效”“生成改分申请单转审批”），界面上说一遍、说明里又说一遍，且措辞一改就得改代码；裁判长真正要核的是<b>这一裁定把哪几个数改成了什么</b>——分数、牌、用时正好是成绩单上的全部字段，看一眼就能对上。流程后果与规则解释放设计说明（note 2 / note 4）与 P11 重发提示。
   </div>
 </div>
 
@@ -2227,9 +2227,9 @@
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
             <span class="seg"><span class="on">维持原判</span><span>授权改分</span><span>取消资格</span></span>
           </div>
-          <div class="qrow"><span>结论影响</span><span>记录 A 继续生效 · 记录 B 作废留痕</span></div>
           <div class="qrow"><span>分数变化</span><span>250 → 250（不变）</span></div>
-          <div class="qrow"><span>后续环节</span><span>不生成改分单 · 不作废成绩，可直接提交</span></div>
+          <div class="qrow"><span>判罚变化（黄牌 / 红牌）</span><span>黄牌 ×1 · 红牌 0（不变）</span></div>
+          <div class="qrow"><span>用时变化</span><span>02:18（不变）</span></div>
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#718096; margin:12px 0 4px; padding-top:10px; border-top:1px dashed #e2e8f0;"><span>裁定原因（必填）</span><span>0 / 500</span></div>
           <div style="border:1px solid #d2dae3; border-radius:6px; padding:10px; font-size:13px; color:#a0aec0; line-height:1.7; margin-bottom:10px;">写明依据：证据 / 规则条款 / 配置版本号</div>
           <div style="position:relative; border:2px dashed #a0aec0; border-radius:8px; height:100px; color:#a0aec0; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 裁判长手写签名（与选手签名一并存档）<span style="position:absolute; top:6px; right:8px; font-size:15px; line-height:1; opacity:.55; color:#4a5568;" title="放大查看签名">⛶</span></div>
@@ -2301,9 +2301,9 @@
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
             <span class="seg"><span class="on">维持原判</span><span>授权改分</span><span>取消资格</span></span>
           </div>
-          <div class="qrow"><span>结论影响</span><span>记录 A 继续生效 · 记录 B 作废留痕</span></div>
           <div class="qrow"><span>分数变化</span><span>250 → 250（不变）</span></div>
-          <div class="qrow"><span>后续环节</span><span>不生成改分单 · 不作废成绩，可直接提交</span></div>
+          <div class="qrow"><span>判罚变化（黄牌 / 红牌）</span><span>黄牌 ×1 · 红牌 0（不变）</span></div>
+          <div class="qrow"><span>用时变化</span><span>02:18（不变）</span></div>
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#718096; margin:12px 0 4px; padding-top:10px; border-top:1px dashed #e2e8f0;"><span>裁定原因（必填）</span><span>136 / 500</span></div>
           <div style="border:1px solid #90cdf4; background:#f7fbff; border-radius:6px; padding:10px; font-size:13px; color:#2d3748; line-height:1.7; margin-bottom:10px;">按 v3 复现——记录 A 合计 250（任务③ 150 + 任务① 100；黄牌 ×1 不计分；用时 02:18），记录 B 合计 350（任务③/②/①；用时 02:12）。记录 B 提交时间晚于记录 A 且缺签名图，依规程判定以 记录 A 为准，记录 B 作废留痕。</div>
           <div style="position:relative; border:2px dashed #a0aec0; border-radius:8px; height:100px; color:#a0aec0; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 裁判长手写签名（与选手签名一并存档）<span style="position:absolute; top:6px; right:8px; font-size:15px; line-height:1; opacity:.55; color:#4a5568;" title="放大查看签名">⛶</span></div>
@@ -2375,9 +2375,9 @@
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
             <span class="seg"><span>维持原判</span><span class="on">授权改分</span><span>取消资格</span></span>
           </div>
-          <div class="qrow"><span>结论影响</span><span>采纳记录 B · 记录 A 作废留痕</span></div>
           <div class="qrow"><span>分数变化</span><span>250 → 350（+100）</span></div>
-          <div class="qrow"><span>后续环节</span><span>生成改分申请单，待改分审批「批准并留痕」后生效</span></div>
+          <div class="qrow"><span>判罚变化（黄牌 / 红牌）</span><span>黄牌 ×1 → 无（记录 A 作废，判罚随之撤销）</span></div>
+          <div class="qrow"><span>用时变化</span><span>02:18 → 02:12</span></div>
           <div style="border:1px solid #d2dae3; border-radius:6px; padding:10px; font-size:13px; color:#a0aec0; margin:10px 0;">裁定原因（必填）—— 写明依据：证据 / 规则条款 / 配置版本号</div>
           <div style="position:relative; border:2px dashed #a0aec0; border-radius:8px; height:100px; color:#a0aec0; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 裁判长手写签名（与选手签名一并存档）<span style="position:absolute; top:6px; right:8px; font-size:15px; line-height:1; opacity:.55; color:#4a5568;" title="放大查看签名">⛶</span></div>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:12px;">
@@ -2451,9 +2451,9 @@
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
             <span class="seg"><span>维持原判</span><span>授权改分</span><span class="on">取消资格</span></span>
           </div>
-          <div class="qrow"><span>结论影响</span><span>本轮两份冲突记录（250 / 350）一并作废 · 不进入榜单与奖项</span></div>
-          <div class="qrow"><span>分数变化</span><span>250 / 350 → 作废</span></div>
-          <div class="qrow"><span>后续环节</span><span>榜单位次顺延与递补由工作人员在后台处理，完成后推送重发提示</span></div>
+          <div class="qrow"><span>分数变化</span><span>250 / 350 → 作废（两份记录一并作废，不进榜单与奖项）</span></div>
+          <div class="qrow"><span>判罚变化（黄牌 / 红牌）</span><span>黄牌 ×1 → 作废</span></div>
+          <div class="qrow"><span>用时变化</span><span>02:18 → 作废</span></div>
           <div style="border:1px solid #d2dae3; border-radius:6px; padding:10px; font-size:13px; color:#a0aec0; margin:10px 0;">裁定原因（必填）—— 写明依据：证据 / 规则条款 / 配置版本号</div>
           <div style="position:relative; border:2px dashed #a0aec0; border-radius:8px; height:100px; color:#a0aec0; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 裁判长手写签名（与选手签名一并存档）<span style="position:absolute; top:6px; right:8px; font-size:15px; line-height:1; opacity:.55; color:#4a5568;" title="放大查看签名">⛶</span></div>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:12px;">
@@ -2467,8 +2467,8 @@
   <div class="note">
     <span class="num">1</span> <b>三态共用同一份争议详情</b>：P8 / P8b / P8c 只有结论档位不同，上半部分完全相同；本页是<b>最高危</b>的一态，故「提交裁定」按钮做成红色以区别于常规提交；结论区本身只给三行摘要（见 note 10），不再用整块红底长文案。<br>
     <span class="num">2</span> <b>本页取消资格 ≠ 红牌</b>：<b>红牌 = 当场取消比赛资格</b>、<b>成绩保留</b>（该队不参与名次与奖项）；本页取消资格＝<b>成绩作废</b>、不进榜单，<b>不因红牌自动触发</b>，只能在本页按证据单独判定。<br>
-    <span class="num">3</span> <b>作废的是该轮全部记录</b>：本队第 1 轮的两份冲突记录（250 / 350）一并作废（不是只作废被争议的那一份）——这一点必须让裁判长在提交前看清，所以做成了显式的「结论影响」行。<br>
-    <span class="num">4</span> <b>后续环节要交代清楚</b>：作废会改变榜单位次，因此「后续环节」行写明“顺延与递补由工作人员处理、完成后推送重发”，与 P11 的<b>常驻重发提示</b>口径一致。<br>
+    <span class="num">3</span> <b>作废的是该轮全部记录</b>：本队第 1 轮的两份冲突记录（250 / 350）一并作废（不是只作废被争议的那一份）——这一点必须让裁判长在提交前看清，所以在「分数变化」行直接写成「250 / 350 → 作废」，两份一起摆在明面上。<br>
+    <span class="num">4</span> <b>后续动作不上界面</b>：作废会改变榜单位次，但“顺延与递补由工作人员处理、完成后推送重发”属于流程叙述，不放进结论区（结论区只留三行数值）；这条口径由 P11 的<b>常驻重发提示</b>与后台处理进度承接。<br>
     <span class="num">5</span> <b>不可撤销 ＋ 留痕威慑</b>：只能再裁定一次并留痕（旧值→新值 + 原因），全程进审计；提交即生成<b>独立告警</b>推送后台、供事后抽样复核——与改分审批自批同款「<b>留痕威慑</b>」。取消资格虽为最高危档，但与改分<b>同档处理</b>（不强制第二人复核），以“告警 + 可抽查”兜底。<br>
     <span class="num">6</span> <b>两层留底要分清（本页只呈现证据、不重复生成）</b>：① <b>证据层 ＝ 裁判端产生</b>——裁判在<b>提交成绩时</b>自动生成「成绩表 + 签名图 + 提交留底截图」并落本地，随成绩<b>异步同步</b>到本页；裁判长打开工单时三件已到齐，故其状态是「<b>已同步</b>」。本页<b>只读呈现、不重新生成证据</b>，签名图之所以要显示出来，就是为了当场核对两份记录的笔迹归属。② <b>裁定层 ＝ 裁判长端产生</b>——点「提交裁定」成功瞬间，系统自动截「本页裁定结论」并<b>先落本地</b>（路径 /sdcard/裁判留底/{赛事}/{日期}/{工单号}_{HHmmss}.jpg，同目录生成同名 .json 元数据：工单号 / 队伍 / 结论 / 裁判长 / 设备 ID / 时间 / config_version），有网时再异步上云，所以状态是「<b>已落本地 · 待同步</b>」。两层共用同一套「本地优先 · 异步同步」，但<b>触发点不同、不可混谈</b>——把裁定时截的图当作“原始证据”是错的。③ <b>证据只在「提交成绩」时生成</b>：成绩表 / 签名图 / 提交留底截图三件均由裁判端在提交瞬间自动生成并落本地，<b>全册不设任何手动补截 / 补录入口</b>（避免造出第二份来源不明的证据）；裁判长端以「提交裁定即自动截」为准。<br>
     <span class="num">7</span> <b>取消资格之后的链条不在本册闭合</b>：成绩作废会牵动榜单位次顺延与递补名额，这些动作由<b>工作人员在后台执行</b>（后台管理系统不在本册范围）。因此本页提交后只完成「作废 + 留痕 + 触发重发提示」，册内链路<b>到此为止</b>——建议后台侧补一个「递补处理」待办页，并与该赛项的重发提示联动，否则「作废了但榜单没动」会长时间无人认领。
@@ -2599,9 +2599,9 @@
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
             <span class="seg"><span class="on">维持原判</span><span>授权改分</span><span>取消资格</span></span>
           </div>
-          <div class="qrow"><span>结论影响</span><span>记录 A 继续生效 · 记录 B 作废留痕</span></div>
           <div class="qrow"><span>分数变化</span><span>250 → 250（不变）</span></div>
-          <div class="qrow"><span>后续环节</span><span>不生成改分单 · 不作废成绩，已归档</span></div>
+          <div class="qrow"><span>判罚变化（黄牌 / 红牌）</span><span>黄牌 ×1 · 红牌 0（不变）</span></div>
+          <div class="qrow"><span>用时变化</span><span>02:18（不变）</span></div>
           <div style="border:1px solid #cbd5e0; border-radius:6px; padding:10px; font-size:13px; color:#2d3748; background:#f7fafc; margin-bottom:10px;"><b>裁定原因（已填 · 随裁定单留痕）</b>：按 v3 复现——记录 A 合计 250（任务③ 150 + 任务① 100；黄牌 ×1 不计分；用时 02:18），记录 B 合计 350（任务③/②/①；用时 02:12）。记录 B 提交时间晚于记录 A 且缺签名图，依规程判定以 <b>记录 A</b> 为准，记录 B 作废留痕。</div>
           <div style="position:relative; border:2px dashed #2b6cb0; border-radius:8px; height:100px; color:#2d3748; display:flex; align-items:center; justify-content:center; font-size:13px;">✍ 张老师 手写签名（<b>已签 · 13:26</b> · 与选手签名一并存档）<span style="position:absolute; top:6px; right:8px; font-size:15px; line-height:1; opacity:.55; color:#4a5568;" title="放大查看签名">⛶</span></div>
           <div style="display:flex; justify-content:flex-end; align-items:center; margin-top:12px;">
