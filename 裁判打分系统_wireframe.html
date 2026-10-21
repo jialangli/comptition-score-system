@@ -2078,10 +2078,11 @@
         </div>
         <table class="wf">
           <tr><th>工单</th><th class="l">队伍</th><th class="l">争议类型</th><th>提出人</th><th>时间</th><th>状态</th></tr>
+          <tr><td>D-005</td><td class="l">T-018 创客空间站</td><td class="l">选手申诉（判罚异议）</td><td>教练 李*</td><td>13:31</td><td style="color:#38a169;">已裁定 &nbsp;·&nbsp; <span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">查看</span></td></tr>
+          <tr><td>D-004</td><td class="l">T-016 小小发明家</td><td class="l">重复打分（同队同轮 2 份记录）</td><td>王老师（裁判）</td><td>13:24</td><td style="color:#38a169;">已裁定（维持原判） &nbsp;·&nbsp; <span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">查看</span></td></tr>
           <tr class="hl-row"><td>D-003</td><td class="l">T-005 飞向蓝天队</td><td class="l">重复打分（同队同轮 2 份记录）</td><td>王老师（裁判）</td><td>13:20</td><td style="color:#c53030;">去裁定</td></tr>
           <tr><td>D-002</td><td class="l">T-012 星海队</td><td class="l">重复打分（同队同轮 2 份记录）</td><td>王老师（裁判）</td><td>13:02</td><td style="color:#38a169;">已裁定（取消资格） &nbsp;·&nbsp; <span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">查看</span></td></tr>
           <tr><td>D-001</td><td class="l">T-021 曙光队</td><td class="l">选手申诉（判罚异议）</td><td>教练 王*</td><td>12:40</td><td style="color:#38a169;">已裁定 &nbsp;·&nbsp; <span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">查看</span></td></tr>
-          <tr><td colspan="6" style="background:#f7fafc; color:#a0aec0; font-size:12px;">▾ 今日共 5 件工单（1 待裁定 + 4 已裁定），此处展示最近 3 条；完整列表在「全部工单」中查询</td></tr>
         </table>
 
       </div>
@@ -2090,7 +2091,8 @@
     <div class="note">
     <span class="num">1</span> <b>本页＝队列页，只做「排队 + 载入」</b>：裁定路径分两层——<b>本页</b>把待裁定工单排出来、并在待裁定行给「<b>去裁定</b>」入口；<b>P8a / P8b / P8c</b>承载单张工单的详情与裁定动作（三档位）。<b>为什么拆开</b>：队列要的是「一眼看出还有几件没干」，详情要的是「逐项对照两份记录 + 填原因 + 签名」——两件事阅读密度差很多，挤在一屏会把队列挤到看不见。已裁定工单仍留在本队列（状态为「已裁定（…）」），并在其单元格给「<b>查看</b>」入口 → 打开 <b>P8e 已裁定只读态</b>（复核结论 / 原因 / 签名 / 证据；确需推翻时才走「再裁定一次」并留痕）。<br>
     <span class="num">2</span> <b>裁定时限与催办</b>：工单入队即计时，超 <b>30 分钟</b>未处理向裁判长推送一次催办（与 <b>P9 自批</b>同款「<b>留痕威慑</b>」告警通道）。待裁定工单是 <b>P11 发布 gate 的硬阻断项</b>，所以这条时限直接决定「这个组别能不能按时发榜」——催办不是礼貌提醒，是发布的前置条件。
-    <span class="num">3</span> <b>自动「同步冲突」也进本队列</b>：除裁判人工上报的「重复打分（D-00x）」外，<b>P12 离线补传</b>时发现同队同轮已存在服务端记录，会由系统自动生成「<b>同步冲突</b>」告警单（来源标注「系统 · 补传」）进本待裁定队列——它和人工重复打分<b>共用本队列与 P8a / P8b / P8c 裁定流程</b>，仅在「提出人 / 来源」列区分；裁定时限与催办（note 2）同样适用，避免「两份成绩静静躺着、取数默认取最新而错榜」。
+    <span class="num">3</span> <b>自动「同步冲突」也进本队列</b>：除裁判人工上报的「重复打分（D-00x）」外，<b>P12 离线补传</b>时发现同队同轮已存在服务端记录，会由系统自动生成「<b>同步冲突</b>」告警单（来源标注「系统 · 补传」）进本待裁定队列——它和人工重复打分<b>共用本队列与 P8a / P8b / P8c 裁定流程</b>，仅在「提出人 / 来源」列区分；裁定时限与催办（note 2）同样适用，避免「两份成绩静静躺着、取数默认取最新而错榜」。<br>
+    <span class="num">4</span> <b>列表口径＝当天工单全部列出，不做「只显示最近 N 条」</b>：本队列同时承担「还差几件没裁」与「今天都裁了什么」两件事，已裁单是当天成绩变动的凭据，藏起来反而要另找入口——一屏放得下就直接全列，<b>按提出时间倒序</b>（最新在最上）。<b>待裁定不强行置顶</b>：置顶会让时间列突然乱序、看着像 bug，所以用<b>整行浅黄底 + 状态列红字「去裁定」</b>标记，扫颜色就能找到要动手的那一行；工单变多（如超过 10 条）时再加筛选 / 分页，而不是先砍行数。
       </div>
 </div>
 
@@ -2523,10 +2525,12 @@
         </div>
         <table class="wf">
           <tr><th>工单</th><th class="l">队伍</th><th class="l">争议类型</th><th>提出人</th><th>时间</th><th>状态</th></tr>
+          <tr><td>D-005</td><td class="l">T-018 创客空间站</td><td class="l">选手申诉（判罚异议）</td><td>教练 李*</td><td>13:31</td><td style="color:#38a169;">已裁定 &nbsp;·&nbsp; <span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">查看</span></td></tr>
+          <tr><td>D-004</td><td class="l">T-016 小小发明家</td><td class="l">重复打分（同队同轮 2 份记录）</td><td>王老师（裁判）</td><td>13:24</td><td style="color:#38a169;">已裁定（维持原判） &nbsp;·&nbsp; <span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">查看</span></td></tr>
           <tr class="hl-row"><td>D-003</td><td class="l">T-005 飞向蓝天队</td><td class="l">重复打分（同队同轮 2 份记录）</td><td>王老师（裁判）</td><td>13:20</td><td style="color:#38a169;">已裁定（维持原判） &nbsp;·&nbsp; <span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">查看</span></td></tr>
           <tr><td>D-002</td><td class="l">T-012 星海队</td><td class="l">重复打分（同队同轮 2 份记录）</td><td>王老师（裁判）</td><td>13:02</td><td style="color:#38a169;">已裁定（取消资格） &nbsp;·&nbsp; <span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">查看</span></td></tr>
           <tr><td>D-001</td><td class="l">T-021 曙光队</td><td class="l">选手申诉（判罚异议）</td><td>教练 王*</td><td>12:40</td><td style="color:#38a169;">已裁定 &nbsp;·&nbsp; <span style="color:#2b6cb0; font-weight:bold; cursor:pointer;">查看</span></td></tr>
-          <tr><td colspan="6" style="background:#f7fafc; color:#a0aec0; font-size:12px;">▾ 今日共 5 件工单（<b>0 待裁定</b> + 5 已裁定），此处展示最近 3 条；完整列表在「全部工单」中查询 —— <b>待裁定队列已清零，无下一单可处理</b></td></tr>
+          <tr><td colspan="6" style="background:#f7fafc; color:#a0aec0; font-size:12px;">▾ <b>待裁定队列已清零，无下一单可处理</b></td></tr>
         </table>
       </div>
     </div>
