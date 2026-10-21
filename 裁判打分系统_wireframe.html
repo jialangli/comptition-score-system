@@ -2045,7 +2045,8 @@
           <div class="t-name">管理待办</div>
           <div class="qrow"><span>① 争议裁定<span class="tag-count">1 件</span></span><span><span class="btn-outline btn-sm">进入裁定台 →</span></span></div>
           <div class="qrow"><span>② 改分授权<span class="tag-count">2 件</span></span><span><span class="btn-outline btn-sm">改分审批 →</span></span></div>
-          <div class="qrow"><span>③ 发布前确认<span class="tag-weak"><i></i>待完成</span></span><span><span class="btn-primary btn-sm">发布前确认 →</span></span></div>
+          <div class="qrow"><span>③ 发布前确认<span class="tag-weak"><i></i>待完成</span></span><span><span class="btn-outline btn-sm">发布前确认 →</span></span></div>
+          <div class="qrow"><span>④ 发布回流<span class="tag-weak"><i></i>需重发 1</span></span><span><span class="btn-outline btn-sm">查看看板 →</span></span></div>
         </div>
         <div style="font-size:12px; color:#2b6cb0; background:#ebf4ff; border:1px solid #bee3f8; border-radius:6px; padding:6px 10px; margin-top:8px;">💡 <b>流水处理</b>：在 P8 / P8b / P8c / P9 处理完一单后，自动回返该类队列顶部，<b>点队列里的下一条待处理行</b>（可点的蓝色队伍名）即载入该单；或点「← 返回工作台」回到本待办队列顶部 —— 无需反复进出本页。</div>
         <div style="font-size:12px; color:#718096; margin-top:6px;">⚠ 裁定 / 改分 / 发布均触发版本复现与全量审计（旧值→新值+原因）；改分后排名按各自绑定版本自动重算。</div>
@@ -2058,7 +2059,7 @@
     <span class="num">3</span> <b>高危动作留痕</b>：裁定 / 改分授权 / 发布均触发版本复现与全量审计（旧值→新值 + 原因），改分后按各自绑定版本重算排名。<br>
     <span class="num">4</span> <b>4 项入口各自展开</b>：依次为 <b>P8 裁定台</b>、<b>P9 改分审批</b>、<b>P11 发布前确认</b>。注意<b>发布键不在裁判长手里</b>——裁判长只做“确认（完整性校验）”，实际发布由工作人员在后台执行；本册不提供“撤销发布”，改用常驻重发提示。<br>
     <span class="num">5</span> <b>两条到达路径（B+D 方案）</b>：<b>就地入口</b>——普通裁判端只在<b>打分页（P3–P5.9）底部操作栏</b>设上报入口（<b>比赛屏 P2 不设</b>：争议 / 申诉的处置对象是成绩与判罚，业务发生地在打分页）；<b>按身份分权限</b>——<b>普通裁判端</b>为「<b>⚠ 上报争议</b>」（无徽标），点击进入 <b>P5.10 上报浮层</b>，提交后工单进待裁定队列；<b>裁判长端不设上报入口</b>（他即裁定人），其裁定入口即本页 ① 行「进入裁定台 →」，直达 <b>P8 裁定台</b>。<b>两条路径全程留痕</b>（谁 / 何时 / 上报了什么），取代“口头喊裁判长”。<br>
-    <span class="num">6</span> <b>有待办时给提示（两级角标）</b>：待办数（争议 ＋ 改分 ＋ 发布阻断）为 0 时「裁判长工作台」页签不显角标；&gt; 0 时显示红色数字——裁判长在<b>执裁页签</b>就能看到「哪里有活」，不必先点进工作台逐个找。<b>进页后由行内角标接手</b>：① / ② 显示各自待办<b>件数</b>（1 件 / 2 件，与 P8 顶栏「待裁定 1 件」、P9 顶栏「待审批 2 件」同数），③ 显示「<b>待完成</b>」（<b>灰色弱提示</b>）——它不是一个待办数量，而是「还没到发布条件」的状态（红项口径见 <b>P11</b>），所以给<b>词</b>不给数，也不与红色告警抢注意力。两级相加必须对得上：行内 1 ＋ 2 ＝ 页签 <b>3</b>（③ 不计数）；<b>P7c 空状态的「待我处理 / 我已处理」</b>是同一份数据的逐单明细（待裁定 1 ＋ 待审批 2 ＝ <b>3 件</b>），两处<b>口径必须对应</b>。<br>
+    <span class="num">6</span> <b>有待办时给提示（两级角标）</b>：待办数（争议 ＋ 改分 ＋ 发布阻断）为 0 时「裁判长工作台」页签不显角标；&gt; 0 时显示红色数字——裁判长在<b>执裁页签</b>就能看到「哪里有活」，不必先点进工作台逐个找。<b>进页后由行内角标接手</b>：① / ② 显示各自待办<b>件数</b>（1 件 / 2 件，与 P8 顶栏「待裁定 1 件」、P9 顶栏「待审批 2 件」同数），③ 显示「<b>待完成</b>」（<b>灰色弱提示</b>）——它不是一个待办数量，而是「还没到发布条件」的状态（红项口径见 <b>P11</b>），所以给<b>词</b>不给数，也不与红色告警抢注意力。两级相加必须对得上：行内 1 ＋ 2 ＝ 页签 <b>3</b>（③ ④ 均不计数——③ 是“还没到发布条件”的状态、④ 是只读总览入口，都不产生待办）。<b>P7c 空状态的「待我处理 / 我已处理」</b>是同一份数据的逐单明细（待裁定 1 ＋ 待审批 2 ＝ <b>3 件</b>），两处<b>口径必须对应</b>。<br>
     <span class="num">7</span> <b>多裁判长并存时的分工</b>：现场若 ≥2 位裁判长，工作台按「赛项 × 组别」分区——各自只对自己辖区内的争议 / 改分 / 发布负责，P9 的审批人默认取<b>本人以外的裁判长</b>；若现场只有 1 位裁判长，则允许自批，按 P9 note 4 的<b>「留痕威慑」</b>处理（标红「自批」+ 独立告警 + 后台可抽查）。分区规则由后台人员档案的「管理范围」字段下发。<br>
     <span class="num">8</span> <b>待办流水处理（效率）</b>：本页四类待办支持「处理完 → 直接下一个」——处理完一单即自动回返该类队列顶部（见 <b>P8d</b> / <b>P9b</b> 的成功条），<b>点队列里的下一条待处理行</b>（待裁定 / 待审批，队伍名为可点的蓝色）即载入该单，无需退回入口页，避免反复进出（对应实战摩擦：原流程需 P7b 往返 5 次以上）。<b>不另设「处理下一单 →」按钮</b>：入口长在队列行上，少一个按钮、也少一种“按钮在、却已无下一单”的死键状态。
   </div>
@@ -3055,12 +3056,13 @@
 <!-- ============ P13 发布状态回流看板 ============ -->
 <div class="page">
   <div class="page-title">P13 · 发布状态回流看板（全赛事 · 发布单元一览）</div>
-  <div class="page-desc">本页把<b>全赛事 9 个发布单元</b>（3 赛项 × 3 组别，与 P11 同一口径）收在一张表里，状态由后台发布事件<b>实时回流</b>、不人工回填。P11 管「这个单元能不能交」，本页管「交出去的都发出去没有、发出去之后有没有因为改分而失效」。</div>
+  <div class="page-desc"><b>入口</b>：裁判长工作台 → ④ 发布回流。本页把<b>全赛事 9 个发布单元</b>（3 赛项 × 3 组别，与 P11 同一口径）收在一张表里，状态由后台发布事件<b>实时回流</b>、不人工回填。P11 管「这个单元能不能交」，本页管「交出去的都发出去没有、发出去之后有没有因为改分而失效」。</div>
   <div class="tablet">
     <div class="appbar"><span>⛓ 发布回流 · 全赛事</span><span style="font-size:12px;">裁判长：张伟</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
     <div class="screen">
       <div class="main sheet">
         <div class="scroll-area">
+          <div style="margin-bottom:10px;"><span class="btn-gray btn-sm">← 返回工作台</span></div>
           <div style="display:flex; gap:8px; margin-bottom:12px;">
             <span style="background:#e2e8f0; color:#4a5568; padding:4px 12px; border-radius:999px; font-size:12px;">— 未移交 2</span>
             <span style="background:#fefcbf; color:#975a16; padding:4px 12px; border-radius:999px; font-size:12px;">⏳ 待发布 3</span>
