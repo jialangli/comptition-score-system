@@ -2042,7 +2042,7 @@
           <div class="t-name">管理待办</div>
           <div class="qrow"><span>① 争议裁定（申诉复核 · 重复打分；结论三态：维持原判 / 授权改分 / 取消资格）<span class="tag-count">1 件</span></span><span><span class="btn-outline btn-sm">进入裁定台 →</span></span></div>
           <div class="qrow"><span>② 改分授权（裁判在<b>改分模式</b>提交改分申请 → 裁判长授权 → 留痕）<span class="tag-count">2 件</span></span><span><span class="btn-outline btn-sm">改分审批 →</span></span></div>
-          <div class="qrow"><span>③ 发布前确认（完整性校验 → 移交工作人员发布）<span class="tag-block"><i></i>阻断</span></span><span><span class="btn-primary btn-sm">发布前确认 →</span></span></div>
+          <div class="qrow"><span>③ 发布前确认<span class="tag-block"><i></i>未通过</span></span><span><span class="btn-primary btn-sm">发布前确认 →</span></span></div>
         </div>
         <div style="font-size:12px; color:#2b6cb0; background:#ebf4ff; border:1px solid #bee3f8; border-radius:6px; padding:6px 10px; margin-top:8px;">💡 <b>流水处理</b>：在 P8 / P8b / P8c / P9 处理完一单后，自动回返该类队列顶部，<b>点队列里的下一条待处理行</b>（可点的蓝色队伍名）即载入该单；或点「← 返回工作台」回到本待办队列顶部 —— 无需反复进出本页。</div>
         <div style="font-size:12px; color:#718096; margin-top:6px;">⚠ 裁定 / 改分 / 发布均触发版本复现与全量审计（旧值→新值+原因）；改分后排名按各自绑定版本自动重算。</div>
@@ -2596,7 +2596,7 @@
 
 <!-- ============ P11 发布前确认 ============ -->
 <div class="page">
-  <div class="page-title">P11 · 发布前确认（完整性校验 → 移交工作人员发布）</div>
+  <div class="page-title">P11 · 发布前确认</div>
   <div class="page-desc">裁判长做发布前完整性校验，确认后移交工作人员在后台执行发布；本册不提供“撤销发布”</div>
   <div class="tablet">
     <div class="appbar"><span>⛓ 发布前确认 · 脑机星球 · 小学组</span><span style="font-size:12px;">裁判长：张老师</span><span style="color:#38a169; font-size:12px;">● 已连接</span></div>
@@ -2607,13 +2607,13 @@
           <span style="font-size:12px; color:#718096;">当前发布单元：脑机星球 · 小学组</span>
         </div>
         <div class="card">
-          <div class="t-name">发布前检查 <span class="pts">红项阻断 · 黄项提示</span></div>
+          <div class="t-name">发布前检查 <span class="pts">红项未通过 · 黄项提示</span></div>
           <div class="qrow"><span>❌ 成绩完整度 13 / 48 队（2 赛台汇总）</span><span class="warn">尚有 35 队未完成，不可发布</span></div>
           <div class="qrow"><span>❌ 待裁定成绩 1 件</span><span class="warn">请先到裁定台处理</span></div>
           <div class="qrow"><span>❌ 待审批改分 1 件（R-008）</span><span class="warn">请先到改分审批处理</span></div>
           <div class="qrow"><span>⚠ 红牌取消比赛资格 1 队（T-015 未来先锋队 · <b>成绩保留</b>）</span><span class="warn">公示需声明：该队成绩不计入名次与奖项</span></div>
           <div class="qrow"><span>⚠ 弃赛递补策略未定（赛事级通用检查 · 示例：未来之城 · 小学组）</span><span>按弃赛软删除处理，本期不递补</span></div>
-          <div class="qrow"><span>⚠ 未打分队伍是否获奖</span><span class="warn">业务未拍板 → 发布前须先确认（黄项 · 不计入硬阻断）</span></div>
+          <div class="qrow"><span>⚠ 未打分队伍是否获奖</span><span class="warn">业务未拍板 → 发布前须先确认（黄项 · 不计入未通过项）</span></div>
         </div>
         <div class="card">
           <div class="t-name">发布就绪 <span class="pts">各项满足才可移交</span></div>
@@ -2651,7 +2651,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:12px; color:#a0aec0;">裁判长只做“确认”；<b>发布键由工作人员在后台按下</b>（职责分离、双人可追溯）</span>
           <span style="display:flex; gap:10px; align-items:center;">
-            <span class="warn" style="font-size:12px;">存在 3 项阻断，暂不可移交</span>
+            <span class="warn" style="font-size:12px;">存在 3 项未通过，暂不可移交</span>
             <span class="btn-gray">确认并移交工作人员发布 →</span>
           </span>
         </div>
