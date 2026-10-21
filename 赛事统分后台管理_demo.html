@@ -5553,19 +5553,74 @@ function delSeat(id){
   logAudit('调赛台','删除赛台',s.name,'—','现场撤台'+(nTeams?('（'+nTeams+' 支退回未分台）'):''));
   save();render();
 }
-function addSlot(seatId,period,date){
-  var ev0=S.events[0]||'';
-  var ev=ev0?getEventRule(ev0):null;
-  if(!ev)ev={id:'',groups:[]};
+/* ---------- 新建场次：先选赛项 / 组别 / 轮次，再落场次 ----------
+   旧行为：点「+ 配置场次」直接按 S.events[0]（脑机星球）建单，看上去像"只能配第一个赛项"。
+   现在：先弹选择面板（选项＝本赛事已启用的赛项），选完再建；只启用 1 个赛项时，面板里直接给「去新增赛项」指引。 */
+var NEW_SLOT=null;
+function newSlotAsk(seatId,period,date){
+  var evId=(S.events.indexOf(CUR_EVENT)>=0?CUR_EVENT:(S.events[0]||''));
+  var ev=getEventRule(evId)||{groups:['小学组'],rounds:1};
+  NEW_SLOT={seatId:seatId,period:period,date:(date!=null?date:null),eventId:evId,
+            group:(ev.groups&&ev.groups[0])||'小学组',
+            round:((Number(ev.rounds||1)>=2&&period==='下午')?2:1)};
+  render();
+}
+function newSlotSet(k,v){
+  if(!NEW_SLOT)return;
+  NEW_SLOT[k]=(k==='round')?(Number(v)||1):v;
+  if(k==='eventId'){
+    var ev=getEventRule(v)||{groups:['小学组'],rounds:1};
+    NEW_SLOT.group=(ev.groups&&ev.groups[0])||'小学组';
+    NEW_SLOT.round=((Number(ev.rounds||1)>=2&&NEW_SLOT.period==='下午')?2:1);
+  }
+  render();
+}
+function newSlotCancel(){NEW_SLOT=null;render();}
+function newSlotCreate(){
+  if(!NEW_SLOT)return;
+  var n=NEW_SLOT;NEW_SLOT=null;
+  addSlot(n.seatId,n.period,n.date,n.eventId,n.group,n.round);
+}
+function newSlotPanel(){
+  if(!NEW_SLOT)return '';
+  var n=NEW_SLOT;
+  var ev=getEventRule(n.eventId)||{groups:[]};
+  var evName=function(eid){var e=getEventRule(eid)||{name:eid};return esc(e.name);};
+  var opts=S.events.map(function(eid){return '<option value="'+eid+'" '+(eid===n.eventId?'selected':'')+'>'+evName(eid)+'</option>';}).join('');
+  var gopts=(ev.groups||[]).map(function(g){return '<option '+(g===n.group?'selected':'')+'>'+esc(g)+'</option>';}).join('');
+  var all=((typeof EVENT_TEMPLATES!=='undefined')?EVENT_TEMPLATES.length:S.events.length);
+  var hint=(S.events.length<all)?('本赛事只启用了 <b>'+S.events.length+'</b> 个赛项：'+S.events.map(evName).join(' / ')+'。要用其他赛项，先到「赛项与规则」新增。'):'';
+  return '<div style="position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:60;display:flex;align-items:center;justify-content:center" onclick="newSlotCancel()">'+
+    '<div class="card" style="width:452px;margin:0" onclick="event.stopPropagation()">'+
+      '<h2 style="margin:0 0 8px">新建场次 <small>'+esc(seatName(n.seatId))+' · '+esc(n.period)+'</small></h2>'+
+      '<div class="grid g3">'+
+        '<div class="fld"><label>赛项</label><select onchange="newSlotSet(\'eventId\',this.value)">'+opts+'</select></div>'+
+        '<div class="fld"><label>组别</label><select onchange="newSlotSet(\'group\',this.value)">'+gopts+'</select></div>'+
+        '<div class="fld"><label>轮次</label><select onchange="newSlotSet(\'round\',this.value)">'+
+          '<option value="1" '+(Number(n.round)===1?'selected':'')+'>第 1 轮</option>'+
+          '<option value="2" '+(Number(n.round)===2?'selected':'')+'>第 2 轮</option></select></div>'+
+      '</div>'+
+      (hint?'<div class="hint" style="background:#fffaf0;border-color:#f6e0b3;color:#a35b00">'+hint+' <a href="javascript:void(0)" onclick="newSlotCancel();nav(\'events\')">去新增赛项 →</a></div>':'')+
+      '<div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px">'+
+        '<button class="btn sm" onclick="newSlotCancel()">取消</button>'+
+        '<button class="btn primary sm" onclick="newSlotCreate()">创建场次</button>'+
+      '</div>'+
+    '</div></div>';
+}
+function addSlot(seatId,period,date,eventId,group,round){
+  /* 赛项：显式传入优先 → 其次当前编排赛项 CUR_EVENT → 最后才回落到第一个赛项 */
+  var evId=(eventId&&S.events.indexOf(eventId)>=0)?eventId:(S.events.indexOf(CUR_EVENT)>=0?CUR_EVENT:(S.events[0]||''));
+  var ev=getEventRule(evId);
+  if(!ev)ev={id:evId,groups:['小学组'],rounds:1};
   /* 轮次默认值：2 轮赛项按「上午=第 1 轮 / 下午=第 2 轮」自动带出（赛制：一队上午一轮、下午一轮）；
      1 轮赛项恒为第 1 轮。原先两个时段都默认 1，会让下午场次变成"第 1 轮"，还会误报"未安排第 2 轮"。 */
   var _rds=Number(ev.rounds||1);
-  var _rnd=(_rds>=2&&period==='下午')?2:1;
+  var _rnd=(round!=null?Number(round):((_rds>=2&&period==='下午')?2:1));
   /* date：从调用点传入（多日赛事按日分组渲染时知道是哪一天）；缺失时取赛事首日（单日模型）。 */
   var days=contestDayList();
   var _date=(date!=null?date:(days[0]||null));
-  var sl={id:uid('sl'),seatId:seatId,period:period,round:_rnd,time:periodTime(period),eventId:ev.id,
-          group:(ev.groups&&ev.groups[0])||'小学组',type:'normal',teams:[],snapshot:null,chief:'',judges:[],
+  var sl={id:uid('sl'),seatId:seatId,period:period,round:_rnd,time:periodTime(period),eventId:(ev.id||evId),
+          group:(group||(ev.groups&&ev.groups[0])||'小学组'),type:'normal',teams:[],snapshot:null,chief:'',judges:[],
           date:_date};
   S.slots.push(sl);CUR_SLOT=sl.id;
   logAudit('调赛台','新增场次',seatName(seatId)+' · '+period+(date?(' · '+date):''),sl.group,'赛程编排');
@@ -5640,7 +5695,7 @@ function viewSeats(){
       var dateArg=date||'';
       return '<tr><td><b>'+p+'</b><div class="small muted">'+periodTime(p)+(rk?(' · 第 '+rk+' 轮'):'')+'</div></td>'+S.seats.map(function(s){
         var sl=slotOfSeat(s.id,p,date);
-        if(!sl)return '<td><div class="slot empty" onclick="addSlot(\''+s.id+'\',\''+p+'\''+(dateArg?(',\''+dateArg+'\''):'')+')">+ 配置场次</div></td>';
+        if(!sl)return '<td><div class="slot empty" onclick="newSlotAsk(\''+s.id+'\',\''+p+'\''+(dateArg?(',\''+dateArg+'\''):'')+')">+ 配置场次</div></td>';
         var ev=find(sl.eventId)||{name:'—'};
         return '<td><div class="slot'+(isExtraSlot(sl)?' extra':'')+(CUR_SLOT===sl.id?' sel':'')+'" onclick="openSlot(\''+sl.id+'\')">'+
           '<b>'+esc(ev.name)+'</b><div class="small muted">'+esc(sl.group)+'</div>'+
@@ -5705,7 +5760,12 @@ function viewSeats(){
       '<span class="row tight"><button class="btn sm" onclick="renameSeat('+i+')">改名</button>'+
       '<button class="btn sm danger" onclick="delSeat(\''+s.id+'\')">删除</button></span></div>';
   }).join('');
-  return '<div class="card"><h2>赛台配置 <small>数量由工作人员按参赛人数自行配置；同一赛台可跨时段、跨赛项复用</small></h2>'+
+  var evNames=S.events.map(function(eid){var e=getEventRule(eid)||{name:eid};return esc(e.name);});
+  var evAll=((typeof EVENT_TEMPLATES!=='undefined')?EVENT_TEMPLATES.length:S.events.length);
+  var evBar='<div class="hint" style="margin:0 0 10px">本赛事已启用赛项：<b>'+evNames.join(' / ')+'</b>'+
+    (S.events.length<evAll?('　<a href="javascript:void(0)" onclick="nav(\'events\')">去新增赛项 →</a>'):'')+
+    '　<span class="muted">（场次只能在本赛事已启用的赛项里选）</span></div>';
+  return '<div class="card"><h2>赛台配置 <small>数量由工作人员按参赛人数自行配置；同一赛台可跨时段、跨赛项复用</small></h2>'+evBar+
       '<div class="row" style="margin-bottom:10px">'+
         '<button class="btn primary sm" onclick="addSeat()">+ 添加赛台</button>'+'<button class="btn sm" onclick="exportCallSheetXlsx()">导出叫号表 Excel</button>'+
       '</div>'+
@@ -5715,7 +5775,8 @@ function viewSeats(){
         '<div class="hint" style="margin-top:8px">单元格 = 赛台 × 时段。空位点「+ 配置场次」新建；同一赛项可同时占用多张赛台（人多就多开台）。</div></div>'+
       '</div></div>'+
     seatPanel()+
-    '<div class="card">'+detailHtml+'</div>';
+    '<div class="card">'+detailHtml+'</div>'+
+    newSlotPanel();
 }
 
 /* ---------- 视图 9：现场大屏（分页轮播） ---------- */
