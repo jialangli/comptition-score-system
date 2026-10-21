@@ -280,6 +280,7 @@ var SCORE_EVENT='brain_planet';   // 裁判打分页当前赛项
 var CUR_TEAM=null;                // 打分页当前队伍
 var SCORE_ROUND=1;                // 打分页当前轮次（两轮制：一队打两轮）
 var RANK_EVENT='brain_planet';    // 榜单页当前赛项
+var RANK_EDIT=false;              // 榜单页「编辑名次」开关（仅影响界面，不改数据语义）
 var PUB_EVENT='brain_planet';     // 公示页当前赛项
 var PUB_ANON=false;
 var SCORE_ENTRY_ROLE='sync';      // 后台录入身份：ops=工作人员代录 / sync=现场回传（平板）；默认按现场回传记账，手工代录需手动切换
@@ -1480,6 +1481,19 @@ function standings(evId){
   /* 红牌取消比赛资格的队伍**留在榜内**（成绩与判罚要可查、公示要能说明少了一队），
      但不占名次序号：名次只在「有资格」的队伍之间连续发放，避免后面全部少一名。 */
   var live=rows.filter(function(r){return !r.dq;});
+  /* 手动调序（运营直接改）：有手序就按手序排，并强制连续发号。
+     手序与「不递补（空缺不补）」不能叠加 —— 否则同一条链上会出现两个 3 名。
+     未调过序的赛项走原来的逻辑，显示与之前完全一致。 */
+  var order=rankManualOf(evId);
+  if(order&&order.length){
+    var byId={},seq=[];
+    live.forEach(function(r){byId[r.team.id]=r;});
+    order.forEach(function(id){if(byId[id]){seq.push(byId[id]);delete byId[id];}});
+    live.forEach(function(r){if(byId[r.team.id])seq.push(r);});
+    live=seq;
+    rows=live.concat(rows.filter(function(r){return r.dq;}));
+    useGap=false;
+  }
   live.forEach(function(r,i){
     r.rank=useGap?r.origRank:(i+1);
     r.tie=(i>0&&live[i-1].total===r.total);
@@ -1487,6 +1501,42 @@ function standings(evId){
   rows.forEach(function(r){if(r.dq){r.rank=0;r.tie=false;}});
   return rows;
 }
+/* ---------- 手动调名次（运营直接改 · 本期不做审计留痕） ----------
+   为什么允许：现场会遇到并列裁决、特殊处分、纸质补录后的顺序修正，榜单必须能人工定序。
+   代价：榜单不再完全由分数自洽 —— 所以只手序生效的赛项才偏离自动排序，
+   页头常驻「已手动调序」标记 + 一键「恢复自动排名」，避免有人以为是算法算出来的。
+   存储：S.rankManual[evId] = [teamId, ...]（完整顺序），随赛事数据一起存 localStorage。 */
+function rankManualOf(evId){
+  var m=S.rankManual||{};
+  return (m[evId]&&m[evId].length)?m[evId]:null;
+}
+function rankManualSave(evId,order){
+  if(readonlyGuard())return;          /* 归档赛事 = 只读快照，与全册其余写操作同闸 */
+  S.rankManual=S.rankManual||{};
+  if(order&&order.length)S.rankManual[evId]=order;
+  else delete S.rankManual[evId];
+  save();
+}
+function rankLiveOrder(evId){
+  return standings(evId).filter(function(r){return !r.dq;}).map(function(r){return r.team.id;});
+}
+function rankMove(teamId,dir){
+  var ids=rankLiveOrder(RANK_EVENT);
+  var i=ids.indexOf(teamId);if(i<0)return;
+  var j=i+dir;if(j<0||j>=ids.length)return;
+  ids.splice(j,0,ids.splice(i,1)[0]);
+  rankManualSave(RANK_EVENT,ids);render();
+}
+function rankSet(teamId,n){
+  var ids=rankLiveOrder(RANK_EVENT);
+  var i=ids.indexOf(teamId);if(i<0)return;
+  var t=Math.max(1,Math.min(ids.length,Number(n)||i+1))-1;
+  if(t===i){render();return;}
+  ids.splice(i,1);ids.splice(t,0,teamId);
+  rankManualSave(RANK_EVENT,ids);render();
+}
+function rankReset(){rankManualSave(RANK_EVENT,null);render();}
+function toggleRankEdit(){RANK_EDIT=!RANK_EDIT;render();}
 /* 两轮赛项：标出这一行的成绩来自哪一轮（取优结果）——
    两轮都录 → 「取第 N 轮」；只录了一轮 → 「仅第 N 轮」（这件事现场更需要被看见：
    只有一个轮次分数就参与排名，往往意味着另一轮漏录了）。1 轮赛项恒返回空串。 */
@@ -5242,8 +5292,22 @@ function viewRank(){
   var allDone=rows.length>0&&doneN===rows.length;
   var body=rows.map(function(r){
     var bt=bestRoundTag(ev,r);   /* 两轮赛项才有值：取第 N 轮 / 仅第 N 轮 */
-    return '<tr>'+
-      '<td class="num">'+(r.dq?'<span class="tag err">取消资格</span>':'<b>'+r.rank+'</b>'+(r.tie?' <span class="tag warn">并列</span>':''))+'</td>'+
+    /* 名次单元格：编辑态给「↑ 数字 ↓」——数字直接填、箭头逐位挪；
+       取消资格的行不给编辑（它在榜内但不占名次，改它没有意义）。 */
+    var rankCell;
+    if(r.dq){
+      rankCell='<span class="tag err">取消资格</span>';
+    }else if(RANK_EDIT){
+      rankCell='<span style="display:inline-flex;align-items:center;gap:4px">'+
+        '<span class="btn sm" style="padding:1px 6px;line-height:1.5" title="上移一位" onclick="rankMove(\''+r.team.id+'\',-1)">↑</span>'+
+        '<input type="number" min="1" value="'+r.rank+'" style="width:52px;text-align:center;padding:3px 2px" title="直接填名次" onchange="rankSet(\''+r.team.id+'\',this.value)">'+
+        '<span class="btn sm" style="padding:1px 6px;line-height:1.5" title="下移一位" onclick="rankMove(\''+r.team.id+'\',1)">↓</span>'+
+        '</span>';
+    }else{
+      rankCell='<b>'+r.rank+'</b>'+(r.tie?' <span class="tag warn">并列</span>':'');
+    }
+    return '<tr'+(RANK_EDIT&&!r.dq?' style="background:#f7fbff"':'')+'>'+
+      '<td class="num">'+rankCell+'</td>'+
       '<td><b>'+esc(r.team.name)+'</b><div class="small muted">'+esc(r.team.group)+'</div></td>'+
       '<td class="small">'+maskMembers(r.team.members)+'</td>'+
       '<td class="num">'+((r.yellow||r.red)?('黄 '+(r.yellow||0)+(r.red?(' · 红 '+r.red):'')):'—')+'</td>'+
@@ -5255,10 +5319,22 @@ function viewRank(){
   return '<div class="card"><div class="row">'+
       '<span class="small muted">赛项</span><select style="max-width:220px" onchange="selRankEvent(this.value)">'+opts+'</select>'+
       '<button class="btn" onclick="exportStandings()">导出榜单 Excel</button>'+
+      (isReadOnly()?'':(RANK_EDIT
+        ? '<button class="btn primary" onclick="toggleRankEdit()">完成编辑</button>'+
+          '<button class="btn" onclick="rankReset()" title="清掉人工顺序，回到按分数自动排名">恢复自动排名</button>'
+        : '<button class="btn" onclick="toggleRankEdit()" title="人工调整名次（分数不变）">编辑名次</button>'))+
+      (rankManualOf(RANK_EVENT)?'<span class="tag warn" title="当前名次为人工调整，不再按分数自动排序">已手动调序</span>':'')+
       '<span class="sp" style="flex:1"></span>'+
       '<span class="small muted">计分规则：'+esc(tplName(ev&&ev.scoreRule&&ev.scoreRule.template))+' · 同分裁决：'+esc(tieName((ev&&ev.rankRule&&ev.rankRule.tieBreak)||[]))+'</span>'+
     '</div></div>'+
   '<div class="card"><h2>实时榜单 <small>赛中视图 · 两轮取优 → 加权计分 → 加分 → 判罚记录（不计分）→ 排名</small></h2>'+
+    (RANK_EDIT
+      ? '<div class="note" style="margin-bottom:10px;border-left-color:#c79a2e"><b>编辑名次中（立即生效）</b>：改数字或点 ↑ ↓ 即可，<b>分数不动、只改排序</b>；改完点「完成编辑」退出。'
+        +'手动顺序会一并进「导出榜单 Excel」与公示表；要还原点「恢复自动排名」。</div>'
+      : (rankManualOf(RANK_EVENT)
+        ? '<div class="note" style="margin-bottom:10px;border-left-color:#c79a2e"><b>本赛项当前为人工调序</b>：名次按手动顺序发放，<b>已不再等于按分数自动排序的结果</b>。'
+          +'<button class="btn sm" style="margin-left:6px" onclick="rankReset()">恢复自动排名</button></div>'
+        : ''))+
     /* 无队伍时不显示进度条（否则会说成「0 / 0 队已完成」）；
      有队伍且全提交 → 引导去公示；否则 → 赛中视图。 */
     (rows.length===0
