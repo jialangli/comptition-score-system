@@ -119,7 +119,7 @@
 </head>
 <body>
 
-<h1>赛事裁判打分系统 · 页面 Wireframe V0.7.8</h1>
+<h1>赛事裁判打分系统 · 页面 Wireframe V0.7.9</h1>
 <p class="sub">适用端：裁判端（平板横屏）&nbsp;｜&nbsp; 适用赛项：脑机星球 / 火星救援 / 未来之城 &nbsp;｜&nbsp; 参考布局：FirstLegoLeague/fllscoring &nbsp;｜&nbsp; 2026-10-27</p>
 
 
@@ -298,7 +298,7 @@
   <div class="page-title">P2 · 当前比赛页（R2：队伍信息自动切换）</div>
   <div class="page-desc">裁判提交上一队成绩后自动跳转下一队（R7）；也可手动搜索切队；未来之城为两队对抗——按“场”叫号，队列元素为 A vs B 场次卡</div>
   <div class="tablet">
-    <div class="appbar"><span>⛓ 脑机星球 · A 赛台 · 小学组 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判：王建国</span></span><span style="cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; margin-left:8px;" title="设置 · 显示字号 / 计时提醒 / 退出登录">⚙ 设置</span></div>
+    <div class="appbar"><span>⛓ 脑机星球 · A 赛台 · 小学组 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判：王建国</span></span><span style="cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; margin-left:8px;" title="退出登录 · 清除本机裁判码缓存并返回登录页">⏻ 退出</span></div>
     <div class="screen">
       <div class="main">
         <!-- 轮次切换 -->
@@ -820,54 +820,29 @@
   </div>
 </div>
 
-<!-- ============ P2g 设置弹窗（P2 居中叠加态） ============ -->
+<!-- ============ P2g 退出确认弹窗（P2 居中叠加态） ============ -->
 <div class="page">
-  <div class="page-title">P2g · 设置弹窗（P2 居中叠加态 · ⚙设置 → 弹窗 → 退出二次确认）</div>
-  <div class="page-desc"><b>仅 P2（当前比赛页 / 执裁总览）顶栏</b>有「⚙ 设置」，点开后在页面<b>正中弹出</b>设置弹窗：<b>显示字号（小/中/大，设备级、全册即时生效并持久化）</b>、<b>提交前汇总确认（开/关）</b>、<b>账号分区（裁判码凭据状态 + 退出登录）</b>。弹窗<b>左上角「←」、右上角「×」</b>为关闭入口，点它或点遮罩空白处即回 P2，不跳页、不打断执裁。点「退出登录」→ 就地弹二次确认（遮罩弹窗本身）；确认后清本机裁判码缓存、回 P1 登录页（姓名预填、裁判码清空，复用 P1 note 2 口径）。</div>
+  <div class="page-title">P2g · 退出确认弹窗（P2 居中叠加态 · 顶栏「⏻ 退出」→ 一次确认 → 回 P1 登录页）</div>
+  <div class="page-desc"><b>仅 P2（当前比赛页 / 执裁总览）顶栏</b>有「<b>⏻ 退出</b>」，点开后在页面<b>正中弹出</b>退出确认弹窗。<b>原「⚙ 设置」中间层已取消</b>——现场没有时间做字号 / 震动的偏好设置，这个入口只为「退登换人」存在，所以一步直达确认。弹窗<b>左上角「←」、右上角「×」</b>为关闭入口，点它或点遮罩空白处即回 P2，<b>不跳页、不打断执裁</b>；点「确认退出」→ 清本机裁判码缓存、回 <b>P1 登录页</b>（姓名预填、裁判码清空）。</div>
   <div class="tablet">
-    <div class="appbar"><span>⛓ 脑机星球 · A 赛台 · 小学组 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判：王建国</span></span><span style="cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; margin-left:8px;" title="设置 · 显示字号 / 计时提醒 / 退出登录">⚙ 设置</span></div>
+    <div class="appbar"><span>⛓ 脑机星球 · A 赛台 · 小学组 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判：王建国</span></span><span style="cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; margin-left:8px;" title="退出登录 · 清除本机裁判码缓存并返回登录页">⏻ 退出</span></div>
     <div class="screen" style="position:relative;">
       <div class="main" style="padding:0;">
 <div style="padding:14px;"><div style="display:flex; justify-content:space-between; align-items:center; background:#ebf4ff; border:1px solid #2b6cb0; border-radius:8px; padding:10px 12px; opacity:.35;"><div><div style="font-size:11px; color:#718096;">当前上场队伍<span style="background:#bee3f8; color:#2b6cb0; border-radius:4px; padding:1px 6px; margin-left:6px; font-size:10px;">第 7 顺位 / 共 24 队</span></div><div style="font-size:18px; font-weight:bold; margin-top:3px;">T-013<span style="font-size:14px; font-weight:normal;">火星探险小队</span></div><div style="font-size:11px; color:#718096; margin-top:2px;">A 赛台 ｜ 小学组 ｜ 选手：王小明 · 李华</div></div><div style="text-align:right;"><div style="font-size:11px; color:#718096;">剩余 / 总时长</div><div style="font-size:24px; font-weight:bold; color:#2b6cb0;">02:30<span style="font-size:12px; color:#a0aec0; font-weight:normal;"> / 02:30</span></div></div></div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-top:10px; opacity:.35;"><div style="font-size:12px; font-weight:bold; margin-bottom:6px;">赛台 A 队列</div><div style="font-size:11px; color:#718096; line-height:1.9;">已完成<b style="color:#38a169;">6</b> ｜ 比赛中 <b style="color:#2b6cb0;">1</b> ｜ 候场 17 ｜ <b>当前第 7 位</b></div><div style="font-size:11px; color:#a0aec0; margin-top:6px;">▾ 完整 24 队队列在卡内滚动查看</div></div></div>
       </div>
       <div style="position:absolute; inset:0; background:rgba(45,55,72,.35); display:flex; align-items:center; justify-content:center;">
-<div style="background:#fff; border-radius:12px; width:340px; box-shadow:0 12px 36px rgba(0,0,0,.22); overflow:hidden;"><div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid #e2e8f0;"><span style="cursor:pointer; font-size:16px; color:#4a5568; line-height:1;" title="返回比赛页">←</span><span style="font-size:15px; font-weight:bold; flex:1;">设置</span><span style="cursor:pointer; font-size:18px; color:#a0aec0; line-height:1;" title="关闭">×</span></div><div style="padding:12px 16px 10px; color:#718096; font-size:11px; letter-spacing:1px;">显示</div><div style="display:flex; justify-content:space-between; align-items:center; padding:0 16px 13px; font-size:13px; color:#4a5568;"><span>显示字号</span><span class="seg" style="gap:0;"><span style="padding:2px 10px; font-size:12px;">小</span><span class="on" style="padding:2px 10px; font-size:12px;">中</span><span style="padding:2px 10px; font-size:12px;">大</span></span></div><div style="height:1px; background:#edf2f7;"></div><div style="padding:12px 16px 10px; color:#718096; font-size:11px; letter-spacing:1px;">操作与提醒</div><div style="display:flex; justify-content:space-between; align-items:center; padding:0 16px 13px; font-size:13px; color:#4a5568;"><span>计时结束震动</span><span style="display:inline-flex; align-items:center; gap:6px;"><span style="font-size:12px; color:#2b6cb0;">开</span><span style="display:inline-block; width:34px; height:18px; border-radius:9px; background:#2b6cb0; position:relative; vertical-align:middle;"><span style="position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff;"></span></span></span></div><div style="height:1px; background:#edf2f7;"></div><div style="padding:12px 16px 10px; color:#718096; font-size:11px; letter-spacing:1px;">账号</div><div style="display:flex; justify-content:space-between; align-items:center; padding:0 16px 13px; font-size:13px; color:#4a5568;"><span>裁判码凭据</span><span style="font-size:12px; color:#718096;">已激活 · 本机缓存</span></div><div style="padding:0 16px 14px; text-align:center;"><span style="font-size:13px; color:#c53030; font-weight:bold; cursor:pointer;">⏻ 退出登录</span><span style="font-size:11px; color:#a0aec0; margin-left:8px;">需二次确认</span></div><div style="padding:9px 16px; background:#f7fafc; border-top:1px solid #edf2f7; font-size:11px; color:#a0aec0; line-height:1.6;">点左上角「←」、右上角「×」或遮罩空白处返回比赛页；字号改动<b>全册即时生效并持久化</b>。</div></div>
-      </div>
-    </div>
-  </div>
-  <div class="tablet" style="margin-top:14px;">
-    <div class="appbar"><span>⛓ 脑机星球 · A 赛台 · 小学组 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判：王建国</span></span><span style="cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; margin-left:8px;" title="设置 · 显示字号 / 计时提醒 / 退出登录">⚙ 设置</span></div>
-    <div class="screen" style="position:relative;">
-      <div class="main" style="padding:0;">
-<div style="padding:14px;"><div style="display:flex; justify-content:space-between; align-items:center; background:#ebf4ff; border:1px solid #2b6cb0; border-radius:8px; padding:10px 12px; opacity:.22;"><div><div style="font-size:11px; color:#718096;">当前上场队伍<span style="background:#bee3f8; color:#2b6cb0; border-radius:4px; padding:1px 6px; margin-left:6px; font-size:10px;">第 7 顺位 / 共 24 队</span></div><div style="font-size:18px; font-weight:bold; margin-top:3px;">T-013<span style="font-size:14px; font-weight:normal;">火星探险小队</span></div><div style="font-size:11px; color:#718096; margin-top:2px;">A 赛台 ｜ 小学组 ｜ 选手：王小明 · 李华</div></div><div style="text-align:right;"><div style="font-size:11px; color:#718096;">剩余 / 总时长</div><div style="font-size:24px; font-weight:bold; color:#2b6cb0;">02:30<span style="font-size:12px; color:#a0aec0; font-weight:normal;"> / 02:30</span></div></div></div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-top:10px; opacity:.22;"><div style="font-size:12px; font-weight:bold; margin-bottom:6px;">赛台 A 队列</div><div style="font-size:11px; color:#718096; line-height:1.9;">已完成<b style="color:#38a169;">6</b> ｜ 比赛中 <b style="color:#2b6cb0;">1</b> ｜ 候场 17 ｜ <b>当前第 7 位</b></div><div style="font-size:11px; color:#a0aec0; margin-top:6px;">▾ 完整 24 队队列在卡内滚动查看</div></div></div>
-      </div>
-      <div style="position:absolute; inset:0; background:rgba(45,55,72,.35); display:flex; align-items:center; justify-content:center;">
-<div style="opacity:.32;"><div style="background:#fff; border-radius:12px; width:340px; box-shadow:0 12px 36px rgba(0,0,0,.22); overflow:hidden;"><div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid #e2e8f0;"><span style="cursor:pointer; font-size:16px; color:#4a5568; line-height:1;" title="返回比赛页">←</span><span style="font-size:15px; font-weight:bold; flex:1;">设置</span><span style="cursor:pointer; font-size:18px; color:#a0aec0; line-height:1;" title="关闭">×</span></div><div style="padding:12px 16px 10px; color:#718096; font-size:11px; letter-spacing:1px;">显示</div><div style="display:flex; justify-content:space-between; align-items:center; padding:0 16px 13px; font-size:13px; color:#4a5568;"><span>显示字号</span><span class="seg" style="gap:0;"><span style="padding:2px 10px; font-size:12px;">小</span><span class="on" style="padding:2px 10px; font-size:12px;">中</span><span style="padding:2px 10px; font-size:12px;">大</span></span></div><div style="height:1px; background:#edf2f7;"></div><div style="padding:12px 16px 10px; color:#718096; font-size:11px; letter-spacing:1px;">操作与提醒</div><div style="display:flex; justify-content:space-between; align-items:center; padding:0 16px 13px; font-size:13px; color:#4a5568;"><span>计时结束震动</span><span style="display:inline-flex; align-items:center; gap:6px;opacity:.85;"><span style="font-size:12px; color:#718096;">关</span><span style="display:inline-block; width:34px; height:18px; border-radius:9px; background:#cbd5e0; position:relative; vertical-align:middle;"><span style="position:absolute; top:2px; left:16px; width:14px; height:14px; border-radius:50%; background:#fff;"></span></span></span></div><div style="height:1px; background:#edf2f7;"></div><div style="padding:12px 16px 10px; color:#718096; font-size:11px; letter-spacing:1px;">账号</div><div style="display:flex; justify-content:space-between; align-items:center; padding:0 16px 13px; font-size:13px; color:#4a5568;"><span>裁判码凭据</span><span style="font-size:12px; color:#718096;">已激活 · 本机缓存</span></div><div style="padding:0 16px 14px; text-align:center;"><span style="font-size:13px; color:#c53030; font-weight:bold; cursor:pointer;">⏻ 退出登录</span><span style="font-size:11px; color:#a0aec0; margin-left:8px;">需二次确认</span></div><div style="padding:9px 16px; background:#f7fafc; border-top:1px solid #edf2f7; font-size:11px; color:#a0aec0; line-height:1.6;">点「退出登录」进入二次确认（下一步）；本层与确认层均可点「←」退回。</div></div></div>
-        <div style="position:absolute; display:flex; align-items:center; justify-content:center;">
-          <div style="background:#fff; border-radius:12px; padding:20px 22px; width:330px; box-shadow:0 14px 40px rgba(0,0,0,.3);">
-            <div style="font-size:15px; font-weight:bold; margin-bottom:8px;">确认退出登录？</div>
-            <div style="font-size:13px; color:#718096; line-height:1.7; margin-bottom:6px;">本机裁判码缓存将清除，返回登录页（姓名预填、裁判码需重输）。</div>
-            <div style="font-size:12px; color:#a0aec0; line-height:1.6; margin-bottom:16px;">本地暂存成绩将在重新登录后同步，已提交数据不受影响。</div>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
-              <span class="btn-primary" style="background:#a0aec0;">取消</span>
-              <span class="btn-primary" style="background:#e53e3e;">确认退出</span>
-            </div>
-          </div>
-        </div>
+<div style="background:#fff; border-radius:12px; width:340px; box-shadow:0 12px 36px rgba(0,0,0,.22); overflow:hidden;"><div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid #e2e8f0;"><span style="cursor:pointer; font-size:16px; color:#4a5568; line-height:1;" title="返回比赛页">←</span><span style="font-size:15px; font-weight:bold; flex:1;">退出登录</span><span style="cursor:pointer; font-size:18px; color:#a0aec0; line-height:1;" title="关闭">×</span></div><div style="padding:12px 16px 4px; font-size:13px; color:#4a5568; line-height:1.7;">退出后<b>本机裁判码缓存将清除</b>，返回登录页（姓名预填、<b>裁判码需重输</b>）。</div><div style="padding:0 16px 12px; font-size:12px; color:#a0aec0; line-height:1.6;">未提交的打分草稿是设备本地暂存，退登不清、重登同一赛台仍在；已提交的成绩 / 申请单 / 裁定单不受影响。<b>重登须联网校验裁判码。</b></div><div style="height:1px; background:#edf2f7;"></div><div style="display:flex; gap:10px; padding:14px 16px; justify-content:flex-end;"><span class="btn-gray btn-sm" style="white-space:nowrap; flex:none;">取消</span><span class="btn-primary btn-sm" style="background:#e53e3e; white-space:nowrap; flex:none;">⏻ 确认退出</span></div><div style="padding:9px 16px; background:#f7fafc; border-top:1px solid #edf2f7; font-size:11px; color:#a0aec0; line-height:1.6;">点左上角「←」、右上角「×」或遮罩空白处返回比赛页，不打断当前执裁。</div></div>
       </div>
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>入口仅 P2</b>：只有 <b>P2 当前比赛页（执裁总览）</b>顶栏有「⚙ 设置」。<b>P2b–P2f / P2e / P2e2 属已进入打分的子流程页，不再放设置入口</b>（那类页面专注当前队伍 / 成绩单，退出登录是低频动作，不必每页都挂）。
-    <span class="num">2</span> <b>居中弹窗 + 左上角返回</b>：点「⚙ 设置」在页面<b>正中</b>弹出设置弹窗（遮罩 P2 底层），<b>左上角为「←」返回图标</b>——点它或点遮罩空白处即关闭回P2，不跳页、不打断执裁。弹窗底部有一行说明区承载"当前状态 + 提示"。<br>
-    <span class="num">3</span> <b>三个分区</b>：<b>显示</b>（显示字号 小/中/大，默认「中」）｜<b>操作与提醒</b>（提交前汇总确认 开/关，默认开）｜<b>账号</b>（裁判码凭据「已激活 · 本机缓存」只读状态 + 退出登录）。分区以细分隔线区分；凭据状态属只读展示、不可改。<br>
-    <span class="num">4</span> <b>字号语义升级为「随时可调」</b>：原定义为「进执裁前一次性设置」，改到设置弹窗后成为<b>执裁中随时可调</b>——这更贴合「设备级偏好」本质。字号改动<b>全册即时生效并持久化</b>（打分页 / 队列 / 裁定台均随此缩放），仅影响显示、不改任何成绩数据。<br>
-<span class="num">5</span> <b>提交前汇总确认（开关）</b>：行内提供<b>拨动开关</b>（开 = 蓝底圆点靠右 / 关 = 灰底圆点靠左），点击即切换、<b>即时生效并持久化</b>，无二次确认。默认「开」——提交是<b>不可撤销</b>的动作（C-6 已改「提交即锁」），多看一眼汇总能挡住绝大多数手滑。纯本机偏好，<b>不影响成绩与判分</b>。<br>
-    <span class="num">6</span> <b>凭据状态只读</b>：账号分区显示「裁判码凭据 · 已激活 · 本机缓存」，让断网时裁判能确认"本机仍可打分"；该行<b>不可点、不提供清除入口</b>——清凭据的唯一定位动作是「退出登录」，避免两条路径语义重叠。<br>
-    <span class="num">7</span> <b>二次确认防误触</b>：退出是清凭据强动作，必须弹确认（在设置弹窗之上再叠一层）；默认偏保守——「取消」为主按钮留在P2、「确认退出」红字在右侧；确认后清本机裁判码缓存、回 <b>P1 登录页</b>（姓名预填、裁判码清空，复用 P1 note 2 口径），重登须再次联网校验。<br>
-    <span class="num">8</span> <b>不拦未提交草稿</b>：退登≠放弃修改——未提交打分草稿是设备级本地暂存，退登不清、重登同赛台仍在；已提交的成绩 / 申请单 / 裁定单均已落本地与服务端，不受退登影响。弹窗文案已提示。<br>
-    <span class="num">9</span> <b>角色通用</b>：普通裁判与裁判长共用同一弹窗与退出流程，不区分角色；裁判长退登不影响「裁判长工作台」页签待办（待办在服务端，重登仍在）。<br>
-    <span class="num">10</span> <b>断网态</b>：断网 / 补传中 P2 顶栏入口仍可见可点（字号 / 震动 / 退出登录均不需联网；改字号与震动纯本地生效）；但退登后重登须联网校验裁判码，断网重登会失败——属预期，弹窗文案已提示。
+    <span class="num">1</span> <b>入口仅 P2</b>：只有 <b>P2 当前比赛页（执裁总览）</b>顶栏有「⏻ 退出」。<b>P2b–P2f / P2e / P2e2 属已进入打分的子流程页，不再放退出入口</b>（那类页面专注当前队伍 / 成绩单，退登是低频动作，不必每页都挂）。<br>
+    <span class="num">2</span> <b>一步直达确认，不再有设置层</b>：原「⚙ 设置」里是 显示字号 / 计时结束震动 / 裁判码凭据 / 退出登录 四块；现场排期紧、字号与震动无人调，<b>整个设置层去掉</b>，入口直接改成「⏻ 退出」，点开即确认。<b>弹窗样式不变</b>：340px 圆角卡片 + 左上「←」/右上「×」+ 底部说明条，与册内其它居中弹窗一致。<br>
+    <span class="num">3</span> <b>取消有三条路</b>：左上「←」、右上「×」、点遮罩空白处 —— 都回 P2，不跳页、不打断当前执裁；默认安全动作是「取消」（灰），红字「确认退出」在右。<br>
+    <span class="num">4</span> <b>确认 = 真退登</b>：清本机裁判码缓存 → 回 <b>P1 登录页</b>（姓名预填、裁判码清空，复用 P1 note 2 口径）；重登须再次<b>联网校验裁判码</b>，断网重登会失败。<br>
+    <span class="num">5</span> <b>不拦未提交草稿</b>：退登 ≠ 放弃修改 —— 未提交的打分草稿是设备级本地暂存，退登不清、重登同一赛台仍在；已提交的成绩 / 申请单 / 裁定单均已落本地与服务端，不受退登影响。弹窗文案已提示。<br>
+    <span class="num">6</span> <b>断网态</b>：退登本身是本地动作，<b>不需联网</b>，断网 / 补传中顶栏入口仍可见可点；但退登后重登须联网校验，断网重登会失败 —— 属预期。<br>
+    <span class="num">7</span> <b>角色通用</b>：普通裁判与裁判长共用同一弹窗与退出流程，不区分角色；裁判长退登不影响「裁判长工作台」页签待办（待办在服务端，重登仍在）。
   </div>
 </div>
 
@@ -876,7 +851,7 @@
   <div class="page-title">P2h · 开赛确认弹窗（P2 居中叠加态 · 点「开始记分」唤起 · <b>只读核对</b> · 不支持当场改）</div>
   <div class="page-desc">进入打分前的最后一道核对：弹窗只用<b>只读三行</b>让裁判确认「<b>赛台 / 队伍 / 轮次</b>」，<b>不提供任何可编辑控件</b>（没有下拉、没有行内改）。发现选错<b>只能退出重选</b>——选错说明是在队列里点错了行，正确修法是回去重选并看见正确那一行；若允许在弹窗里换队，背后的草稿 / 签名位 / 轮次仍绑在旧队伍上，必然错位。</div>
   <div class="tablet">
-    <div class="appbar"><span>⛓ 脑机星球 · A 赛台 · 小学组 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判：王建国</span></span><span style="cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; margin-left:8px;" title="设置 · 显示字号 / 退出登录">⚙ 设置</span></div>
+    <div class="appbar"><span>⛓ 脑机星球 · A 赛台 · 小学组 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判：王建国</span></span><span style="cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; margin-left:8px;" title="退出登录 · 清除本机裁判码缓存并返回登录页">⏻ 退出</span></div>
     <div class="screen" style="position:relative;">
       <div class="main" style="padding:0;">
 <div style="padding:14px;"><div style="display:flex; justify-content:space-between; align-items:center; background:#ebf4ff; border:1px solid #2b6cb0; border-radius:8px; padding:10px 12px; opacity:.35;"><div><div style="font-size:11px; color:#718096;">当前上场队伍<span style="background:#bee3f8; color:#2b6cb0; border-radius:4px; padding:1px 6px; margin-left:6px; font-size:10px;">第 7 顺位 / 共 24 队</span></div><div style="font-size:18px; font-weight:bold; margin-top:3px;">T-013<span style="font-size:14px; font-weight:normal;">火星探险小队</span></div><div style="font-size:11px; color:#718096; margin-top:2px;">A 赛台 ｜ 小学组 ｜ 选手：王小明 · 李华</div></div></div><div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-top:10px; opacity:.35;"><div style="font-size:12px; font-weight:bold; margin-bottom:6px;">赛台 A 队列</div><div style="font-size:11px; color:#718096; line-height:1.9;">已完成<b style="color:#38a169;">6</b> ｜ 候场 18 ｜ <b>当前第 7 位</b></div></div></div>
@@ -900,7 +875,7 @@
     </div>
   </div>
   <div class="tablet" style="margin-top:14px;">
-    <div class="appbar"><span>⛓ 脑机星球 · A 赛台 · 小学组 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判：王建国</span></span><span style="cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; margin-left:8px;" title="设置 · 显示字号 / 退出登录">⚙ 设置</span></div>
+    <div class="appbar"><span>⛓ 脑机星球 · A 赛台 · 小学组 · 第 1 轮</span><span style="display:inline-flex; align-items:center; gap:10px;"><span style="font-size:12px;">裁判：王建国</span></span><span style="cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; margin-left:8px;" title="退出登录 · 清除本机裁判码缓存并返回登录页">⏻ 退出</span></div>
     <div class="screen">
       <div class="main" style="padding:0;">
 <div style="padding:14px;">
@@ -2807,7 +2782,7 @@
   </div>
   <div class="note">
     <span class="num">1</span> <b>为什么必须有它</b>：册里 <b>8 处</b>承诺了“断网可用 / 自动补传”（P1 note 3 局域网优先；P2e 与 P8 note 6「断网也留存、联网自动补传」；P2c / P8d / P9b「断网不丢单 / 不失效」），但此前<b>零界面</b>；断网这件事在执裁页<b>没有任何可见提示</b>——现在徽标也一并删了，横幅就是唯一的告知路径。<br>
-    <span class="num">2</span> <b>顶栏不放连接徽标（10/26 定 · C-1）</b>：全册顶栏原有 46 处「● 已连接」<b>已全部删除</b>——永远亮着的绿点没有信息量，还长期挤占顶栏右侧（那里要留给「裁判姓名 / ⚙ 设置」）。口径改为<b>「只在出问题时才说」</b>：正常态顶栏<b>什么都不显示</b>；断网由本页黄条横幅告知；补传中横幅蓝底；全部补传完 2 秒横幅消失、顶栏回到干净状态（见 <b>P12c</b>）。登录页（P1 家族）同样不再放连接徽标。<br>
+    <span class="num">2</span> <b>顶栏不放连接徽标（10/26 定 · C-1）</b>：全册顶栏原有 46 处「● 已连接」<b>已全部删除</b>——永远亮着的绿点没有信息量，还长期挤占顶栏右侧（那里要留给「裁判姓名 / ⏻ 退出」）。口径改为<b>「只在出问题时才说」</b>：正常态顶栏<b>什么都不显示</b>；断网由本页黄条横幅告知；补传中横幅蓝底；全部补传完 2 秒横幅消失、顶栏回到干净状态（见 <b>P12c</b>）。登录页（P1 家族）同样不再放连接徽标。<br>
     <span class="num">3</span> <b>断网时允许什么（关键取舍）</b>：<b>允许</b>——打分录入、题卡操作、暂存、留底三件套、上报争议、提交成绩（全部本地暂存、服务端为准）；<b>禁用</b>——「移交发布」（P11）等需服务端权威的动作，按钮置灰并提示“离线中，恢复联网后可用”。理由：<b>比赛不能停摆，但发布不能基于本机数据</b>。<br>
     <span class="num">4</span> <b>待补传条数从哪来</b>：本机暂存队列按条计数（成绩 / 三件套留底 / 改分与争议申请单），补传成功逐条递减；本页示例＝ <b>3 条</b>。<br>
     <span class="num">5</span> <b>横幅是非阻断的</b>：挂在顶部、不遮罩、不影响操作（与 <b>P8d</b> 提交成功条同款非阻断口径，区别是本横幅<b>常驻到恢复</b>）；「重试连接」在等不到自动重连时手动触发。<br>
@@ -3002,7 +2977,7 @@
   </div>
 </div>
 
-<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.7.8 · 共 47 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b 裁定两态（详情）· P8x 取消资格（独立动议）· P8g / P8h 裁定原因填写前 / 后· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P8f 提交裁定确认弹窗（通用叠加态）/ P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / P5.7b 黄牌记满自动升级提示（叠加态）/ P5.8c 记红牌弹窗（红牌）/ P5.10 争议上报 / P5.10b 无照片通道 / P2h 开赛确认 / P3g · P3h 签名与提交弹层（未齐 / 签齐）/ P5.6g 整场签名与提交弹层 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11 / P13 确认状态回流看板）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-10-28（V0.7.8 口径同步：公示表确认 → 成绩确认）</div>
+<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.7.9 · 共 47 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b 裁定两态（详情）· P8x 取消资格（独立动议）· P8g / P8h 裁定原因填写前 / 后· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P8f 提交裁定确认弹窗（通用叠加态）/ P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / P5.7b 黄牌记满自动升级提示（叠加态）/ P5.8c 记红牌弹窗（红牌）/ P5.10 争议上报 / P5.10b 无照片通道 / P2h 开赛确认 / P3g · P3h 签名与提交弹层（未齐 / 签齐）/ P5.6g 整场签名与提交弹层 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11 / P13 确认状态回流看板）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-10-28（V0.7.8 口径同步：公示表确认 → 成绩确认）· 2026-11-01（V0.7.9：P2g「⚙ 设置」→「⏻ 退出」，弹窗改为退出确认）</div>
 
 </body>
 </html>
