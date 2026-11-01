@@ -794,7 +794,7 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>入口仅 P2</b>：只有 <b>P2 当前比赛页（执裁总览）</b>顶栏有「⏻ 退出」。<b>P2b–P2f / P2e / P2e2 属已进入打分的子流程页，不再放退出入口</b>（那类页面专注当前队伍 / 成绩单，退登是低频动作，不必每页都挂）。<br>
+    <span class="num">1</span> <b>入口仅 P2</b>：只有 <b>P2 当前比赛页（执裁总览）</b>顶栏有「⏻ 退出」（裁判长端对应 <b>P7 / P7b / P7c</b>）。<b>P2b–P2f / P2e / P2e2 属已进入打分的子流程页，不再放退出入口</b>（那类页面专注当前队伍 / 成绩单，退登是低频动作，不必每页都挂）。<br>
     <span class="num">2</span> <b>一步直达确认，不再有设置层</b>：原「⚙ 设置」里是 显示字号 / 计时结束震动 / 裁判码凭据 / 退出登录 四块；现场排期紧、字号与震动无人调，<b>整个设置层去掉</b>，入口直接改成「⏻ 退出」，点开即确认。<b>弹窗样式不变</b>：340px 圆角卡片 + 左上「←」/右上「×」+ 底部说明条，与册内其它居中弹窗一致。<br>
     <span class="num">3</span> <b>取消有三条路</b>：左上「←」、右上「×」、点遮罩空白处 —— 都回 P2，不跳页、不打断当前执裁；默认安全动作是「取消」（灰），红字「确认退出」在右。<br>
     <span class="num">4</span> <b>确认 = 真退登</b>：清本机裁判码缓存 → 回 <b>P1 登录页</b>（姓名预填、裁判码清空，复用 P1 note 2 口径）；重登须再次<b>联网校验裁判码</b>，断网重登会失败。<br>
@@ -1137,10 +1137,10 @@
   <div class="page-title">P5 · 打分表页（未来之城 V7.3 · <b>自动阶段态</b> · 单队）</div>
   <div class="page-desc">V7.3 双阶段赛制（自动阶段 ⏱02:00 / 手动阶段 ⏱01:45）· 任务分按阶段归集，按 tab 分步录入；本页为未来之城<b>单队</b>标准打分表（演练 / 排位用）</div>
   <div class="tablet">
-    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · T-041 火种先锋队 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span><span class="score-big" style="justify-self:end;">820 分</span></div>
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮 · 场次 C-3</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（秒）</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:76px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">178</span><span style="font-size:12px; color:#718096;"> / 上限 225</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T-041</b> <span style="font-size:13px; color:#4a5568;">火种先锋队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">本队总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">820</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（秒）</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:76px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">178</span><span style="font-size:12px; color:#718096;"> / 上限 225</span></span></div>
                 <div class="card">
           <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>手动阶段</span></div>
           <div style="border:1px solid #bee3f8; border-radius:8px; padding:8px; margin-bottom:8px; background:#f7fbff;">
@@ -1198,10 +1198,10 @@
   <div class="page-title">P5.5 · 打分表页（未来之城 V7.3 · <b>手动阶段态</b> · 单队）</div>
   <div class="page-desc">与 P5 是<b>同一页面的另一个 tab 状态</b>：分段控件切至「手动阶段」后展示该阶段任务集，阶段小计变为手动小计，底部按钮由「保存并继续 →」变为「提交成绩 →」；本页为单队演练 / 排位用（对抗场次见 P5.7）</div>
   <div class="tablet">
-    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · T-041 火种先锋队 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span><span class="score-big" style="justify-self:end;">2570 分</span></div>
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮 · 场次 C-3</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（秒）</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:76px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">178</span><span style="font-size:12px; color:#718096;"> / 上限 225</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T-041</b> <span style="font-size:13px; color:#4a5568;">火种先锋队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">本队总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">2570</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（秒）</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:76px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">178</span><span style="font-size:12px; color:#718096;"> / 上限 225</span></span></div>
                 <div class="card">
           <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">手动阶段</span></div>
           <div style="border:1px solid #bee3f8; border-radius:8px; padding:8px; margin-bottom:8px; background:#f7fbff;">
