@@ -877,7 +877,7 @@
 <!-- ============ P2h 开赛确认弹窗（P2 居中叠加态 · 只读核对） ============ -->
 <div class="page">
   <div class="page-title">P2h · 开赛确认弹窗（P2 居中叠加态 · 点「开始记分」唤起 · <b>只读核对</b> · 不支持当场改）</div>
-  <div class="page-desc">进入打分前的最后一道核对：弹窗只用<b>只读三行</b>让裁判确认「<b>赛台 / 队伍 / 轮次</b>」，<b>不提供任何可编辑控件</b>（没有下拉、没有行内改）。发现选错<b>只能退出重选</b>——选错说明是在队列里点错了行，正确修法是回去重选并看见正确那一行；若允许在弹窗里换队，背后的草稿 / 签名位 / 轮次仍绑在旧队伍上，必然错位。</div>
+  <div class="page-desc">进入打分前的最后一道核对：弹窗只用<b>只读四行</b>让裁判确认「<b>赛台 / 队伍 / 轮次 / 组别</b>」，<b>不提供任何可编辑控件</b>（没有下拉、没有行内改）。发现选错<b>只能退出重选</b>——选错说明是在队列里点错了行，正确修法是回去重选并看见正确那一行；若允许在弹窗里换队，背后的草稿 / 签名位 / 轮次仍绑在旧队伍上，必然错位。</div>
   <div class="tablet">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 脑机星球 · 赛台 A · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span><span style="justify-self:end;cursor:pointer; font-size:13px; color:#718096; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px;" title="退出登录 · 清除本机裁判码缓存并返回登录页">⏻ 退出</span></div>
     <div class="screen" style="position:relative;">
@@ -960,7 +960,8 @@
   <div style="padding:12px 16px 4px;">
     <div class="qrow"><span style="color:#718096;">赛台</span><span style="font-weight:bold;">赛台 A</span></div>
     <div class="qrow"><span style="color:#718096;">队伍</span><span style="font-weight:bold;">T013 火星探险小队</span></div>
-    <div class="qrow" style="border-bottom:none;"><span style="color:#718096;">轮次</span><span style="font-weight:bold;">第 1 轮 · 小学组</span></div>
+    <div class="qrow"><span style="color:#718096;">轮次</span><span style="font-weight:bold;">第 1 轮</span></div>
+    <div class="qrow" style="border-bottom:none;"><span style="color:#718096;">组别</span><span style="font-weight:bold;">小学组</span></div>
   </div>
   <div style="margin:8px 16px 0; padding:8px 10px; background:#fffaf0; border:1px solid #f6ad55; border-radius:6px; font-size:12px; color:#7b341e;">本队有一份未提交的草稿，确认后会载入。</div>
   
@@ -991,7 +992,7 @@
   </div>
   <div class="note">
     <span class="num">1</span> <b>入口（只有一个）</b>：<b>P2 队列行右侧「开始」</b>与<b>当前上场卡的「开始记分」</b>都先唤起本弹窗，不直接进打分页。裁判长端（P7）同一套弹窗，只是顶栏身份不同。<br>
-    <span class="num">2</span> <b>弹窗内零可编辑控件（10/26 定 · C-2）</b>：三行全是<b>只读文本</b>——不做下拉换队、不做行内改赛台、不做轮次选择。<b>为什么不给改</b>：选错说明<b>在队列里点错了行</b>，正确修法是回去重选、并看见正确那一行；允许弹窗内换队的话，背后的<b>草稿 / 签名位 / 轮次绑定</b>仍指向旧队伍，一定会错位（这是最容易产生"查不出原因"脏数据的地方）。<br>
+    <span class="num">2</span> <b>弹窗内零可编辑控件（10/26 定 · C-2）</b>：四行全是<b>只读文本</b>——不做下拉换队、不做行内改赛台、不做轮次与组别选择。<b>为什么不给改</b>：选错说明<b>在队列里点错了行</b>，正确修法是回去重选、并看见正确那一行；允许弹窗内换队的话，背后的<b>草稿 / 签名位 / 轮次绑定</b>仍指向旧队伍，一定会错位（这是最容易产生"查不出原因"脏数据的地方）。<br>
     <span class="num">3</span> <b>退出后必须高亮刚才那一行（第二张图）</b>：点「← 返回」→ 回 P2 队列，<b>刚才点的那一行高亮并带「刚才点的是这一行」小标</b>，让裁判一眼看出"是我点错了行，还是这行本来就派错了队伍"。不做这一步，他会再点错一次。<br>
     <span class="num">4</span> <b>确认后动作＝「开始记分」，不是「开始计时」</b>：系统内已不计时（<b>C-6</b>：裁判手掐实体秒表、用时手输），所以确认后只是载入该队打分页并标记本场开始，<b>没有计时器启动</b>。<br>
     <span class="num">5</span> <b>有草稿时提示（第一张图黄条）</b>：该队存在未提交草稿时，弹窗多一行「本队有一份未提交的草稿，确认后会载入」——避免裁判以为进的是空白表、重复录一遍。无草稿时不显示这行。<br>
