@@ -963,7 +963,6 @@
     <div class="qrow"><span style="color:#718096;">轮次</span><span style="font-weight:bold;">第 1 轮</span></div>
     <div class="qrow" style="border-bottom:none;"><span style="color:#718096;">组别</span><span style="font-weight:bold;">小学组</span></div>
   </div>
-  <div style="margin:8px 16px 0; padding:8px 10px; background:#fffaf0; border:1px solid #f6ad55; border-radius:6px; font-size:12px; color:#7b341e;">本队有一份未提交的草稿，确认后会载入。</div>
   
   <div style="display:flex; gap:10px; padding:14px 16px; justify-content:flex-end;">
     <span class="btn-gray btn-sm" style="white-space:nowrap; flex:none;">← 返回</span>
@@ -995,7 +994,7 @@
     <span class="num">2</span> <b>弹窗内零可编辑控件（10/26 定 · C-2）</b>：四行全是<b>只读文本</b>——不做下拉换队、不做行内改赛台、不做轮次与组别选择。<b>为什么不给改</b>：选错说明<b>在队列里点错了行</b>，正确修法是回去重选、并看见正确那一行；允许弹窗内换队的话，背后的<b>草稿 / 签名位 / 轮次绑定</b>仍指向旧队伍，一定会错位（这是最容易产生"查不出原因"脏数据的地方）。<br>
     <span class="num">3</span> <b>退出后必须高亮刚才那一行（第二张图）</b>：点「← 返回」→ 回 P2 队列，<b>刚才点的那一行高亮并带「刚才点的是这一行」小标</b>，让裁判一眼看出"是我点错了行，还是这行本来就派错了队伍"。不做这一步，他会再点错一次。<br>
     <span class="num">4</span> <b>确认后动作＝「开始记分」，不是「开始计时」</b>：系统内已不计时（<b>C-6</b>：裁判手掐实体秒表、用时手输），所以确认后只是载入该队打分页并标记本场开始，<b>没有计时器启动</b>。<br>
-    <span class="num">5</span> <b>有草稿时提示（第一张图黄条）</b>：该队存在未提交草稿时，弹窗多一行「本队有一份未提交的草稿，确认后会载入」——避免裁判以为进的是空白表、重复录一遍。无草稿时不显示这行。<br>
+    <span class="num">5</span> <b>不提示草稿（2026/11/02 定）</b>：本弹窗只回答「这一场是谁」，草稿是否存在属于下一屏的事——原来那行「本队有一份未提交的草稿」黄条已删除，有草稿就直接载入，不在核对弹窗里多做一次说明。<br>
     <span class="num">6</span> <b>身份字段到此为止</b>：<b>赛台 / 队伍 / 组别 / 轮次</b>是"这一场是谁"的身份，本弹窗不给改、进打分页后也<b>不可改</b>（见 <b>C-3</b>：编辑层只放分数 / 用时 / 黄红牌）。要换只能回本弹窗退出重选。<br>
     <span class="num">7</span> <b>与 C-2 决策一致</b>：选项 ① 只能退出重选 —— 即本页。<b>被否掉的 ②「弹窗内可直接改」不做</b>，理由见 note 2。
   </div>
