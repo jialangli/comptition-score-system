@@ -813,7 +813,7 @@
     <span class="num">5</span> <b>放弃不写留痕</b>：丢的是<b>尚未提交的草稿</b>，没有任何东西生效、没有申请单产生，因此不留痕（与「撤回已提交申请」不同——那是有单可撤、必须留痕，见 P2b note 10）。<br>
     <span class="num">6</span> <b>不提供「暂存草稿」</b>：改分与打分都是<b>单次完成</b>的动作，草稿会与「已生效成绩」并存、造成“到底哪个算数”的歧义；要改就一次改完提交，不提交就当作没改。<br>
     <span class="num">7</span> <b>适用页面（同口径）</b>：<b>P2b</b> 与全部打分页 <b>P3 / P4 / P5 / P5.5 / P5.6 / P5.7</b>，这些页面都会“改了不提交”，返回时一律先拦一下，横幅按钮位也统一标了「· 有未保存改动会先确认」。<b>不适用</b>：<b>P2c 已提交态</b>（已经提交、无可丢）、<b>P2d 拦截态</b>（不允许修改）、<b>P2e 只读成绩单</b>、<b>P2e2 已作废成绩单</b>（后两页本就没有可编辑控件）——这几页点返回<b>直接走</b>，不弹窗。<br>
-    <span class="num">8</span> <b>与提交互不干扰</b>：点「提交改分申请 →」（打分页为「提交成绩 →」/「保存并继续 →」）走的是另一条路，<b>不经过本弹窗</b>——本弹窗只拦「离开且不提交」这一种情况。
+    <span class="num">8</span> <b>与提交互不干扰</b>：点「提交改分申请 →」（打分页为「提交成绩 →」）走的是另一条路，<b>不经过本弹窗</b>——本弹窗只拦「离开且不提交」这一种情况。
   </div>
 </div>
 
@@ -1730,7 +1730,7 @@
             <span class="btn-gray">🚩 记红牌</span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
-          <span class="btn-primary">保存并继续 →</span>
+          <span class="btn-primary">提交成绩 →</span>
         </div>
       </div>
     </div>
@@ -1741,14 +1741,14 @@
     <span class="num">3</span> <b>判罚不计分</b>：底部“🚩 记红牌”<b>浮出记红牌弹窗（P5.8c）</b>，黄牌 / 红牌只作记录与留痕、<b>不扣分</b>；<b>红牌 = 该队本场被罚下</b>（得分照算、成绩保留、<b>照常参与排名与评奖</b>，<b>仅不计时间奖励</b>）。黄牌计数器可在后台整体关闭（关闭后不显示、不累计、也不折算红牌）；<b>黄牌只累计，满 N 张在提交成绩时折算 1 张红牌，不即时变红牌</b>；事由清单由工作人员后台按赛项配置（未来之城的可判罚行为与其余赛项不同）。<br>
     <span class="num">4</span> <b>单队同样走双阶段</b>：本页与 P5.6 对抗板<b>共用同一套阶段任务与后台配置</b>（自动阶段刷色卡 / 手动阶段手柄），仅少了“双队并排 + A、B <b>各自独立填写用时</b>（各填各的）”；阶段切换、阶段小计逻辑完全一致，便于裁判在演练 / 排位与正式对抗间无缝切换。<br>
     <span class="num">5</span> <b>时间奖励按赛项配置</b>：启用的赛项里整场用时按后台下发的「每 1 秒折算几分 + 封顶」计入总分，未启用时只作<b>排名维度</b>——排名规则（全赛项通用）：<b>两轮制先取优</b>（同一队两轮里取更好的一轮：先比总分高者，同分比该轮用时少者，再同比<b>轮次小者</b>），<b>取优轮</b>成绩参与排名；取优后<b>按总分降序</b>；<b>总分相同</b>再比整场用时升序（用时少者靠前），再用时相同比<b>黄牌数少者靠前</b>，仍相同则<b>并列</b>（完整规则见 P11 成绩确认页）。<br>
-    <span class="num">6</span> <b>任务区占满剩余空间 + 内部滚动，底部操作栏固定</b>：内容区（任务卡）自动占满 appbar 与底部操作栏之间的全部剩余高度，任务超出即在<b>内容区内滚动</b>；「← 返回队列 / 🚩 记红牌 / 保存并继续」三个按钮<b>固定在底部操作栏</b>，不随任务多少上下浮动——任务再多也不需要滑到底找提交入口（P3 / P4 / P5.5–P5.7 同一范式）。
+    <span class="num">6</span> <b>任务区占满剩余空间 + 内部滚动，底部操作栏固定</b>：内容区（任务卡）自动占满 appbar 与底部操作栏之间的全部剩余高度，任务超出即在<b>内容区内滚动</b>；「← 返回队列 / 🚩 记红牌 / 提交成绩」三个按钮<b>固定在底部操作栏</b>，不随任务多少上下浮动——任务再多也不需要滑到底找提交入口（P3 / P4 / P5.5–P5.7 同一范式）。
   </div>
 </div>
 
 <!-- ============ P5.5 未来之城手动阶段（单队） ============ -->
 <div class="page">
   <div class="page-title">P5.5 · 打分表页（未来之城 V7.3 · <b>手动阶段态</b> · 单队）</div>
-  <div class="page-desc">与 P5 是<b>同一页面的另一个 tab 状态</b>：分段控件切至「手动阶段」后展示该阶段任务集，阶段小计变为手动小计，底部按钮由「保存并继续 →」变为「提交成绩 →」；本页为单队演练 / 排位用（对抗场次见 P5.7）</div>
+  <div class="page-desc">与 P5 是<b>同一页面的另一个 tab 状态</b>：分段控件切至「手动阶段」后展示该阶段任务集，阶段小计变为手动小计；底部按钮与 P5 一致，都是「提交成绩 →」（不再分「保存并继续 / 提交」两种文案）；本页为单队演练 / 排位用（对抗场次见 P5.7）</div>
   <div class="tablet">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen">
@@ -1810,7 +1810,7 @@
     <span class="num">1</span> <b>这是 P5 的第二个 tab 状态，不是新页面</b>：P5 / P5.5 共用同一份页面组件与同一套后台配置，唯一差异是当前选中的阶段。<b>页面绑定「视图」（单队 / 双队），tab 绑定「阶段」（自动 / 手动）</b>——所以不把阶段写死到页面上，阶段顺序始终由工作人员后台可配置。<br>
     <span class="num">2</span> <b>appbar 分数随阶段累计</b>：自动阶段态（P5）仅完成自动阶段，appbar 显示当前累计 <b>820</b>（= 自动小计）；切到手动阶段态（P5.5）后累计为 <b>2570</b>（= 820 ＋ 1750）。分数随阶段完成而累加，两个 tab 看到的是进度不同的累计值、并非同一数字——避免裁判在自动阶段误以为手动分已计入。<br>
 <span class="num">3</span> <b>用时口径（C-6）</b>：顶栏<b>不再显示倒计时</b>——系统内不计时。用时由裁判用<b>实体秒表</b>读数后手输用时，<b>提交前必填</b>；阶段时长（自动 02:00 / 手动 01:45）仍由后台按赛项配置，只作为<b>用时上限</b>的校验依据，不驱动任何界面计时。<br>
-    <span class="num">4</span> <b>底部按钮随阶段变</b>：非最后阶段显示「保存并继续 →」，<b>最后阶段显示「提交成绩 →」</b>。按钮文案刻意不写阶段名，以适配“阶段顺序可配置”——若日后手动阶段排在前面，文案依旧成立。<br>
+    <span class="num">4</span> <b>底部按钮不随阶段变</b>：任何阶段都显示<b>「提交成绩 →」</b>。若还有阶段<b>一项都没打</b>就点了提交，会先弹一次确认（见 <b>P5.6h</b>）；按钮文案刻意不写阶段名，以适配“阶段顺序可配置”──若日后手动阶段排在前面，文案依旧成立。<br>
     <span class="num">5</span> <b>手动阶段任务与分值已按官方规则回填</b>：投射火种入对方灯塔 +200/颗、投射火种入对方垂直投影 +50/颗、投射能源球入对方能源塔 +200/颗、投射能源球入对方垂直投影 +50/颗、原石仓垂直堆叠 +150/堆、累计4颗火种入灯塔加成 +500；单队演练/排位时投射类任务打训练靶，正式对抗打对方场地（见 P5.6 / P5.7）。四态共用同一套后台配置，分数随阶段累计：P5 ＝ 820（自动）/ P5.5 ＝ 2570（自动＋手动）。
   </div>
 </div>
@@ -1921,7 +1921,7 @@
             <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
             <span class="btn-gray">⚠ 上报争议</span>
           </div>
-          <span class="btn-primary">保存并继续 →</span>
+          <span class="btn-primary">提交成绩 →</span>
         </div>
       </div>
     </div>
@@ -1936,6 +1936,147 @@
     <span class="num">4</span> <b>整场提交闭环</b>：A / B 双方均完成打分后方可“提交成绩”，任一侧未完成时按钮置灰并提示“请先完成 B 队打分”；提交后即归档并切下一场（P2 队列指针 +1）。<br>
     <span class="num">6</span> <b>判罚双侧独立且不计分</b>：每队“🚩 记红牌”各自<b>浮出记红牌弹窗（P5.8c）</b>，牌面（黄 / 红）显示在各自卡内的<b>黄牌计数器</b>上（<b>后台可整体关闭</b>：关闭后不显示计数器、黄牌不累计），「🚩 记红牌」按钮只作入口、<b>不再重复挂牌数</b>；<b>卡头仅保留总分</b>、不重复展示牌面；黄牌 / 红牌<b>不扣分</b>，两队牌面互不影响比分，也不进小计。<br>
     <span class="num">7</span> <b>本页是「自动阶段态」，手动阶段态见 <b>P5.7</b></b>：页面绑定<b>视图</b>（单队 / 双队），tab 绑定<b>阶段</b>（自动 / 手动）——因此 P5.6 与 P5.7 共用同一页面组件与同一套后台配置，仅当前选中阶段不同；<b>阶段不写死到页面上</b>，顺序始终由工作人员后台可配置（见后台「阶段配置」）。
+  </div>
+</div>
+
+<!-- ============ P5.6h 提交成绩前置检查（有阶段 0 项时） ============ -->
+<div class="page">
+  <div class="page-title">P5.6h · <b>提交成绩前置检查</b>（自动阶段还没打分就点「提交成绩」· 单队 / 双队共用）</div>
+  <div class="page-desc">点「提交成绩 →」时先看<b>每个阶段有没有得分</b>：只要有一个阶段<b>一项都没打</b>，就弹本层拦一下——否则那个阶段会<b>静默按 0 分</b>计入正式成绩，而提交<b>不可撤销</b>。确认后才进 <b>P5.6g 签名弹层</b>；<b>各阶段都有分时直接进签名弹层，不打扰</b>。单队（P5 / P5.5）与双队（P5.6 / P5.7）<b>共用本页</b>。</div>
+  <div class="tablet">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen" style="position:relative; overflow:hidden;">
+      <div class="main sheet" style="opacity:.5;">
+        <div class="scroll-area">
+        <div class="two-col">
+          <div class="card" style="border-color:#2b6cb0; border-width:2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <div><b style="font-size:15px; color:#2b6cb0;">A 队 · T042</b> <span style="font-size:12px; color:#718096;">星火先锋队</span></div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:11px; color:#718096;">A 队总分</span>
+                <span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">820</span>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
+              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
+              <span style="display:inline-flex; align-items:center; gap:8px;">
+                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
+                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
+              </span>
+            </div>
+          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>手动阶段</span></div>
+          <div style="border:1px solid #bee3f8; border-radius:8px; padding:8px; margin-bottom:8px; background:#f7fbff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">自动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">820</b></span></div>
+              <div class="card" style="margin-bottom:8px;">
+                <div class="t-name">① 原石搬运·完全进入 <span class="pts">每颗 +200</span></div>
+<div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div>
+</div>
+              </div>
+              <div class="card" style="margin-bottom:8px;">
+                <div class="t-name">② 原石搬运·部分进入 <span class="pts">每颗 +100</span></div>
+<div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">1</span><b>＋</b></span></div>
+</div>
+              </div>
+              <div class="card" style="margin-bottom:8px;">
+                <div class="t-name">③ 自动阶段·火种运送入能源仓 <span class="pts">每颗 +100</span></div>
+<div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">3</span><b>＋</b></span></div>
+</div>
+              </div>
+              <div class="card" style="margin-bottom:8px;">
+                <div class="t-name">④ 检录 <span class="pts">+20</span></div>
+<div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
+</div>
+              </div>
+              <div class="card" style="margin-bottom:8px; border-left:3px solid #d69e2e;">
+                <div class="t-name" style="display:flex; justify-content:space-between; align-items:center;"><span>黄牌计数</span><span style="display:inline-flex; align-items:center; gap:6px;"><span class="stepper" style="margin-left:2px;"><b>－</b><span class="n">1</span><b>＋</b></span></span></div>
+              </div>
+            </div>
+            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记红牌</span></div>
+          </div>
+          <div class="card" style="border-color:#805ad5; border-width:2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <div><b style="font-size:15px; color:#805ad5;">B 队 · T043</b> <span style="font-size:12px; color:#718096;">小小发明家</span></div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:11px; color:#718096;">B 队总分</span>
+                <span style="font-size:26px; font-weight:bold; color:#805ad5; line-height:1;">620</span>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
+              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
+              <span style="display:inline-flex; align-items:center; gap:8px;">
+                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
+                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
+              </span>
+            </div>
+          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>手动阶段</span></div>
+          <div style="border:1px solid #e9d8fd; border-radius:8px; padding:8px; margin-bottom:8px; background:#faf5ff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#805ad5;">自动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#805ad5;">620</b></span></div>
+              <div class="card" style="margin-bottom:8px;">
+                <div class="t-name">① 原石搬运·完全进入 <span class="pts" style="color:#805ad5">每颗 +200</span></div>
+<div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">1</span><b>＋</b></span></div>
+</div>
+              </div>
+              <div class="card" style="margin-bottom:8px;">
+                <div class="t-name">② 原石搬运·部分进入 <span class="pts" style="color:#805ad5">每颗 +100</span></div>
+<div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div>
+</div>
+              </div>
+              <div class="card" style="margin-bottom:8px;">
+                <div class="t-name">③ 自动阶段·火种运送入能源仓 <span class="pts" style="color:#805ad5">每颗 +100</span></div>
+<div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div>
+</div>
+              </div>
+              <div class="card" style="margin-bottom:8px;">
+                <div class="t-name">④ 检录 <span class="pts" style="color:#805ad5">+20</span></div>
+<div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
+</div>
+              </div>
+              <div class="card" style="margin-bottom:8px; border-left:3px solid #d69e2e;">
+                <div class="t-name" style="display:flex; justify-content:space-between; align-items:center;"><span>黄牌计数</span><span style="display:inline-flex; align-items:center; gap:6px;"><span class="stepper" style="margin-left:2px;"><b>－</b><span class="n">1</span><b>＋</b></span></span></div>
+              </div>
+            </div>
+            <div style="margin-top:4px;"><span class="btn-gray btn-sm">🚩 记红牌</span></div>
+          </div>
+        </div>
+        
+        </div>
+        <div class="action-bar">
+          <div style="display:flex; gap:8px;">
+            <span class="btn-gray">← 返回队列<span style="font-size:11px; color:#a0aec0; margin-left:4px;">· 有未保存改动会先确认</span></span>
+            <span class="btn-gray">⚠ 上报争议</span>
+          </div>
+          <span class="btn-primary">提交成绩 →</span>
+        </div>
+      </div>
+      <div style="position:absolute; inset:0; background:rgba(26,32,44,.55); display:flex; align-items:center; justify-content:center; padding:16px;">
+        <div style="width:100%; max-width:460px; background:#fff; border-radius:10px; box-shadow:0 16px 48px rgba(0,0,0,.4); overflow:hidden;">
+          <div style="background:#c05621; color:#fff; padding:10px 16px; font-size:14px; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
+            <span>⚠ 还有阶段没打分</span>
+            <span style="cursor:pointer; font-size:16px; line-height:1;" title="关闭 · 回计分板">×</span>
+          </div>
+          <div style="padding:12px 16px 6px;">
+            <div style="font-size:12.5px; color:#2d3748; line-height:1.7;">下面这些阶段<b>一项都没打</b>，现在提交会按 <b>0 分</b> 计入正式成绩：</div>
+            <div style="border:1px solid #e2e8f0; border-radius:8px; background:#f7fafc; padding:2px 12px; margin:8px 0 4px;">
+              <div class="qrow" style="border-bottom:1px dashed #e2e8f0; padding:6px 0; font-size:12px;"><span>自动阶段</span><span style="color:#38a169; font-weight:bold;">✓ 已打 · A 4/4 · B 4/4</span></div>
+              <div class="qrow" style="border-bottom:none; padding:6px 0; font-size:12px;"><span>手动阶段</span><span style="color:#c05621; font-weight:bold;">⚠ 未打 · A 0/4 · B 0/4</span></div>
+            </div>
+            <div style="font-size:11.5px; color:#a0aec0; margin-top:6px;">↑ 自动阶段 820 / 620 分已录入，手动阶段还是空的；<b>提交后不可撤销</b>（要改只能走改分申请 → 裁判长审批）。</div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:10px; padding:12px 16px;">
+            <span class="btn-gray btn-sm" style="white-space:nowrap; flex:none;">返回继续打分</span>
+            <span class="btn-primary btn-sm" style="white-space:nowrap; flex:none; background:#c05621;">确认提交</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>触发条件只有一条</b>：点「提交成绩 →」时，<b>任一阶段的任务数为 0</b>。全部阶段都有分 → 直接进 <b>P5.6g</b> 签名弹层，<b>不弹本层</b>——不为"已经打完了"的人增加一次点击。<br>
+    <span class="num">2</span> <b>为什么必须拦</b>：漏打一个阶段不会报错、不会留空，而是<b>安静地按 0 分入账</b>；提交又<b>不可撤销</b>（更正只能走改分申请 → 裁判长审批）。一个学生跑完手动阶段却拿 0 分，现场很难解释——所以宁可在提交前多问一句。<br>
+    <span class="num">3</span> <b>按钮文案刻意中性</b>：「返回继续打分」与<b>不阻断</b>的「确认提交」并列，<b>不把"继续打分"设成红色警示</b>——多数情况是裁判真漏了，回去补是正常操作，不是犯错。「确认提交」用橙色（警示而非危险红），只有确实要带 0 分提交时才点。<br>
+    <span class="num">4</span> <b>确认后的路径</b>：确认提交 → 进 <b>P5.6g</b> 三方签名 → 签齐才真正写入。本层<b>不写任何成绩</b>，只是把"要带 0 分提交"这件事说清楚。<br>
+    <span class="num">5</span> <b>单队 / 双队共用</b>：P5 / P5.5（单队）与 P5.6 / P5.7（双队）同一套判断；双队时<b>逐队看</b>——A 队手动阶段 0 项也会触发，即使 B 队打满了。<br>
+    <span class="num">6</span> <b>阶段顺序可配置</b>：列表按后台配置的阶段顺序渲染，本页示例是"自动在前、手动在后"；换了顺序，文案与列表自动跟着变，<b>不写死阶段名</b>。
   </div>
 </div>
 
@@ -2257,7 +2398,7 @@
   <div class="note">
     <span class="num">1</span> <b>这是 P5.6 的第二个 tab 状态</b>：A / B 两队的分段控件各自独立切换，本页展示两队<b>同时停在手动阶段</b>的形态；页面组件与后台配置均与 P5.6 相同。<br>
     <span class="num">2</span> <b>手动小计计入卡头总分</b>：A 队 自动 820 ＋ 手动 1100 ＝ <b>1920</b>；B 队 自动 620 ＋ 手动 350 ＝ <b>970</b>，均直接体现在卡头「总分」上（已省略底部构成行，避免与卡头重复）；两个 tab 看到的总分一致，只是拆解方式不同。<br>
-    <span class="num">3</span> <b>底部按钮变为末段语义</b>：手动阶段是末段，故按钮由 P5.6 的「保存并继续 →」变为 <b>「提交成绩 →」</b>——单队 / 双队<b>共用同一套按钮文案</b>，不因队伍数量增删按钮状态；两侧均完成打分后方可提交（任一侧未完成时置灰），提交后即归档并切下一场。<br>
+    <span class="num">3</span> <b>底部按钮变为末段语义</b>：按钮与 P5.6 一致，都是 <b>「提交成绩 →」</b>——单队 / 双队<b>共用同一套按钮文案</b>，不因队伍数量增删按钮状态；两侧均完成打分后方可提交（任一侧未完成时置灰），提交后即归档并切下一场。<br>
     <span class="num">4</span> <b>⚠ B 队能源球入塔 / 堆叠为 0</b>：属正常的“该项目未完成”状态（0 分照常计入阶段小计）——示例值，用于说明阶段小计可被单独项目拉低，并不代表数据缺失。
   </div>
 </div>
@@ -3577,7 +3718,7 @@
   </div>
 </div>
 
-<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.7.50 · 共 49 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b 裁定两态（详情）· P8x 取消资格（独立动议）· P8g / P8h 裁定原因填写前 / 后· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P8f 提交裁定确认弹窗（通用叠加态）/ P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / P5.8c 记红牌弹窗（红牌）/ P5.10 争议上报 / P5.10b 无照片通道 / P2h 开赛确认 / P3g · P3h 签名与提交弹层（未齐 / 签齐）/ P5.6g 整场签名与提交弹层 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11 / P13 确认状态回流看板）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-10-28（V0.7.8 口径同步：公示表确认 → 成绩确认）· 2026-11-01（V0.7.9：P2g 设置 → 退出；V0.7.10：全册文案一致性修订 · 去后台术语 / 去时间奖励 / 数据对齐；V0.7.11：我的申请去单号 + 撤回确认页；V0.7.12：删 P2b-改时「修正用时」浮层（用时改为只读）· 选手名之间改用逗号 · 顶栏统一（左标题 / 裁判正中 / 右侧动作或成绩，去掉顶栏用时；用时输入移到任务区顶部，与 P5.6 侧板同款 · 修签名弹层未居中：遮罩容器被提前闭合、已签态签名框写成 border:#xxx 少了宽度不渲染 · 单队打分页（P3/P4/P5/P5.5 及叠加态 · V0.7.13：新增 <b>P2h2</b>（提交后自动跳转的核对）+ <b>P3i</b>（提交成功弹窗 · 3 秒自动切队），47→49 页；V0.7.14：删 P5.7b（黄牌记满即时弹窗）· 黄牌改为只累计、提交时按「每满 N 张折算 1 张红牌」一次折算，折算结果与规则写在 P5.6g / P3g / P3h 签名弹层，49→48 页；V0.7.15：新增 P5.6b（黄牌满 3 张 · 不阻断，计数器下方常驻「提交时折算 1 张红牌」），48→49 页）顶栏改为赛台 · 赛项 · 组别 · 轮次，队伍名与本队总分开到内容区首行 · 用时统一为「分:秒」（02:58 / 上限 03:45），覆盖 P3 / P4 / P5 / P5.5 / P5.6 / P5.7 / P12 三态 / 两个签名弹层）；V0.7.16：删 P5.6b（黄牌满 3 张页）· 打分页一律不再显示「满 3 张 → 折算 1 张红牌」，折算只在 P5.6g / P3g / P3h 签名确认弹层里体现，49→48 页；V0.7.17：P5.6g 两队卡内黄牌 / 红牌拆成两行（各占一行）· referee.html 折算口径同步；V0.7.18：P5.6g 按折算后显示——黄牌被消耗（3 → 0）、红牌增加（0 → 1），余数才留作黄牌；V0.7.19：P5.6g 黄框只留折算规则，删去「本场 A 队 3 张…成绩与名次照常」整段；V0.7.20：P5.6g 删「三方签名齐全前，确认整场提交不可点」提示条，置灰由按钮态自证；V0.7.21：按钮「确认整场提交」改名「确认提交」，与单队弹层同名；V0.7.22：用时旁「上限 03:45」改「总分 03:45」（全册 7 处）；V0.7.23：改为「总时间」（6 处）· P3 / P3g / P3h / P3i / P12 三态 / P4 的用时行补「/ 总时间」（03:00 / 04:00）；V0.7.24：卡头「本队总分」简化为「总分」（18 处）；V0.7.25：裁定台队列「状态」与「查看」拆成两列（含待裁定行改「待裁定」+「去裁定」）· P8d 成功条拆两行；V0.7.26：P8d 成功条改为与 P3i 同款居中白卡回执（绿勾标题 + 三行只读 + 绿框去向 + 进度条）；V0.7.27：证据缩略图「📷 提交留底」改「📷 裁判签名」（P8a/P8g/P8h/P8b/P8e 共 5 处）；V0.7.28：证据三件 + 申诉书照片合并为一行「证据留底」· P8e 顶部状态行改为「徽标 | 队伍 | 结论 | 时间 | 裁定人」分段；V0.7.29：P8e 徽标简化为「已裁定」（去 🔒 与「· 只读」）、删去「结论 维持原判」「13:26 裁定」两段；V0.7.30：P5.8c 删弹窗底部「本场已记 … 撤销」一行；V0.7.31：P5.8c 标题只留「记红牌」、事由标题去「（赛前配置）」；V0.7.32：事由标题去「· 红牌」，只留「判罚事由」；V0.7.33：新增 P3h2（单队签名弹层 · 黄牌满 3 张折算态，黄牌 3 → 0 / 红牌 0 → 1），48→49 页；V0.7.34：P3g / P3h 判罚行同步拆「黄牌 / 红牌」两行，黄框只留折算规则；V0.7.35：红牌为 0 时写「0」不写「无」（P3g / P3h / P5.6g 共 3 处）；V0.7.36：单队签名弹层三态删掉底部提示条（与 P5.6g 同口径，置灰/解锁由按钮态自证）；V0.7.37：P2b / P2c / P2d 顶栏改为「赛台 · 赛项 · 组别 · 轮次」（与打分表一致）· P2b 删「已生效成绩 · 修改需审批」提示卡、队伍与总分移到内容区首行；V0.7.38：P2b 底部「判罚记录」拆成「黄牌 / 红牌」两行、去掉行尾「记红牌 →」；V0.7.39：P2c「立即返回队列 →」改「返回队列」；V0.7.40：P2d 内容区首行补「队伍 + 总分」（与 P2b 同款）；V0.7.41：P2d 删底部「原成绩 / 待审批拟改值 / 已锁不可编辑」整块（全锁态与普通打分页一致）；V0.7.42：P2e 删「改分 →」按钮（改分入口只在 P2 队列行）；V0.7.43：P2e 证据区去掉「成绩单」缩略图、「提交留底」改「裁判签字」、说明只留「已同步」徽标；V0.7.44：P2e 删证据区下方整行说明；V0.7.45：P2e2 红卡收敛为一句（删裁定单号 / 全部成绩作废 / 冲突记录作废两段）、签名行只留「⛔ 已作废」；V0.7.46：P2e2 证据区与 P2e 同步（提交留底→裁判签字、只留「已同步」、删下方说明）；V0.7.47：P2f 删「未提交改动 1 项」与「（当前生效）」「（待授权）」括注；V0.7.48：P2h 删第二屏（退出核对后的队列态），规则保留在 note 3；V0.7.49：P5.6g 弹层背景补上 P5.7 双侧计分板（原先只有灰遮罩）；V0.7.50：P2f 弹层背景补上 P2b 改分页（原先灰条占位））</div>
+<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.7.51 · 共 50 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b 裁定两态（详情）· P8x 取消资格（独立动议）· P8g / P8h 裁定原因填写前 / 后· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P8f 提交裁定确认弹窗（通用叠加态）/ P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / P5.8c 记红牌弹窗（红牌）/ P5.10 争议上报 / P5.10b 无照片通道 / P2h 开赛确认 / P3g · P3h 签名与提交弹层（未齐 / 签齐）/ P5.6g 整场签名与提交弹层 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11 / P13 确认状态回流看板）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-10-28（V0.7.8 口径同步：公示表确认 → 成绩确认）· 2026-11-01（V0.7.9：P2g 设置 → 退出；V0.7.10：全册文案一致性修订 · 去后台术语 / 去时间奖励 / 数据对齐；V0.7.11：我的申请去单号 + 撤回确认页；V0.7.12：删 P2b-改时「修正用时」浮层（用时改为只读）· 选手名之间改用逗号 · 顶栏统一（左标题 / 裁判正中 / 右侧动作或成绩，去掉顶栏用时；用时输入移到任务区顶部，与 P5.6 侧板同款 · 修签名弹层未居中：遮罩容器被提前闭合、已签态签名框写成 border:#xxx 少了宽度不渲染 · 单队打分页（P3/P4/P5/P5.5 及叠加态 · V0.7.13：新增 <b>P2h2</b>（提交后自动跳转的核对）+ <b>P3i</b>（提交成功弹窗 · 3 秒自动切队），47→49 页；V0.7.14：删 P5.7b（黄牌记满即时弹窗）· 黄牌改为只累计、提交时按「每满 N 张折算 1 张红牌」一次折算，折算结果与规则写在 P5.6g / P3g / P3h 签名弹层，49→48 页；V0.7.15：新增 P5.6b（黄牌满 3 张 · 不阻断，计数器下方常驻「提交时折算 1 张红牌」），48→49 页）顶栏改为赛台 · 赛项 · 组别 · 轮次，队伍名与本队总分开到内容区首行 · 用时统一为「分:秒」（02:58 / 上限 03:45），覆盖 P3 / P4 / P5 / P5.5 / P5.6 / P5.7 / P12 三态 / 两个签名弹层）；V0.7.16：删 P5.6b（黄牌满 3 张页）· 打分页一律不再显示「满 3 张 → 折算 1 张红牌」，折算只在 P5.6g / P3g / P3h 签名确认弹层里体现，49→48 页；V0.7.17：P5.6g 两队卡内黄牌 / 红牌拆成两行（各占一行）· referee.html 折算口径同步；V0.7.18：P5.6g 按折算后显示——黄牌被消耗（3 → 0）、红牌增加（0 → 1），余数才留作黄牌；V0.7.19：P5.6g 黄框只留折算规则，删去「本场 A 队 3 张…成绩与名次照常」整段；V0.7.20：P5.6g 删「三方签名齐全前，确认整场提交不可点」提示条，置灰由按钮态自证；V0.7.21：按钮「确认整场提交」改名「确认提交」，与单队弹层同名；V0.7.22：用时旁「上限 03:45」改「总分 03:45」（全册 7 处）；V0.7.23：改为「总时间」（6 处）· P3 / P3g / P3h / P3i / P12 三态 / P4 的用时行补「/ 总时间」（03:00 / 04:00）；V0.7.24：卡头「本队总分」简化为「总分」（18 处）；V0.7.25：裁定台队列「状态」与「查看」拆成两列（含待裁定行改「待裁定」+「去裁定」）· P8d 成功条拆两行；V0.7.26：P8d 成功条改为与 P3i 同款居中白卡回执（绿勾标题 + 三行只读 + 绿框去向 + 进度条）；V0.7.27：证据缩略图「📷 提交留底」改「📷 裁判签名」（P8a/P8g/P8h/P8b/P8e 共 5 处）；V0.7.28：证据三件 + 申诉书照片合并为一行「证据留底」· P8e 顶部状态行改为「徽标 | 队伍 | 结论 | 时间 | 裁定人」分段；V0.7.29：P8e 徽标简化为「已裁定」（去 🔒 与「· 只读」）、删去「结论 维持原判」「13:26 裁定」两段；V0.7.30：P5.8c 删弹窗底部「本场已记 … 撤销」一行；V0.7.31：P5.8c 标题只留「记红牌」、事由标题去「（赛前配置）」；V0.7.32：事由标题去「· 红牌」，只留「判罚事由」；V0.7.33：新增 P3h2（单队签名弹层 · 黄牌满 3 张折算态，黄牌 3 → 0 / 红牌 0 → 1），48→49 页；V0.7.34：P3g / P3h 判罚行同步拆「黄牌 / 红牌」两行，黄框只留折算规则；V0.7.35：红牌为 0 时写「0」不写「无」（P3g / P3h / P5.6g 共 3 处）；V0.7.36：单队签名弹层三态删掉底部提示条（与 P5.6g 同口径，置灰/解锁由按钮态自证）；V0.7.37：P2b / P2c / P2d 顶栏改为「赛台 · 赛项 · 组别 · 轮次」（与打分表一致）· P2b 删「已生效成绩 · 修改需审批」提示卡、队伍与总分移到内容区首行；V0.7.38：P2b 底部「判罚记录」拆成「黄牌 / 红牌」两行、去掉行尾「记红牌 →」；V0.7.39：P2c「立即返回队列 →」改「返回队列」；V0.7.40：P2d 内容区首行补「队伍 + 总分」（与 P2b 同款）；V0.7.41：P2d 删底部「原成绩 / 待审批拟改值 / 已锁不可编辑」整块（全锁态与普通打分页一致）；V0.7.42：P2e 删「改分 →」按钮（改分入口只在 P2 队列行）；V0.7.43：P2e 证据区去掉「成绩单」缩略图、「提交留底」改「裁判签字」、说明只留「已同步」徽标；V0.7.44：P2e 删证据区下方整行说明；V0.7.45：P2e2 红卡收敛为一句（删裁定单号 / 全部成绩作废 / 冲突记录作废两段）、签名行只留「⛔ 已作废」；V0.7.46：P2e2 证据区与 P2e 同步（提交留底→裁判签字、只留「已同步」、删下方说明）；V0.7.47：P2f 删「未提交改动 1 项」与「（当前生效）」「（待授权）」括注；V0.7.48：P2h 删第二屏（退出核对后的队列态），规则保留在 note 3；V0.7.49：P5.6g 弹层背景补上 P5.7 双侧计分板（原先只有灰遮罩）；V0.7.50：P2f 弹层背景补上 P2b 改分页（原先灰条占位）；V0.7.51：打分页底部按钮统一为「提交成绩 →」（取消「保存并继续」）· 新增 P5.6h 前置检查（有阶段 0 项时二次确认），49→50 页）</div>
 
 </body>
 </html>
