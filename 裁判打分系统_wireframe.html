@@ -119,7 +119,7 @@
 </head>
 <body>
 
-<h1>赛事裁判打分系统 · 页面 Wireframe V0.7.15</h1>
+<h1>赛事裁判打分系统 · 页面 Wireframe V0.10.1</h1>
 <p class="sub">适用端：裁判端（平板横屏）&nbsp;｜&nbsp; 适用赛项：脑机星球 / 火星救援 / 未来之城 &nbsp;｜&nbsp; 参考布局：FirstLegoLeague/fllscoring &nbsp;｜&nbsp; 2026-10-27</p>
 
 
@@ -377,10 +377,10 @@
   </div>
   <div class="note">
     <span class="num">1</span> <b>提交即切队（热路径已绕过本页）</b>：R7 确认提交后队列指针 +1，先出<b>提交成功弹窗（P3i）</b>、3 秒后<b>先唤起核对（P2h2）</b>确认下一队身份，确认后才载入其打分表（不再回本页二次点击“进入打分表”）——这是“自动切换队伍信息”的核心闭环。本页退居为手动总览 / 搜索（非顺序跳转）入口，可从任意打分表点“← 返回队列”返回。<br>
-<span class="num">2</span> <b>用时手输（C-6）</b>：系统内<b>不做任何计时</b>，用时由裁判用<b>实体秒表</b>读数后手输用时（<b>分:秒 mm:ss</b>），<b>提交前必填</b>（0 &lt; t ≤ 赛项总时长）；<b>时间奖励按赛项配置下发</b>——启用的赛项里，用时按后台下发的「每 1 秒折算几分 + 封顶」计入总分；未启用时用时只作排名维度（<b>总分相同时</b>先用时升序、再用时相同比黄牌少）。<br>
+<span class="num">2</span> <b>场内计时（C-14 · 取代 C-6）</b>：打分页内置计时条，剩余时间<b>每帧按发令时刻 t0 重算</b>（不递减计数、不漂移）；用时由计时器<b>自动写入</b>成绩，<b>提交前必填</b>由系统保证；异常可<b>留痕修正</b>（二次确认 + 事由，标 ⚠ 手改；0 &lt; t ≤ 赛项总时长）；<b>时间奖励按赛项配置下发</b>——启用的赛项里，用时按后台下发的「每 1 秒折算几分 + 封顶」计入总分；未启用时用时只作排名维度（<b>总分相同时</b>先用时升序、再用时相同比黄牌少）。<br>
     <span class="num">3</span> <b>队列透明</b>：完整候场队列撑满一屏，已完成 / 比赛中 / 候场一眼可辨，裁判与检录台信息一致，跳号时可发现异常。「第 1 轮」列显示的是该队<b>当前生效成绩</b>（改分批准后随之刷新），与 P2b / P2e 同源，不是「提交时的旧值」。<br>
     <span class="num">4</span> <b>页不空置</b>：队列随 24 队全量展示（第 15–24 顺位在卡内滚动），底部不再留大片空白，且当前队高亮常驻视线中心。<br>
-    <span class="num">5</span> <b>对抗变体（未来之城）</b>：队列对象变为“场次”——当前上场卡展示 A / B 两队并排信息 + A、B 各自独立填写用时（各填各的，同见 P5.6 双侧计分板）；整场提交后才切下一场。<br>
+    <span class="num">5</span> <b>对抗变体（未来之城）</b>：队列对象变为“场次”——当前上场卡展示 A / B 两队并排信息 + 一条<b>全场共享的阶段计时条</b>，A、B 各自记录<b>本队用时</b>（同见 P5.6 双侧计分板）；整场提交后才切下一场。<br>
     <span class="num">6</span> <b>边界态（首 / 末队）</b>：翻页箭头贴卡片左右边缘——当前为顺位 1 时左侧「‹」置灰不可点（hover 提示“已是首队”）；为末位（顺位 24）时右侧「›」置灰不可点（提示“已是末队”）——箭头始终可见、不隐藏，让用户感知到导航边界；“第 X 顺位 / 共 24 队”徽标同步反映真实顺位。<br>
     <span class="num">7</span> <b>搜索框 = 非顺序跳转入口</b>：输入即实时筛选本赛台队列（按队伍编号 / 名称匹配，命中行高亮）；补赛（迟到队）、<b>复核重打</b> / 申诉复核（已完成队）、跳退赛队均经搜索定位后点命中行即载入该队打分表——是自动轮转之外的手动入口。<span style="color:#718096;">（<b>重赛</b>是另一回事：由后台单独开「重赛（独立场次）」并以场内快照导入队伍，成绩不自动进榜单，本页队列里不出现。）</span><br>
     <span class="num">8</span> <b>轮次感知（两轮制）</b>：顶部“第 1 轮 / 第 2 轮”分段控件切换，同页面复用，队列、成绩列、当前队指针均按轮独立；<b>第 1 轮全部提交完成前，第 2 轮为硬锁</b>——控件置灰、<b>点击无响应，全册不提供任何解锁 / 强制切轮入口</b>（不做“先跳过去再回头补”）。现场若因队伍缺席导致第 1 轮凑不齐，处置是到后台「<b>分台与顺位</b>」把该队<b>参赛轮次</b>改成「仅第 1 轮」（成绩全部保留、榜单在总分下标「仅第 N 轮」），比整队弃赛轻；<b>整队不参赛</b>才按<b>逐轮弃赛</b>处理（不存在队伍级弃赛状态）（弃赛队不计入第 1 轮进度、也不占队列），<b>不让个别队伍卡住整个下午场</b>。第 1 轮末队提交后弹“第 1 轮已全部完成，是否开始第 2 轮？”确认即切轮并把指针重置回首队（T001）重打。<b>成绩按轮独立存储</b>（第 1 轮提交后不锁住第 2 轮录入）；名次<b>取两轮中较好的一轮（取优）</b>，不是两轮相加（见 P11 成绩确认页排名规则）。与 S 端“轮次：全部 / 第 1 轮 / 第 2 轮”筛选概念一致。<br>
@@ -465,7 +465,7 @@
     <span class="num">3</span> <b>二段式生效（关键）</b>：点「提交改分申请 →」<b>只生成申请单 R-00X</b>，成绩不变；须裁判长在 <b>P9 改分审批</b>「批准并留痕」后才写入正式成绩——避免裁判单方改分。<br>
     <span class="num">4</span> <b>旧值 → 新值 diff 全程可见</b>：页面常驻显示「原 470 → 改后 620（+150）」，与 P9 审批端的 diff 同源，审批人核对的是同一组数。<br>
     <span class="num">5</span> <b>原因必填 + 防重复提交</b>：改分原因不填不能提交；<b>同队同轮存在未结单（待审批）时不允许再提</b>，防止重复申请把分数改乱——被拦时的完整呈现单独成页，见 <b>P2d 拦截态</b>。<br>
-    <span class="num">6</span> <b>不计分项处理</b>：<b>用时不可改</b>——仅只读展示，以提交成绩时手输的用时为准；<b>黄 / 红牌可改</b> —— 底部新增「🚩 记红牌」入口，改牌只动留痕、名次与奖项、<b>不动分数</b>；<b>记红牌 = 该队本场被罚下</b>（得分照算、成绩保留、<b>照常参与排名与评奖</b>，<b>仅不计时间奖励</b>）。<br>
+    <span class="num">6</span> <b>不计分项处理</b>：<b>用时不可改</b>——仅只读展示，<b>以计时器记录值为准</b>（若曾手改，展示修正值与事由）；<b>黄 / 红牌可改</b> —— 底部新增「🚩 记红牌」入口，改牌只动留痕、名次与奖项、<b>不动分数</b>；<b>记红牌 = 该队本场被罚下</b>（得分照算、成绩保留、<b>照常参与排名与评奖</b>，<b>仅不计时间奖励</b>）。<br>
     <span class="num">7</span> <b>下游联动</b>：授权后按该队绑定版本<b>自动重算排名</b>；若该单元<b>已确认成绩</b>，会触发 <b>P13</b> 看板的「<b>确认后已变更</b>」状态（须重新确认后才能再次导出对外成绩表）。<br>
     <span class="num">8</span> <b>任务项 = 赛项规则配置下发</b>：本页任务集与分值<b>不是本页自造</b>，而是与 <b>P3 脑机星球 V6.2</b> 打分页<b>同一套配置</b>（规则模板表驱动）——回到该队改分时，任务名、分值、录入控件与原打分页<b>逐字一致</b>，裁判改的是同一批题目，避免“改分页换了另一套题目”造成口径混乱。
     <span class="num">9</span> <b>提交后反馈（闭环可见）</b>：点「提交改分申请 →」后顶部滑入「✓ 已提交 · 待审批 R-00X」成功条，<b>2 秒自动回跳 P2 队列</b>；该单在 <b>P2「我的申请」面板</b>可查审批进度与撤回（见 P2 note 11）—— <b>队列行不做任何标记</b>（完整呈现单独成页，见 <b>P2c 已提交态</b>）。不再有“点了没反应 / 不知道提交没”的黑洞。<br>
@@ -791,8 +791,8 @@
         </div>
         <div style="padding:14px 16px;">
           <div style="border:1px solid #e2e8f0; border-radius:8px; background:#f7fafc; padding:6px 12px; margin:10px 0 4px;">
-            <div class="qrow" style="border-bottom:1px dashed #e2e8f0; padding:5px 0;"><span>③ 矿石运输至矿石合成仓</span><span style="font-family:Consolas,monospace;">1 颗 <b style="color:#c05621;">→ 2 颗</b>（+150）</span></div>
-            <div class="qrow" style="border-bottom:1px dashed #e2e8f0; padding:5px 0; font-size:12px; color:#718096;"><span>原成绩</span><span style="font-family:Consolas,monospace;">470 不变</span></div>
+            <div class="qrow" style="border-bottom:1px dashed #e2e8f0; padding:5px 0;"><span>③ 矿石运输至矿石合成仓</span><span style="font-family:Consolas,monospace;">1 颗 <b style="color:#c05621;">→ 2 颗</b></span></div>
+            <div class="qrow" style="border-bottom:1px dashed #e2e8f0; padding:5px 0; font-size:12px; color:#718096;"><span>原成绩</span><span style="font-family:Consolas,monospace;">470</span></div>
             <div class="qrow" style="border-bottom:none; padding:5px 0; font-size:12px;"><span style="color:#2b6cb0; font-weight:bold;">改后成绩</span><span style="font-family:Consolas,monospace; color:#2b6cb0; font-weight:bold;">620 <span style="color:#38a169;">（+150）</span></span></div>
           </div>
           <div style="font-size:11.5px; color:#a0aec0; margin-top:6px;">↑ 明细与 <b>P2b 的 diff 同源</b>：不用退出去回忆刚才改了什么。</div>
@@ -809,7 +809,7 @@
     <span class="num">1</span> <b>为什么是弹窗、不是常驻按钮</b>：原来 P2b 底部摆着一个「放弃修改」按钮，三处不合理 —— ① 它<b>随时可点</b>，误触即丢改动；② 它与「← 返回队列」是<b>两条互斥的去路</b>（放弃并留下 / 直接离开），并排摆着最容易点错；③ 它<b>不对应任何结果</b>，点完还在原页。改成<b>触发式弹窗</b>后：<b>只在真有改动、且你正要离开时</b>才出现，一次只问一件事。<br>
     <span class="num">2</span> <b>触发条件（精确）</b>：本页<b>有未提交改动</b> ＋ 点「← 返回队列」。<b>没有改动时不弹</b>，直接回队列 —— 确认框只在有意义时才打扰。<br>
     <span class="num">3</span> <b>两个选项，默认偏保守</b>：<b>「继续修改」</b>（主按钮）= 关闭弹窗留在本页，改动与滚动位置都保留，等同“我点错了”；<b>「放弃修改」</b>（红字）= 丢弃本页改动并回 P2 队列。防误触：破坏性动作放右侧、用红色描边，不给它默认焦点。<br>
-    <span class="num">4</span> <b>改动明细就在弹窗里</b>：直接列出「③ 矿石运输 1 颗 → 2 颗（+150）」与原 / 改后总分，与 P2b 的 diff <b>同源</b>——让裁判自己确认“要丢的到底是什么”，而不是凭记忆点“确定”。<br>
+    <span class="num">4</span> <b>改动明细就在弹窗里</b>：直接列出「③ 矿石运输 1 颗 → 2 颗」与原 / 改后总分（<b>+150 只在「改后成绩」出现一次</b>——同一笔增量不重复两遍），与 P2b 的 diff <b>同源</b>——让裁判自己确认“要丢的到底是什么”，而不是凭记忆点“确定”。<br>
     <span class="num">5</span> <b>放弃不写留痕</b>：丢的是<b>尚未提交的草稿</b>，没有任何东西生效、没有申请单产生，因此不留痕（与「撤回已提交申请」不同——那是有单可撤、必须留痕，见 P2b note 10）。<br>
     <span class="num">6</span> <b>不提供「暂存草稿」</b>：改分与打分都是<b>单次完成</b>的动作，草稿会与「已生效成绩」并存、造成“到底哪个算数”的歧义；要改就一次改完提交，不提交就当作没改。<br>
     <span class="num">7</span> <b>适用页面（同口径）</b>：<b>P2b</b> 与全部打分页 <b>P3 / P4 / P5 / P5.5 / P5.6 / P5.7</b>，这些页面都会“改了不提交”，返回时一律先拦一下，横幅按钮位也统一标了「· 有未保存改动会先确认」。<b>不适用</b>：<b>P2c 已提交态</b>（已经提交、无可丢）、<b>P2d 拦截态</b>（不允许修改）、<b>P2e 只读成绩单</b>、<b>P2e2 已作废成绩单</b>（后两页本就没有可编辑控件）——这几页点返回<b>直接走</b>，不弹窗。<br>
@@ -904,7 +904,7 @@
   </div>
   <div class="note">
     <span class="num">1</span> <b>入口仅 P2</b>：只有 <b>P2 当前比赛页（执裁总览）</b>顶栏有「⏻ 退出」（裁判长端对应 <b>P7 / P7b / P7c</b>）。<b>P2b–P2f / P2e / P2e2 属已进入打分的子流程页，不再放退出入口</b>（那类页面专注当前队伍 / 成绩单，退登是低频动作，不必每页都挂）。<br>
-    <span class="num">2</span> <b>一步直达确认，不再有设置层</b>：原「⚙ 设置」里是 显示字号 / 计时结束震动 / 裁判码凭据 / 退出登录 四块；现场排期紧、字号与震动无人调，<b>整个设置层去掉</b>，入口直接改成「⏻ 退出」，点开即确认。<b>弹窗样式不变</b>：340px 圆角卡片 + 左上「←」/右上「×」+ 底部说明条，与册内其它居中弹窗一致。<br>
+    <span class="num">2</span> <b>一步直达确认，不再有设置层</b>：原「⚙ 设置」里是 显示字号 / 计时结束震动 / 裁判码凭据 / 退出登录 四块；现场排期紧、字号与震动无人调，<b>整个设置层去掉</b>（计时恢复后，<b>到时震动 / 提示音改由计时条自身承担</b>，不回设置层），入口直接改成「⏻ 退出」，点开即确认。<b>弹窗样式不变</b>：340px 圆角卡片 + 左上「←」/右上「×」+ 底部说明条，与册内其它居中弹窗一致。<br>
     <span class="num">3</span> <b>取消有三条路</b>：左上「←」、右上「×」、点遮罩空白处 —— 都回 P2，不跳页、不打断当前执裁；默认安全动作是「取消」（灰），红字「确认退出」在右。<br>
     <span class="num">4</span> <b>确认 = 真退登</b>：清本机裁判码缓存 → 回 <b>P1 登录页</b>（姓名预填、裁判码清空，复用 P1 note 2 口径）；重登须再次<b>联网校验裁判码</b>，断网重登会失败。<br>
     <span class="num">5</span> <b>不拦未提交草稿</b>：退登 ≠ 放弃修改 —— 未提交的打分草稿是设备级本地暂存，退登不清、重登同一赛台仍在；已提交的成绩 / 申请单 / 裁定单均已落本地与服务端，不受退登影响。弹窗文案已提示。<br>
@@ -1016,7 +1016,7 @@
     <span class="num">1</span> <b>入口（只有一个）</b>：<b>P2 队列行右侧「开始」</b>与<b>当前上场卡的「开始记分」</b>都先唤起本弹窗，不直接进打分页；<b>提交上一队后自动跳到的下一队，唤起的是同一张弹窗（见 P2h2）</b>——<b>没有任何入口能跳过这一步直接开打</b>。裁判长端（P7）同一套弹窗，只是顶栏身份不同。<br>
     <span class="num">2</span> <b>弹窗内零可编辑控件（10/26 定 · C-2）</b>：四行全是<b>只读文本</b>——不做下拉换队、不做行内改赛台、不做轮次与组别选择。<b>为什么不给改</b>：选错说明<b>在队列里点错了行</b>，正确修法是回去重选、并看见正确那一行；允许弹窗内换队的话，背后的<b>草稿 / 签名位 / 轮次绑定</b>仍指向旧队伍，一定会错位（这是最容易产生"查不出原因"脏数据的地方）。<br>
     <span class="num">3</span> <b>退出后必须高亮刚才那一行</b>：点「← 返回」→ 回 P2 队列，<b>刚才点的那一行高亮并带「刚才点的是这一行」小标</b>，让裁判一眼看出"是我点错了行，还是这行本来就派错了队伍"。不做这一步，他会再点错一次。<br>
-    <span class="num">4</span> <b>确认后动作＝「开始记分」，不是「开始计时」</b>：系统内已不计时（<b>C-6</b>：裁判手掐实体秒表、用时手输），所以确认后只是载入该队打分页并标记本场开始，<b>没有计时器启动</b>。<br>
+    <span class="num">4</span> <b>确认后动作＝「开始记分」+「发令开表」一步完成</b>：点「开始记分」即载入打分页、写入发令时刻 t0，<b>⏱ 计时条同步起走</b>，裁判无需再按一次开始（<b>漏按是现场最常见的时间事故</b>）。<br>
     <span class="num">5</span> <b>不提示草稿（2026/11/02 定）</b>：本弹窗只回答「这一场是谁」，草稿是否存在属于下一屏的事——原来那行「本队有一份未提交的草稿」黄条已删除，有草稿就直接载入，不在核对弹窗里多做一次说明。<br>
     <span class="num">6</span> <b>身份字段到此为止</b>：<b>赛台 / 队伍 / 组别 / 轮次</b>是"这一场是谁"的身份，本弹窗不给改、进打分页后也<b>不可改</b>（见 <b>C-3</b>：编辑层只放分数 / 用时 / 黄红牌）。要换只能回本弹窗退出重选。<br>
     <span class="num">7</span> <b>与 C-2 决策一致</b>：选项 ① 只能退出重选 —— 即本页。<b>被否掉的 ②「弹窗内可直接改」不做</b>，理由见 note 2。
@@ -1192,7 +1192,7 @@
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 脑机星球 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:00</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:8px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 本场计时</span><span style="display:inline-block; min-width:92px; text-align:center; border:1px dashed #2b6cb0; border-radius:6px; padding:2px 8px; font-size:22px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#ebf8ff;">04:12</span><span class="tag-weak" style="background:#ebf8ff; border-color:#90cdf4; color:#2b6cb0;">可点修改</span><span style="font-size:12px; color:#718096;">/ 总时长 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div>
                 <div class="card">
           <div class="t-name">① 成功放落能源仓 <span class="pts">达成 +100</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
@@ -1240,7 +1240,7 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>控件语义匹配</b>（fllscoring 最值得抄的设计）：能判定“是/否”的用开关；计数用加减器（+长按连续加）；杜绝裁判手输数字。<br>
+    <span class="num">1</span> <b>控件语义匹配</b>（fllscoring 最值得抄的设计）：能判定“是/否”的用开关；计数用加减器（+长按连续加）；杜绝裁判手输数字——<b>唯一例外是用时</b>（那是计时值不是评分值，见 note 9 / P3j）。<br>
     <span class="num">2</span> <b>本赛项任务集（脑机星球 V6.2）</b>：① 成功放落能源仓 ～ ⑥ 设备检录，分值区间 +20 ～ +150（满分 1620），<b>没有 500 分级的大分值项</b>——“能源塔”属未来之城赛项（见 P5.6），本页不含，故也没有大分值橙色警示卡。<br>
     <span class="num">3</span> <b>右上实时总分</b>：每个操作立即重算，裁判提交前就能口播报分。<br>
     <span class="num">4</span> <b>任务卡=配置驱动</b>：所有题目、分值、控件类型存在数据库“规则模板表”，换赛项只换模板，前端零改动——这是支持三个赛项的架构基础。<br>
@@ -1249,6 +1249,7 @@
     <span class="num">7</span> <b>时间奖励按赛项配置</b>：本赛项是否启用、每 1 秒折算几分、封顶多少，均由工作人员后台按赛项下发；<b>启用时</b>用时按此计入总分，<b>未启用时</b>用时只作排名维度（与 P4 / P5 同口径）。<br>
     <span class="num">8</span> <b>编辑层能改什么（10/26 定 · C-3）</b>：本页只能改<b>三类</b>——<b>① 分数</b>（任务得分；计数型任务的颗数改了，分数跟着重算）<b>② 用时</b>（手输秒数，必填）<b>③ 黄红牌</b>（张数 / 有无 / 事由）。<b>不可改</b>：<b>赛台 / 队伍 / 组别 / 轮次</b>是"这一场是谁"的身份，改了等于换一场比赛，只能回队列重选（见 <b>P2h</b>）；<b>已提交后</b>任何字段也不可改，走改分审批。<br>
     &nbsp;&nbsp;<b>黄红牌不连带（关键）</b>：改黄牌张数<b>不会</b>自动撤销已记的红牌——红牌是裁判明确的判罚动作，要撤必须单独发起「撤销红牌」并填理由。否则会出现"改错一格、红牌悄悄没了"，这比例牌本身更严重（见 <b>P5.8c</b>）。
+    <span class="num">9</span> <b>用时可以改（C-18）</b>：顶栏计时由发令 t0 自动走，但<b>数字是虚线框＝可点</b>——点开弹 mm:ss 滚轮选择器，裁判可读实体秒表后滚动对齐修正（见 <b>P3j</b>）。<b>改动必留痕</b>（谁改的 / 原值→新值），校验与公式不变：00:01 – 总时长。<br>
   </div>
 </div>
 
@@ -1259,7 +1260,7 @@
   <div class="tablet">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 脑机星球 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen" style="position:relative;"><div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:00</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（计时器）</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">04:12</span><span style="font-size:12px; color:#718096;"> / 总时间 05:00</span></span></div>
                 <div class="card">
           <div class="t-name">① 成功放落能源仓 <span class="pts">达成 +100</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
@@ -1314,7 +1315,7 @@
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>赛台</span><span>赛台 A</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>轮次</span><span>第 1 轮</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>组别</span><span>小学组</span></div>
-            <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>用时</span><span style="font-family:Consolas,monospace; color:#2b6cb0;">02:58</span></div>
+            <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>用时</span><span style="font-family:Consolas,monospace; color:#2b6cb0;">04:12</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>总成绩</span><span style="font-size:17px; font-weight:bold; color:#2b6cb0;">970 分</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>黄牌</span><span><b style="color:#c53030;">1</b></span></div>
             <div class="qrow" style="border-bottom:none;"><span>红牌</span><span>0</span></div>
@@ -1323,11 +1324,11 @@
           <div style="display:flex; gap:10px; margin-top:12px;">
       <div style="flex:1;">
         <div style="font-size:11px; color:#718096; margin-bottom:4px;">选手代表签名</div>
-        <div style="border:2px dashed #a0aec0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名</div>
+        <div style="position:relative; border:2px dashed #a0aec0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名<span title="放大签名" style="position:absolute; top:3px; right:3px; width:18px; height:18px; border:1px solid #cbd5e0; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#4a5568;">⤢</span></div>
       </div>
       <div style="flex:1;">
         <div style="font-size:11px; color:#718096; margin-bottom:4px;">裁判签名</div>
-        <div style="border:2px dashed #2b6cb0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名</div>
+        <div style="position:relative; border:2px dashed #2b6cb0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名<span title="放大签名" style="position:absolute; top:3px; right:3px; width:18px; height:18px; border:1px solid #cbd5e0; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#4a5568;">⤢</span></div>
       </div>
           </div>
         </div>
@@ -1343,7 +1344,8 @@
     <span class="num">4</span> <b>签名语义不变</b>：签的是"<b>本场成绩与判罚记录经复核无误</b>"，不是"同意这个分数"。签名方＝<b>选手代表 + 裁判</b>（B-2 已定：红牌也不要对手签名）。<br>
     <span class="num">5</span> <b>与 P2e 只读成绩单的关系</b>：提交成功后，签名作为<b>成绩的一部分</b>在 P2e 只读成绩单里展示（谁签的、什么时候签的），不再可改。<br>
     <span class="num">6</span> <b>下一态见 P3h</b>：两方签齐后「确认提交」由灰变绿；点它才真正写入成绩——随后出<b>提交成功弹窗（P3i）</b>，3 秒后自动跳到下一队并弹<b>P2h2</b>核对（提交即锁）。<br>
-    <span class="num">7</span> <b>双队对抗版见 P5.6g</b>：A / B 共场时是<b>三方签名</b>（A 队代表 + B 队代表 + 裁判），布局为左右两栏对比。
+    <span class="num">7</span> <b>双队对抗版见 P5.6g</b>：A / B 共场时是<b>三方签名</b>（A 队代表 + B 队代表 + 裁判），布局为左右两栏对比。<br>
+    <span class="num">8</span> <b>签名框右上角有放大按钮（⤢）</b>：64px 高的框里平板手写写不准，点它把该框<b>临时放大到整屏</b>书写，写完回填原框；<b>已签态（P3h / P3h2）点它是放大查看</b>，不进入编辑、不改签名内容。<br>
   </div>
 </div></div>
 
@@ -1354,7 +1356,7 @@
   <div class="tablet">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 脑机星球 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen" style="position:relative;"><div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:00</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（计时器）</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">04:12</span><span style="font-size:12px; color:#718096;"> / 总时间 05:00</span></span></div>
                 <div class="card">
           <div class="t-name">① 成功放落能源仓 <span class="pts">达成 +100</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
@@ -1409,7 +1411,7 @@
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>赛台</span><span>赛台 A</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>轮次</span><span>第 1 轮</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>组别</span><span>小学组</span></div>
-            <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>用时</span><span style="font-family:Consolas,monospace; color:#2b6cb0;">02:58</span></div>
+            <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>用时</span><span style="font-family:Consolas,monospace; color:#2b6cb0;">04:12</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>总成绩</span><span style="font-size:17px; font-weight:bold; color:#2b6cb0;">970 分</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>黄牌</span><span><b style="color:#c53030;">1</b></span></div>
             <div class="qrow" style="border-bottom:none;"><span>红牌</span><span>0</span></div>
@@ -1418,11 +1420,11 @@
           <div style="display:flex; gap:10px; margin-top:12px;">
       <div style="flex:1;">
         <div style="font-size:11px; color:#718096; margin-bottom:4px;">选手代表签名</div>
-        <div style="border:2px solid #a0aec0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;"><span style="font-family:KaiTi,楷体,serif; font-size:22px; color:#2d3748; display:inline-block; transform:rotate(-4deg);">王小明</span></div>
+        <div style="position:relative; border:2px solid #a0aec0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;"><span style="font-family:KaiTi,楷体,serif; font-size:22px; color:#2d3748; display:inline-block; transform:rotate(-4deg);">王小明</span><span title="放大签名" style="position:absolute; top:3px; right:3px; width:18px; height:18px; border:1px solid #cbd5e0; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#4a5568;">⤢</span></div>
       </div>
       <div style="flex:1;">
         <div style="font-size:11px; color:#718096; margin-bottom:4px;">裁判签名</div>
-        <div style="border:2px solid #2b6cb0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;"><span style="font-family:KaiTi,楷体,serif; font-size:22px; color:#2d3748; display:inline-block; transform:rotate(-4deg);">王建国</span></div>
+        <div style="position:relative; border:2px solid #2b6cb0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;"><span style="font-family:KaiTi,楷体,serif; font-size:22px; color:#2d3748; display:inline-block; transform:rotate(-4deg);">王建国</span><span title="放大签名" style="position:absolute; top:3px; right:3px; width:18px; height:18px; border:1px solid #cbd5e0; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#4a5568;">⤢</span></div>
       </div>
           </div>
         </div>
@@ -1433,7 +1435,7 @@
       </div></div></div>
   <div class="note">
     <span class="num">1</span> <b>唯一差异是"签齐了"</b>：与 P3g 逐字一致，只有①签名框从虚线变实线并出现笔迹、②「确认提交」由灰变绿——<b>不再另造一个界面</b>。<br>
-    <span class="num">2</span> <b>提交即锁（B-4 / C-6）</b>：点是之后成绩写入正式、本队锁定，并进入<b>提交成功弹窗（P3i）</b>：3 秒后自动跳到下一队并发起<b>P2h2</b> 核对。<b>没有"时间到"这个锁点</b>（系统内已不计时），锁点就是<b>这一次提交</b>。<br>
+    <span class="num">2</span> <b>提交即锁（B-4 / C-14）</b>：点是之后成绩写入正式、本队锁定，并进入<b>提交成功弹窗（P3i）</b>：3 秒后自动跳到下一队并发起<b>P2h2</b> 核对。<b>两个锁点并存</b>——<b>阶段到时锁阶段</b>（C-14，只封该阶段任务卡，可切下一阶段）、<b>提交锁全队</b>（不可撤销）；<b>到时不等于提交</b>，签名与确认照旧在弹层。<br>
     <span class="num">3</span> <b>提交后要改怎么办</b>：走 <b>P2b 改分模式 → P9 改分审批</b>（裁判发起、裁判长授权）；若是争议裁定导致的改分，走 <b>P8b → P9</b>。两条路都留痕，都不允许直接改。<br>
     <span class="num">4</span> <b>撤销提交不存在</b>：本册不提供"撤销提交"按钮；如需让已提交成绩失效，只能走裁定台的<b>取消资格</b>（成绩作废）或改分审批。
   </div>
@@ -1446,7 +1448,7 @@
   <div class="tablet">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 脑机星球 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen" style="position:relative;"><div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:00</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（计时器）</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">04:12</span><span style="font-size:12px; color:#718096;"> / 总时间 05:00</span></span></div>
                 <div class="card">
           <div class="t-name">① 成功放落能源仓 <span class="pts">达成 +100</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
@@ -1501,7 +1503,7 @@
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>赛台</span><span>赛台 A</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>轮次</span><span>第 1 轮</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>组别</span><span>小学组</span></div>
-            <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>用时</span><span style="font-family:Consolas,monospace; color:#2b6cb0;">02:58</span></div>
+            <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>用时</span><span style="font-family:Consolas,monospace; color:#2b6cb0;">04:12</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>总成绩</span><span style="font-size:17px; font-weight:bold; color:#2b6cb0;">970 分</span></div>
             <div class="qrow" style="border-bottom:1px solid #e2e8f0;"><span>黄牌</span><span><b style="color:#c53030;">3</b> → 0</span></div>
             <div class="qrow" style="border-bottom:none;"><span>红牌</span><span>0 → <b style="color:#c53030;">1</b></span></div>
@@ -1510,11 +1512,11 @@
           <div style="display:flex; gap:10px; margin-top:12px;">
       <div style="flex:1;">
         <div style="font-size:11px; color:#718096; margin-bottom:4px;">选手代表签名</div>
-        <div style="border:2px solid #a0aec0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;"><span style="font-family:KaiTi,楷体,serif; font-size:22px; color:#2d3748; display:inline-block; transform:rotate(-4deg);">王小明</span></div>
+        <div style="position:relative; border:2px solid #a0aec0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;"><span style="font-family:KaiTi,楷体,serif; font-size:22px; color:#2d3748; display:inline-block; transform:rotate(-4deg);">王小明</span><span title="放大签名" style="position:absolute; top:3px; right:3px; width:18px; height:18px; border:1px solid #cbd5e0; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#4a5568;">⤢</span></div>
       </div>
       <div style="flex:1;">
         <div style="font-size:11px; color:#718096; margin-bottom:4px;">裁判签名</div>
-        <div style="border:2px solid #2b6cb0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;"><span style="font-family:KaiTi,楷体,serif; font-size:22px; color:#2d3748; display:inline-block; transform:rotate(-4deg);">王建国</span></div>
+        <div style="position:relative; border:2px solid #2b6cb0; border-radius:8px; height:64px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;"><span style="font-family:KaiTi,楷体,serif; font-size:22px; color:#2d3748; display:inline-block; transform:rotate(-4deg);">王建国</span><span title="放大签名" style="position:absolute; top:3px; right:3px; width:18px; height:18px; border:1px solid #cbd5e0; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#4a5568;">⤢</span></div>
       </div>
           </div>
         </div>
@@ -1535,12 +1537,12 @@
 <!-- ============ P3i 提交成功弹窗（叠加态 · 3 秒后自动切队） ============ -->
 <div class="page">
   <div class="page-title">P3i · <b>提交成功弹窗</b>（叠加态 · 点「确认提交」成功的一瞬 · <b>3 秒</b>后自动跳到下一队并唤起核对）</div>
-  <div class="page-desc">提交是<b>终态、不可撤销</b>，必须给一次明确回执——否则裁判点完不知道自己到底交没交上。回执与 <b>P2h2 核对弹窗同一套卡片语言</b>（白卡 · 360px · 标题行 + 只读行 + 底部提示），只换内容：讲<b>交了什么</b>（T013 · 970 分 · 用时 02:58）与<b>接下来去哪</b>（3 秒后自动跳到下一队 T014 并核对身份）。<b>不做"手动点下一队"</b>：切队是连续动作，多一次点击就多一次误触；3 秒够看清、又不至于干等。回执出现时成绩<b>已落本地</b>，断网也照出、补传在后台进行。</div>
+  <div class="page-desc">提交是<b>终态、不可撤销</b>，必须给一次明确回执——否则裁判点完不知道自己到底交没交上。回执与 <b>P2h2 核对弹窗同一套卡片语言</b>（白卡 · 360px · 标题行 + 只读行 + 底部提示），只换内容：讲<b>交了什么</b>（T013 · 970 分 · 用时 04:12）与<b>接下来去哪</b>（3 秒后自动跳到下一队 T014 并核对身份）。<b>不做"手动点下一队"</b>：切队是连续动作，多一次点击就多一次误触；3 秒够看清、又不至于干等。回执出现时成绩<b>已落本地</b>，断网也照出、补传在后台进行。</div>
   <div class="tablet" style="position:relative;">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 脑机星球 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen" style="position:relative;">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:00</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">04:12</span><span style="font-size:12px; color:#718096;"> / 总时间 05:00</span></span></div>
                 <div class="card">
           <div class="t-name">① 成功放落能源仓 <span class="pts">达成 +100</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
@@ -1594,14 +1596,14 @@
       <div style="padding:12px 16px 4px;">
     <div class="qrow"><span style="color:#718096;">队伍</span><span style="font-weight:bold;">T013 火星探险小队</span></div>
     <div class="qrow"><span style="color:#718096;">轮次</span><span style="font-weight:bold;">第 1 轮</span></div>
-    <div class="qrow"><span style="color:#718096;">用时</span><span style="font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">02:58</span></div>
+    <div class="qrow"><span style="color:#718096;">用时</span><span style="font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">04:12</span></div>
         <div class="qrow" style="border-bottom:none;"><span style="color:#718096;">总成绩</span><span style="font-size:17px; font-weight:bold; color:#2b6cb0;">970 分</span></div>
       </div>
       <div style="margin:6px 16px 0; padding:8px 10px; background:#f0fff4; border:1px solid #9ae6b4; border-radius:6px;">
-        <div style="font-size:12px; color:#22543d;">3 秒后自动跳到下一队 <b>T014 极光队</b>，先核对身份再开打</div>
+        <div style="font-size:12px; color:#22543d; text-align:center;">3 秒后自动跳到下一队</div>
         <div style="height:3px; background:#c6f6d5; border-radius:2px; margin-top:6px; overflow:hidden;"><div style="width:62%; height:100%; background:#38a169; border-radius:2px;"></div></div>
       </div>
-      <div style="padding:10px 16px 14px; font-size:11.5px; color:#a0aec0; text-align:center;">提交后不可撤销 · 更正需走改分审批</div>
+      <div style="padding:10px 16px 14px; font-size:11.5px; color:#a0aec0; text-align:center;">提交后不可撤销</div>
     </div>
       </div>
     </div>
@@ -1613,6 +1615,7 @@
     <span class="num">4</span> <b>回执期间页面已锁定</b>：底部「提交成绩」变灰「已提交」，不允许二次提交（二次提交＝重复成绩，最脏的数据）。<br>
     <span class="num">5</span> <b>断网同样给回执</b>：成绩先落本机、立即算"提交成功"，补传在后台按 localId 去重；网络状态不影响这一步的判定。<br>
     <span class="num">6</span> <b>整场（双队）版见 P5.6g</b>：那一版一次提交 A / B 两个队，回执文案要说"整场已提交、切下一场次"。
+    <span class="num">5</span> <b>用时可以改（C-18）</b>：计时自动走，但顶栏数字<b>可点</b>——弹 mm:ss 滚轮选择器手动修正并留痕（完整交互见 <b>P3j</b>）；本页与 P3 同构，只换任务集。<br>
   </div>
 </div>
 
@@ -1624,7 +1627,7 @@
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 火星救援 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T021</b> <span style="font-size:13px; color:#4a5568;">曙光队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">1420</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 04:00</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T021</b> <span style="font-size:13px; color:#4a5568;">曙光队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">1420</span></div></div><div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:8px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 本场计时</span><span style="display:inline-block; min-width:92px; text-align:center; border:1px dashed #2b6cb0; border-radius:6px; padding:2px 8px; font-size:22px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#ebf8ff;">04:12</span><span class="tag-weak" style="background:#ebf8ff; border-color:#90cdf4; color:#2b6cb0;">可点修改</span><span style="font-size:12px; color:#718096;">/ 总时长 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div>
                 <div class="card">
           <div class="t-name">① 橙色能量块入资源仓（完全进入） <span class="pts">每个 +150</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div>
@@ -1686,15 +1689,76 @@
 
 <!-- ============ P5 未来之城 ============ -->
 <div class="page">
+  <div class="page-title">P3j · 用时修改 · <b>点顶栏数字唤起 mm:ss 滚轮</b></div>
+  <div class="page-desc">计时由发令 t0 自动走，但<b>数字是虚线框＝可点</b>：点开弹底部面板，读实体秒表（或看计时条读数）后<b>上下滑动「分 / 秒」两列滚轮</b>对齐数值（±1s / ±5s 微调可校正手滑），确认即写入成绩并留痕。<b>单队赛项没有分段需求</b>，所以不走双队那套「点轨道落点」（C-17），直接改数字更省事——两条路都落到同一个结果：<b>用时由裁判最终确认</b>。</div>
+  <div class="tablet" style="position:relative;">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 脑机星球 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+<div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:8px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 本场计时</span><span style="display:inline-block; min-width:92px; text-align:center; border:2px solid #2b6cb0; border-radius:6px; padding:2px 8px; font-size:22px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#ebf8ff;">04:12</span><span class="tag-weak" style="background:#ebf8ff; border-color:#90cdf4; color:#2b6cb0;">修改中</span><span style="font-size:12px; color:#718096;">/ 总时长 05:00</span><span style="flex:1;"></span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div><div class="card" style="margin-bottom:8px;"><div class="t-name">① 成功放落能源仓 <span class="pts">达成 +100</span></div><div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div></div></div><div class="card" style="margin-bottom:8px;"><div class="t-name">② 蓝色能源球运输至能源仓 <span class="pts">每颗 +100</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div class="card" style="margin-bottom:8px;"><div class="t-name">③ 矿石运输至矿石合成仓 <span class="pts">每颗 +150</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">3</span><b>＋</b></span></div></div><div class="card" style="margin-bottom:8px;"><div class="t-name">④ 红色能源球进入矿石合成仓一层 <span class="pts">每颗 +100</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">1</span><b>＋</b></span></div></div><div style="height:200px;"></div>
+        </div>
+      </div>
+    </div>
+<div style="position:absolute; left:0; right:0; bottom:0; background:#fff; border-top:2px solid #2b6cb0; padding:10px 16px 12px; display:flex; gap:16px; align-items:center;">
+  <!-- 左：标题与提示 -->
+  <div style="width:246px; flex:none;">
+    <div style="font-size:13px; font-weight:bold; color:#2b6cb0;">T013 火星探险小队 · 本场用时（净）</div>
+    <div style="font-size:11px; color:#718096; margin-top:2px;">允许范围 00:01 – 05:00 · <b>上下滑动选分 / 秒</b></div>
+    <div style="font-size:11px; color:#a0aec0; margin-top:10px; line-height:1.6;">读实体秒表或看计时条读数后滚到对应值<br>确认即写入成绩，并记「谁改的 / 原值 → 新值」</div>
+  </div>
+  <!-- 中：滚轮 -->
+  <div style="flex:1; display:flex; align-items:center; justify-content:center; gap:0;">
+    <div style="position:relative; width:104px; height:152px;">
+      <div style="position:absolute; top:0; left:0; right:0; text-align:center; font-size:11px; color:#a0aec0; letter-spacing:2px;">分</div>
+      <div style="position:absolute; top:20px; left:0; right:0; bottom:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="height:32px; line-height:32px; font-size:19px; color:#cbd5e0; font-family:Consolas,monospace;">03</div>
+        <div style="width:100%; height:56px; line-height:56px; text-align:center; background:#ebf8ff; border-top:1px solid #bee3f8; border-bottom:1px solid #bee3f8; font-size:34px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">04</div>
+        <div style="height:32px; line-height:32px; font-size:19px; color:#cbd5e0; font-family:Consolas,monospace;">05</div>
+      </div>
+      <div style="position:absolute; top:20px; left:0; right:0; height:24px; background:linear-gradient(#fff, rgba(255,255,255,0)); pointer-events:none;"></div>
+      <div style="position:absolute; bottom:0; left:0; right:0; height:24px; background:linear-gradient(rgba(255,255,255,0), #fff); pointer-events:none;"></div>
+    </div>
+    <div style="width:26px; height:56px; line-height:56px; text-align:center; background:#ebf8ff; border-top:1px solid #bee3f8; border-bottom:1px solid #bee3f8; font-size:28px; font-weight:bold; color:#a0aec0; font-family:Consolas,monospace;">:</div>
+    <div style="position:relative; width:104px; height:152px;">
+      <div style="position:absolute; top:0; left:0; right:0; text-align:center; font-size:11px; color:#a0aec0; letter-spacing:2px;">秒</div>
+      <div style="position:absolute; top:20px; left:0; right:0; bottom:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="height:32px; line-height:32px; font-size:19px; color:#cbd5e0; font-family:Consolas,monospace;">11</div>
+        <div style="width:100%; height:56px; line-height:56px; text-align:center; background:#ebf8ff; border-top:1px solid #bee3f8; border-bottom:1px solid #bee3f8; font-size:34px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">12</div>
+        <div style="height:32px; line-height:32px; font-size:19px; color:#cbd5e0; font-family:Consolas,monospace;">13</div>
+      </div>
+      <div style="position:absolute; top:20px; left:0; right:0; height:24px; background:linear-gradient(#fff, rgba(255,255,255,0)); pointer-events:none;"></div>
+      <div style="position:absolute; bottom:0; left:0; right:0; height:24px; background:linear-gradient(rgba(255,255,255,0), #fff); pointer-events:none;"></div>
+    </div>
+  </div>
+  <!-- 右：微调 + 确定 -->
+  <div style="width:208px; flex:none; display:flex; flex-direction:column; gap:8px;">
+    <div style="display:flex; gap:6px;"><div style="flex:1; border:1px solid #cbd5e0; border-radius:6px; text-align:center; padding:9px 0; font-size:12px; color:#4a5568; background:#f7fafc;">−5s</div><div style="flex:1; border:1px solid #cbd5e0; border-radius:6px; text-align:center; padding:9px 0; font-size:12px; color:#4a5568; background:#f7fafc;">−1s</div><div style="flex:1; border:1px solid #cbd5e0; border-radius:6px; text-align:center; padding:9px 0; font-size:12px; color:#4a5568; background:#f7fafc;">＋1s</div></div>
+    <div style="border:1px solid #2b6cb0; border-radius:6px; text-align:center; padding:13px 0; font-size:16px; font-weight:bold; color:#fff; background:#2b6cb0;">确定</div>
+  </div>
+</div>
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>为什么允许改</b>：规则写的是「当裁判发出开始比赛指令后，<b>裁判开始计时</b>」——计时主体本来就是裁判，实体秒表才是现场第一依据。自动计时给基准，手动修正给兜底（漏按开始、设备重启、暂停争议）。<br>
+    <span class="num">2</span> <b>与双队口径的关系</b>：双队要分两段、还要标「哪一段提前结束」，所以用时间轴落点（C-17）；单队是一整段、没有分段需求，直接改数字最简单——<b>殊途同归，都落到「用时由裁判最终确认」</b>。<br>
+    <span class="num">3</span> <b>改的是成绩，不是计时条</b>：确认后写入的是成绩里的用时，顶栏计时条继续按 t0 走、仍负责阶段锁点；两者不一致时<b>以裁判确认的用时为准</b>，差异写进留痕。<br>
+    <span class="num">4</span> <b>必留痕</b>：记「谁改的 / 原值 → 新值 / 时间」，签名弹层与成绩表显示修正后的值，公示与申诉可查；<b>不允许无痕改数</b>——那等于给了第二份真相。<br>
+    <span class="num">5</span> <b>校验</b>：00:01 – 总时长（本赛项 05:00）；越界「确定」置灰，不静默裁剪。<br>
+    <span class="num">6</span> <b>为什么用滚轮不用九宫格</b>：现场动作是「读秒表 → 对齐数值」，滚轮<b>滑到目标值只要一次手势</b>，九宫格要敲 4 下；且滚轮<b>不会敲出非法值</b>（分 00–05、秒 00–59 自动夹在范围内），键盘则要靠后端拦。<b>原九宫格键盘与左侧大数字框本版一并去掉</b>，滚轮中间那一行就是当前值，避免同一数值在两处显示。<br>
+    <span class="num">7</span> <b>只有「分 / 秒」两列</b>：单场总时长 05:00，「时」恒为 0，占一列反而挤窄分秒；<b>若后台把某赛项总时长配到 60 分钟以上，「时」列自动出现</b>（列数由 phases 总时长推导，不写死）。<br>
+  </div>
+</div>
+
+<div class="page">
   <div class="page-title">P5 · 打分表页（未来之城 V7.3 · <b>自动阶段态</b> · 单队）</div>
-  <div class="page-desc">V7.3 双阶段赛制（自动阶段 ⏱02:00 / 手动阶段 ⏱01:45）· 任务分按阶段归集，按 tab 分步录入；本页为未来之城<b>单队</b>标准打分表（演练 / 排位用）</div>
+  <div class="page-desc">V7.3 双阶段赛制（自动阶段 ⏱02:00 / 脑智控制阶段 ⏱03:00，全场 05:00）· 任务分按阶段归集，按 tab 分步录入；本页为未来之城<b>单队</b>标准打分表（演练 / 排位用）</div>
   <div class="tablet">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T041</b> <span style="font-size:13px; color:#4a5568;">火种先锋队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">820</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:45</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T041</b> <span style="font-size:13px; color:#4a5568;">火种先锋队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">820</span></div></div><div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:8px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block; min-width:92px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:22px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">01:12</span><span style="font-size:12px; color:#718096;">全场 02:48 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div>
                 <div class="card">
-          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>手动阶段</span></div>
+          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>脑智控制阶段</span></div>
           <div style="border:1px solid #bee3f8; border-radius:8px; padding:8px; margin-bottom:8px; background:#f7fbff;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">自动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">820</b></span></div>
             <div class="card" style="margin-bottom:8px;">
@@ -1736,28 +1800,28 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>tab 分步录入</b>：自动阶段 / 手动阶段任务分开展示，避免裁判在错误阶段误录；点「手动阶段」tab 即切换展示该阶段任务集（<b>该状态见 P5.5</b>），底部按钮随之变为「提交成绩 →」。<br>
-    <span class="num">2</span> <b>未来之城共四态，本页是第 1 个</b>：按「<b>页面绑视图、tab 绑阶段</b>」拆分——<b>单队</b>（演练 / 排位）：<b>P5</b> 自动阶段态 → <b>P5.5</b> 手动阶段态；<b>双队对抗</b>：<b>P5.6</b> 自动阶段态 → <b>P5.7</b> 手动阶段态。四个态共用同一份页面组件与同一套后台配置，差异只在「视图」与「当前选中阶段」。<br>
+    <span class="num">1</span> <b>tab 分步录入</b>：自动阶段 / 脑智控制阶段任务分开展示，避免裁判在错误阶段误录；点「脑智控制阶段」tab 即切换展示该阶段任务集（<b>该状态见 P5.5</b>），底部按钮随之变为「提交成绩 →」。<br>
+    <span class="num">2</span> <b>未来之城共四态，本页是第 1 个</b>：按「<b>页面绑视图、tab 绑阶段</b>」拆分——<b>单队</b>（演练 / 排位）：<b>P5</b> 自动阶段态 → <b>P5.5</b> 脑智控制阶段态；<b>双队对抗</b>：<b>P5.6</b> 自动阶段态 → <b>P5.7</b> 脑智控制阶段态。四个态共用同一份页面组件与同一套后台配置，差异只在「视图」与「当前选中阶段」。<br>
     <span class="num">3</span> <b>判罚不计分</b>：底部“🚩 记红牌”<b>浮出记红牌弹窗（P5.8c）</b>，黄牌 / 红牌只作记录与留痕、<b>不扣分</b>；<b>红牌 = 该队本场被罚下</b>（得分照算、成绩保留、<b>照常参与排名与评奖</b>，<b>仅不计时间奖励</b>）。黄牌计数器可在后台整体关闭（关闭后不显示、不累计、也不折算红牌）；<b>黄牌只累计，满 N 张在提交成绩时折算 1 张红牌，不即时变红牌</b>；事由清单由工作人员后台按赛项配置（未来之城的可判罚行为与其余赛项不同）。<br>
-    <span class="num">4</span> <b>单队同样走双阶段</b>：本页与 P5.6 对抗板<b>共用同一套阶段任务与后台配置</b>（自动阶段刷色卡 / 手动阶段手柄），仅少了“双队并排 + A、B <b>各自独立填写用时</b>（各填各的）”；阶段切换、阶段小计逻辑完全一致，便于裁判在演练 / 排位与正式对抗间无缝切换。<br>
+    <span class="num">4</span> <b>单队同样走双阶段</b>：本页与 P5.6 对抗板<b>共用同一套阶段任务与后台配置</b>（自动阶段刷色卡 / 脑智控制阶段手柄），仅少了“双队并排 + 共享阶段计时 + A、B 各自的本队用时”；阶段切换、阶段小计逻辑完全一致，便于裁判在演练 / 排位与正式对抗间无缝切换。<br>
     <span class="num">5</span> <b>时间奖励按赛项配置</b>：启用的赛项里整场用时按后台下发的「每 1 秒折算几分 + 封顶」计入总分，未启用时只作<b>排名维度</b>——排名规则（全赛项通用）：<b>两轮制先取优</b>（同一队两轮里取更好的一轮：先比总分高者，同分比该轮用时少者，再同比<b>轮次小者</b>），<b>取优轮</b>成绩参与排名；取优后<b>按总分降序</b>；<b>总分相同</b>再比整场用时升序（用时少者靠前），再用时相同比<b>黄牌数少者靠前</b>，仍相同则<b>并列</b>（完整规则见 P11 成绩确认页）。<br>
     <span class="num">6</span> <b>任务区占满剩余空间 + 内部滚动，底部操作栏固定</b>：内容区（任务卡）自动占满 appbar 与底部操作栏之间的全部剩余高度，任务超出即在<b>内容区内滚动</b>；「← 返回队列 / 🚩 记红牌 / 提交成绩」三个按钮<b>固定在底部操作栏</b>，不随任务多少上下浮动——任务再多也不需要滑到底找提交入口（P3 / P4 / P5.5–P5.7 同一范式）。
   </div>
 </div>
 
-<!-- ============ P5.5 未来之城手动阶段（单队） ============ -->
+<!-- ============ P5.5 未来之城脑智控制阶段（单队） ============ -->
 <div class="page">
-  <div class="page-title">P5.5 · 打分表页（未来之城 V7.3 · <b>手动阶段态</b> · 单队）</div>
-  <div class="page-desc">与 P5 是<b>同一页面的另一个 tab 状态</b>：分段控件切至「手动阶段」后展示该阶段任务集，阶段小计变为手动小计；底部按钮与 P5 一致，都是「提交成绩 →」（不再分「保存并继续 / 提交」两种文案）；本页为单队演练 / 排位用（对抗场次见 P5.7）</div>
+  <div class="page-title">P5.5 · 打分表页（未来之城 V7.3 · <b>脑智控制阶段态</b> · 单队）</div>
+  <div class="page-desc">与 P5 是<b>同一页面的另一个 tab 状态</b>：分段控件切至「脑智控制阶段」后展示该阶段任务集，阶段小计变为脑智控制小计；底部按钮与 P5 一致，都是「提交成绩 →」（不再分「保存并继续 / 提交」两种文案）；本页为单队演练 / 排位用（对抗场次见 P5.7）</div>
   <div class="tablet">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T041</b> <span style="font-size:13px; color:#4a5568;">火种先锋队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">2570</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:45</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T041</b> <span style="font-size:13px; color:#4a5568;">火种先锋队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">2570</span></div></div><div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:8px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 阶段 2/2 · 脑智控制阶段</span><span style="display:inline-block; min-width:92px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:22px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">01:36</span><span style="font-size:12px; color:#718096;">全场 03:24 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div>
                 <div class="card">
-          <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">手动阶段</span></div>
+          <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">脑智控制阶段</span></div>
           <div style="border:1px solid #bee3f8; border-radius:8px; padding:8px; margin-bottom:8px; background:#f7fbff;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">手动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">1750</b></span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">脑智控制阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">1750</b></span></div>
             <div class="card" style="margin-bottom:8px;">
               <div class="t-name">① 投射火种入对方灯塔 <span class="pts">每颗 +200</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">4</span><b>＋</b></span></div>
@@ -1807,23 +1871,24 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>这是 P5 的第二个 tab 状态，不是新页面</b>：P5 / P5.5 共用同一份页面组件与同一套后台配置，唯一差异是当前选中的阶段。<b>页面绑定「视图」（单队 / 双队），tab 绑定「阶段」（自动 / 手动）</b>——所以不把阶段写死到页面上，阶段顺序始终由工作人员后台可配置。<br>
-    <span class="num">2</span> <b>appbar 分数随阶段累计</b>：自动阶段态（P5）仅完成自动阶段，appbar 显示当前累计 <b>820</b>（= 自动小计）；切到手动阶段态（P5.5）后累计为 <b>2570</b>（= 820 ＋ 1750）。分数随阶段完成而累加，两个 tab 看到的是进度不同的累计值、并非同一数字——避免裁判在自动阶段误以为手动分已计入。<br>
-<span class="num">3</span> <b>用时口径（C-6）</b>：顶栏<b>不再显示倒计时</b>——系统内不计时。用时由裁判用<b>实体秒表</b>读数后手输用时，<b>提交前必填</b>；阶段时长（自动 02:00 / 手动 01:45）仍由后台按赛项配置，只作为<b>用时上限</b>的校验依据，不驱动任何界面计时。<br>
-    <span class="num">4</span> <b>底部按钮不随阶段变</b>：任何阶段都显示<b>「提交成绩 →」</b>。若还有阶段<b>一项都没打</b>就点了提交，会先弹一次确认（见 <b>P5.6h</b>）；按钮文案刻意不写阶段名，以适配“阶段顺序可配置”──若日后手动阶段排在前面，文案依旧成立。<br>
-    <span class="num">5</span> <b>手动阶段任务与分值已按官方规则回填</b>：投射火种入对方灯塔 +200/颗、投射火种入对方垂直投影 +50/颗、投射能源球入对方能源塔 +200/颗、投射能源球入对方垂直投影 +50/颗、原石仓垂直堆叠 +150/堆、累计4颗火种入灯塔加成 +500；单队演练/排位时投射类任务打训练靶，正式对抗打对方场地（见 P5.6 / P5.7）。四态共用同一套后台配置，分数随阶段累计：P5 ＝ 820（自动）/ P5.5 ＝ 2570（自动＋手动）。
+    <span class="num">1</span> <b>这是 P5 的第二个 tab 状态，不是新页面</b>：P5 / P5.5 共用同一份页面组件与同一套后台配置，唯一差异是当前选中的阶段。<b>页面绑定「视图」（单队 / 双队），tab 绑定「阶段」（自动 / 脑智控制）</b>——所以不把阶段写死到页面上，阶段顺序始终由工作人员后台可配置。<br>
+    <span class="num">2</span> <b>appbar 分数随阶段累计</b>：自动阶段态（P5）仅完成自动阶段，appbar 显示当前累计 <b>820</b>（= 自动小计）；切到脑智控制阶段态（P5.5）后累计为 <b>2570</b>（= 820 ＋ 1750）。分数随阶段完成而累加，两个 tab 看到的是进度不同的累计值、并非同一数字——避免裁判在自动阶段误以为脑智控制分已计入。<br>
+<span class="num">3</span> <b>用时口径（C-14 · 取代 C-6）</b>：顶栏<b>显示阶段计时条</b>（自动阶段 ⏱02:00 → 脑智控制阶段 ⏱03:00，全场 05:00）；计时<b>只驱动阶段边界与锁定</b>，<b>不直接算分</b>——时间奖励仍按「赛项总时间 − 本队用时」由后台折算；用时由计时器自动记录，异常可留痕修正。<br>
+    <span class="num">4</span> <b>底部按钮不随阶段变</b>：任何阶段都显示<b>「提交成绩 →」</b>。若还有阶段<b>一项都没打</b>就点了提交，会先弹一次确认（见 <b>P5.6h</b>）；按钮文案刻意不写阶段名，以适配“阶段顺序可配置”──若日后脑智控制阶段排在前面，文案依旧成立。<br>
+    <span class="num">5</span> <b>脑智控制阶段任务与分值已按官方规则回填</b>：投射火种入对方灯塔 +200/颗、投射火种入对方垂直投影 +50/颗、投射能源球入对方能源塔 +200/颗、投射能源球入对方垂直投影 +50/颗、原石仓垂直堆叠 +150/堆、累计4颗火种入灯塔加成 +500；单队演练/排位时投射类任务打训练靶，正式对抗打对方场地（见 P5.6 / P5.7）。四态共用同一套后台配置，分数随阶段累计：P5 ＝ 820（自动）/ P5.5 ＝ 2570（自动＋脑智控制）。
   </div>
 </div>
 
 <!-- ============ P5.6 未来之城双侧计分板（对抗同场） ============ -->
 <div class="page">
   <div class="page-title">P5.6 · 双侧计分板（未来之城 V7.3 · <b>自动阶段态</b> · A vs B）</div>
-  <div class="page-desc">V7.3 双队对抗同场模式 — 同场次 A vs B 共场竞技，<b>双阶段赛制</b>（自动阶段 ⏱02:00 / 手动阶段 ⏱01:45），A、B <b>各自独立填写用时</b>（各填各的）、双队得分独立按阶段累加；本页只打分 + 记牌 + 提交，<b><b>签名与提交在弹层里完成</b>（见 P5.6g，A / B 代表 + 裁判三方签名）</div>
+  <div class="page-desc">V7.3 双队对抗同场模式 — 同场次 A vs B 共场竞技，<b>双阶段赛制</b>（自动阶段 ⏱02:00 / 脑智控制阶段 ⏱03:00，全场 05:00）、双队得分独立按阶段累加；本页只打分 + 记牌 + 提交，<b>签名与提交在弹层里完成</b>（见 P5.6g，A / B 代表 + 裁判三方签名）</div>
   <div class="tablet">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen">
       <div class="main sheet">
         <div class="scroll-area">
+        <div style="border:1px solid #cbd5e0;border-radius:8px;background:#fff;padding:8px 14px 4px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="font-size:12px;font-weight:bold;color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block;min-width:92px;text-align:center;border:1px solid #a0aec0;border-radius:6px;padding:2px 8px;font-size:22px;font-weight:bold;font-family:Consolas,monospace;color:#2b6cb0;background:#fff;">0:12</span><span style="font-size:12px;color:#718096;">全场 1:48 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div><div style="display:flex;margin-left:36px;margin-right:104px;height:14px;font-size:10px;line-height:14px;margin-bottom:5px;"><div style="width:40%;border-right:2px solid #2b6cb0;background:#ebf8ff;color:#2b6cb0;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">自动 2:00</div><div style="width:60%;background:#faf5ff;color:#805ad5;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">脑智控制 3:00</div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#2b6cb0;">A</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0%;top:0;width:34%;height:20px;background:#2b6cb0;border-radius:3px 0 0 3px;"></div><div style="position:absolute;left:34%;top:-4px;bottom:-4px;width:2px;background:#2b6cb0;margin-left:-1px;"></div><div style="position:absolute;left:34%;top:-6px;width:8px;height:8px;border-radius:50%;background:#2b6cb0;border:1.5px solid #fff;margin-left:-4px;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#2b6cb0;">01:42 + --</span></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#805ad5;">B</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0;top:0;width:36%;height:20px;background:#805ad5;opacity:.25;border-radius:3px 0 0 3px;border:1px dashed #805ad5;box-sizing:border-box;"></div><div style="position:absolute;left:36%;top:-4px;bottom:-4px;width:0;border-left:2px dashed #805ad5;margin-left:-1px;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#c05621;">-- + --</span></div><div style="display:flex;justify-content:space-between;margin-left:36px;margin-right:104px;font-size:10px;color:#a0aec0;font-family:Consolas,monospace;padding-bottom:2px;"><span>0:00</span><span>1:00</span><span>2:00</span><span>3:00</span><span>4:00</span><span>5:00</span></div></div>
         <div class="two-col">
           <div class="card" style="border-color:#2b6cb0; border-width:2px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -1833,14 +1898,8 @@
                 <span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">820</span>
               </div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
-              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
-              <span style="display:inline-flex; align-items:center; gap:8px;">
-                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
-                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
-              </span>
-            </div>
-          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>手动阶段</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:3px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">净用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:76px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">01:42</span><span style="font-size:10px; color:#a0aec0; font-family:Consolas,monospace;">01:42 + --</span><span class="tag-weak" style="margin-left:2px;background:#edf2f7; color:#4a5568;">已标记 01:42</span></span></div><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 4px;"><span style="font-size:11px; color:#a0aec0;">只计本队有效段（彩色），灰色为等待不计入</span><span style="font-size:11px; color:#4a5568; border:1px solid #cbd5e0; border-radius:5px; padding:1px 8px; background:#fff;">修改</span></div>
+          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>脑智控制阶段</span></div>
           <div style="border:1px solid #bee3f8; border-radius:8px; padding:8px; margin-bottom:8px; background:#f7fbff;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">自动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">820</b></span></div>
               <div class="card" style="margin-bottom:8px;">
@@ -1877,14 +1936,8 @@
                 <span style="font-size:26px; font-weight:bold; color:#805ad5; line-height:1;">620</span>
               </div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
-              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
-              <span style="display:inline-flex; align-items:center; gap:8px;">
-                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
-                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
-              </span>
-            </div>
-          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>手动阶段</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:3px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">净用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:76px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#c05621; background:#fff;">01:48</span><span style="font-size:10px; color:#a0aec0; font-family:Consolas,monospace;">-- + --</span><span class="tag-weak" style="margin-left:2px;background:#fffaf0; color:#c05621;">未标记 · 计时中</span></span></div><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 4px;"><span style="font-size:11px; color:#a0aec0;">只计本队有效段（彩色），灰色为等待不计入</span><span style="font-size:11px; color:#2b6cb0; border:1px solid #90cdf4; border-radius:5px; padding:1px 8px; background:#ebf8ff; font-weight:bold;">⏱ 标记停表</span></div>
+          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>脑智控制阶段</span></div>
           <div style="border:1px solid #e9d8fd; border-radius:8px; padding:8px; margin-bottom:8px; background:#faf5ff;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#805ad5;">自动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#805ad5;">620</b></span></div>
               <div class="card" style="margin-bottom:8px;">
@@ -1927,15 +1980,14 @@
     </div>
   </div>
   <div class="note">
-<span class="num">1</span> <b>同场对抗 · 数据域隔离</b>：A / B 两队列在同一场次内并排竞技，得分各自独立累加、互不干扰；<b>用时由 A、B 各自独立填写</b>（各填各的，见侧板头部「用时」输入框）；时间奖励按赛项配置（启用时计入总分，未启用时仅用于最终排名——总分相同先用时、再黄牌）。<br>
+<span class="num">1</span> <b>同场对抗 · 数据域隔离</b>：A / B 两队列在同一场次内并排竞技，得分各自独立累加、互不干扰；阶段计时条<b>全场共享一条</b>，A、B 各自记录<b>本队用时</b>（见侧板卡头「本队用时」，只读）；时间奖励按赛项配置（启用时计入总分，未启用时仅用于最终排名——总分相同先用时、再黄牌）。<br>
 <span class="num">1.1</span> <b>双阶段（A / B 共用，仅规则口径）</b><br>
-<span class="num">8</span> <b>用时输入框在侧板头部，不在顶栏</b>：顶栏只留「赛台 / 赛项 / 组别 / 轮次」静态信息，<b>与全册其他页顶栏形态一致</b>；A / B 两侧各一个「<b>用时</b>」输入框，紧贴「队名 · 队号 / 总分」——<b>队号、队名、用时、比分同处一个视觉单元</b>，天然不会填到对面去。<br>
-    <span class="num">1.2</span> <b>每队卡内分段控件 + 阶段小计</b>：每队计分卡顶部有「自动阶段 ｜ 手动阶段」分段控件，点选即切换该队当前展示的阶段任务集；每个阶段块右上角显示<b>阶段小计</b>（该阶段任务得分之和）；原石搬运、火种运输等归自动阶段，投射火种 / 能源球等归手动阶段；卡头小字「总分」+ 大号分数 = 自动小计 + 手动小计；<b>两个 tab 状态均省略卡内底部「自动小计 ＋ 手动小计 ＝ 本队总计」构成行</b>，总分只由卡头「总分」一处呈现（自动阶段态 P5.6 手动小计为 0、手动阶段态 P5.7 手动小计非 0，均只在卡头展示合计值），避免裁判把“0”误读为漏打，也避免与卡头数字重复。<br>
-    <span class="num">2</span> <b>签名在弹层里，不在页底（C-4）</b>：V7.3 要求 A、B 两队各一名选手代表签字——<b>页底签名区已移除</b>，改为点「提交成绩 →」后在 <b>P5.6g</b> 弹层里<b>三方签名</b>（A 队代表 + B 队代表 + 本场裁判），签齐才解锁「确认提交」。<br>
+<span class="num">1.2</span> <b>每队卡内分段控件 + 阶段小计</b>：每队计分卡顶部有「自动阶段 ｜ 脑智控制阶段」分段控件，点选即切换该队当前展示的阶段任务集；每个阶段块右上角显示<b>阶段小计</b>（该阶段任务得分之和）；原石搬运、火种运输等归自动阶段，投射火种 / 能源球等归脑智控制阶段；卡头小字「总分」+ 大号分数 = 自动小计 + 脑智控制小计；<b>两个 tab 状态均省略卡内底部「自动小计 ＋ 脑智控制小计 ＝ 本队总计」构成行</b>，总分只由卡头「总分」一处呈现（自动阶段态 P5.6 脑智控制小计为 0、脑智控制阶段态 P5.7 脑智控制小计非 0，均只在卡头展示合计值），避免裁判把“0”误读为漏打，也避免与卡头数字重复。<br>
+        <span class="num">1.3</span> <b>队卡「净用时」只读 + 标记入口（C-17）</b>：队卡里的净用时由<b>时间轴分段求和</b>得到，<b>不可手输</b>；旁边构成串（如 <code>01:42 + 00:28</code>）与时间轴右端<b>同源</b>。落点有两个入口——<b>点时间轴上该队的轨道</b>，或点队卡里的「<b>⏱ 标记停表</b>」（后者落点＝当前全场时刻）。<br><span class="num">2</span> <b>签名在弹层里，不在页底（C-4）</b>：V7.3 要求 A、B 两队各一名选手代表签字——<b>页底签名区已移除</b>，改为点「提交成绩 →」后在 <b>P5.6g</b> 弹层里<b>三方签名</b>（A 队代表 + B 队代表 + 本场裁判），签齐才解锁「确认提交」。<br>
     <span class="num">3</span> <b>本页 vs P5 的边界</b>：P5 是未来之城「单队」标准打分表（单队演练 / 排位用）；P5.6 是正式对抗场次的双队同场控制板——进入对抗场次时由 <b>P2 第 5 条</b>轮转规则直接载入本页。<br>
     <span class="num">4</span> <b>整场提交闭环</b>：A / B 双方均完成打分后方可“提交成绩”，任一侧未完成时按钮置灰并提示“请先完成 B 队打分”；提交后即归档并切下一场（P2 队列指针 +1）。<br>
-    <span class="num">6</span> <b>判罚双侧独立且不计分</b>：每队“🚩 记红牌”各自<b>浮出记红牌弹窗（P5.8c）</b>，牌面（黄 / 红）显示在各自卡内的<b>黄牌计数器</b>上（<b>后台可整体关闭</b>：关闭后不显示计数器、黄牌不累计），「🚩 记红牌」按钮只作入口、<b>不再重复挂牌数</b>；<b>卡头仅保留总分</b>、不重复展示牌面；黄牌 / 红牌<b>不扣分</b>，两队牌面互不影响比分，也不进小计。<br>
-    <span class="num">7</span> <b>本页是「自动阶段态」，手动阶段态见 <b>P5.7</b></b>：页面绑定<b>视图</b>（单队 / 双队），tab 绑定<b>阶段</b>（自动 / 手动）——因此 P5.6 与 P5.7 共用同一页面组件与同一套后台配置，仅当前选中阶段不同；<b>阶段不写死到页面上</b>，顺序始终由工作人员后台可配置（见后台「阶段配置」）。
+        <span class="num">5</span> <b>净用时怎么算（C-17 · 取代 C-15）</b>：净用时 = <b>Σ 各阶段「阶段起点 → 裁判标记的停表点」</b>；<b>段数恒等于阶段数</b>，本场两段只是后台配了两个阶段。阶段到点仍未标记的段，<b>按满时自动补记</b>并标「满时 · 系统补记」（见 P5.6m）；<b>禁止跳过</b>——只能标当前阶段。灰段是「提前完成后到阶段结束」的等待，<b>不计入</b>。<br><span class="num">6</span> <b>判罚双侧独立且不计分</b>：每队“🚩 记红牌”各自<b>浮出记红牌弹窗（P5.8c）</b>，牌面（黄 / 红）显示在各自卡内的<b>黄牌计数器</b>上（<b>后台可整体关闭</b>：关闭后不显示计数器、黄牌不累计），「🚩 记红牌」按钮只作入口、<b>不再重复挂牌数</b>；<b>卡头仅保留总分</b>、不重复展示牌面；黄牌 / 红牌<b>不扣分</b>，两队牌面互不影响比分，也不进小计。<br>
+    <span class="num">7</span> <b>本页是「自动阶段态」，脑智控制阶段态见 <b>P5.7</b></b>：页面绑定<b>视图</b>（单队 / 双队），tab 绑定<b>阶段</b>（自动 / 脑智控制）——因此 P5.6 与 P5.7 共用同一页面组件与同一套后台配置，仅当前选中阶段不同；<b>阶段不写死到页面上</b>，顺序始终由工作人员后台可配置（见后台「阶段配置」）。
   </div>
 </div>
 
@@ -1958,13 +2010,13 @@
               </div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
-              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
+              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（净）</span>
               <span style="display:inline-flex; align-items:center; gap:8px;">
-                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
-                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
+                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:10</span>
+                <span style="font-size:12px; color:#718096;"> / 总时间 05:00</span>
               </span>
             </div>
-          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>手动阶段</span></div>
+          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>脑智控制阶段</span></div>
           <div style="border:1px solid #bee3f8; border-radius:8px; padding:8px; margin-bottom:8px; background:#f7fbff;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">自动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">820</b></span></div>
               <div class="card" style="margin-bottom:8px;">
@@ -2002,13 +2054,13 @@
               </div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
-              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
+              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（净）</span>
               <span style="display:inline-flex; align-items:center; gap:8px;">
-                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
-                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
+                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">03:24</span>
+                <span style="font-size:12px; color:#718096;"> / 总时间 05:00</span>
               </span>
             </div>
-          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>手动阶段</span></div>
+          <div class="seg" style="margin-bottom:8px;"><span class="on">自动阶段</span><span>脑智控制阶段</span></div>
           <div style="border:1px solid #e9d8fd; border-radius:8px; padding:8px; margin-bottom:8px; background:#faf5ff;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#805ad5;">自动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#805ad5;">620</b></span></div>
               <div class="card" style="margin-bottom:8px;">
@@ -2058,9 +2110,9 @@
             <div style="font-size:12.5px; color:#2d3748; line-height:1.7;">下面这些阶段<b>一项都没打</b>，现在提交会按 <b>0 分</b> 计入正式成绩：</div>
             <div style="border:1px solid #e2e8f0; border-radius:8px; background:#f7fafc; padding:2px 12px; margin:8px 0 4px;">
               <div class="qrow" style="border-bottom:1px dashed #e2e8f0; padding:6px 0; font-size:12px;"><span>自动阶段</span><span style="color:#38a169; font-weight:bold;">✓ 已打 · A 4/4 · B 4/4</span></div>
-              <div class="qrow" style="border-bottom:none; padding:6px 0; font-size:12px;"><span>手动阶段</span><span style="color:#c05621; font-weight:bold;">⚠ 未打 · A 0/4 · B 0/4</span></div>
+              <div class="qrow" style="border-bottom:none; padding:6px 0; font-size:12px;"><span>脑智控制阶段</span><span style="color:#c05621; font-weight:bold;">⚠ 未打 · A 0/4 · B 0/4</span></div>
             </div>
-            <div style="font-size:11.5px; color:#a0aec0; margin-top:6px;">↑ 自动阶段 820 / 620 分已录入，手动阶段还是空的；<b>提交后不可撤销</b>（要改只能走改分申请 → 裁判长审批）。</div>
+            <div style="font-size:11.5px; color:#a0aec0; margin-top:6px;">↑ 自动阶段 820 / 620 分已录入，脑智控制阶段还是空的；<b>提交后不可撤销</b>（要改只能走改分申请 → 裁判长审批）。</div>
           </div>
           <div style="display:flex; justify-content:flex-end; gap:10px; padding:12px 16px;">
             <span class="btn-gray btn-sm" style="white-space:nowrap; flex:none;">返回继续打分</span>
@@ -2072,11 +2124,11 @@
   </div>
   <div class="note">
     <span class="num">1</span> <b>触发条件只有一条</b>：点「提交成绩 →」时，<b>任一阶段的任务数为 0</b>。全部阶段都有分 → 直接进 <b>P5.6g</b> 签名弹层，<b>不弹本层</b>——不为"已经打完了"的人增加一次点击。<br>
-    <span class="num">2</span> <b>为什么必须拦</b>：漏打一个阶段不会报错、不会留空，而是<b>安静地按 0 分入账</b>；提交又<b>不可撤销</b>（更正只能走改分申请 → 裁判长审批）。一个学生跑完手动阶段却拿 0 分，现场很难解释——所以宁可在提交前多问一句。<br>
+    <span class="num">2</span> <b>为什么必须拦</b>：漏打一个阶段不会报错、不会留空，而是<b>安静地按 0 分入账</b>；提交又<b>不可撤销</b>（更正只能走改分申请 → 裁判长审批）。一个学生跑完脑智控制阶段却拿 0 分，现场很难解释——所以宁可在提交前多问一句。<br>
     <span class="num">3</span> <b>按钮文案刻意中性</b>：「返回继续打分」与<b>不阻断</b>的「确认提交」并列，<b>不把"继续打分"设成红色警示</b>——多数情况是裁判真漏了，回去补是正常操作，不是犯错。「确认提交」用橙色（警示而非危险红），只有确实要带 0 分提交时才点。<br>
     <span class="num">4</span> <b>确认后的路径</b>：确认提交 → 进 <b>P5.6g</b> 三方签名 → 签齐才真正写入。本层<b>不写任何成绩</b>，只是把"要带 0 分提交"这件事说清楚。<br>
-    <span class="num">5</span> <b>单队 / 双队共用</b>：P5 / P5.5（单队）与 P5.6 / P5.7（双队）同一套判断；双队时<b>逐队看</b>——A 队手动阶段 0 项也会触发，即使 B 队打满了。<br>
-    <span class="num">6</span> <b>阶段顺序可配置</b>：列表按后台配置的阶段顺序渲染，本页示例是"自动在前、手动在后"；换了顺序，文案与列表自动跟着变，<b>不写死阶段名</b>。
+    <span class="num">5</span> <b>单队 / 双队共用</b>：P5 / P5.5（单队）与 P5.6 / P5.7（双队）同一套判断；双队时<b>逐队看</b>——A 队脑智控制阶段 0 项也会触发，即使 B 队打满了。<br>
+    <span class="num">6</span> <b>阶段顺序可配置</b>：列表按后台配置的阶段顺序渲染，本页示例是"自动在前、脑智控制在后"；换了顺序，文案与列表自动跟着变，<b>不写死阶段名</b>。
   </div>
 </div>
 
@@ -2099,15 +2151,15 @@
               </div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
-              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
+              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（净）</span>
               <span style="display:inline-flex; align-items:center; gap:8px;">
-                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
-                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
+                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:10</span>
+                <span style="font-size:12px; color:#718096;"> / 总时间 05:00</span>
               </span>
             </div>
-                      <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">手动阶段</span></div>
+                      <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">脑智控制阶段</span></div>
           <div style="border:1px solid #bee3f8; border-radius:8px; padding:8px; margin-bottom:8px; background:#f7fbff;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">手动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">1100</b></span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">脑智控制阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">1100</b></span></div>
               <div class="card" style="margin-bottom:8px;">
                 <div class="t-name">① 投射火种入对方灯塔 <span class="pts">每颗 +200</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div>
@@ -2153,15 +2205,15 @@
               </div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
-              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
+              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时（净）</span>
               <span style="display:inline-flex; align-items:center; gap:8px;">
-                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
-                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
+                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">03:24</span>
+                <span style="font-size:12px; color:#718096;"> / 总时间 05:00</span>
               </span>
             </div>
-                      <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">手动阶段</span></div>
+                      <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">脑智控制阶段</span></div>
           <div style="border:1px solid #e9d8fd; border-radius:8px; padding:8px; margin-bottom:8px; background:#faf5ff;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#805ad5;">手动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#805ad5;">350</b></span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#805ad5;">脑智控制阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#805ad5;">350</b></span></div>
               <div class="card" style="margin-bottom:8px;">
                 <div class="t-name">① 投射火种入对方灯塔 <span class="pts" style="color:#805ad5">每颗 +200</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">1</span><b>＋</b></span></div>
@@ -2219,14 +2271,14 @@
           <div style="display:flex; gap:10px;">
             <div style="flex:1; border:1px solid #bee3f8; border-radius:8px; background:#f7fbff; padding:8px 10px;">
               <div style="font-size:12px; font-weight:bold; color:#2b6cb0;">A 队 · T042 星火先锋队</div>
-              <div style="font-size:11px; color:#718096; margin-top:4px;">用时 <b style="color:#2b6cb0; font-family:Consolas,monospace;">02:58</b></div>
+              <div style="font-size:11px; color:#718096; margin-top:4px;">用时 <b style="color:#2b6cb0; font-family:Consolas,monospace;">02:10</b></div>
               <div style="font-size:11px; color:#718096;">黄牌 <b style="color:#c53030;">3</b> → 0</div>
               <div style="font-size:11px; color:#718096;">红牌 0 → <b style="color:#c53030;">1</b></div>
               <div style="font-size:22px; font-weight:bold; color:#2b6cb0; margin-top:2px;">1920 分</div>
             </div>
             <div style="flex:1; border:1px solid #e9d8fd; border-radius:8px; background:#faf5ff; padding:8px 10px;">
               <div style="font-size:12px; font-weight:bold; color:#805ad5;">B 队 · T043 智造小分队</div>
-              <div style="font-size:11px; color:#718096; margin-top:4px;">用时 <b style="color:#805ad5; font-family:Consolas,monospace;">02:58</b></div>
+              <div style="font-size:11px; color:#718096; margin-top:4px;">用时 <b style="color:#805ad5; font-family:Consolas,monospace;">03:24</b></div>
               <div style="font-size:11px; color:#718096;">黄牌 1</div>
               <div style="font-size:11px; color:#718096;">红牌 0</div>
               <div style="font-size:22px; font-weight:bold; color:#805ad5; margin-top:2px;">970 分</div>
@@ -2236,15 +2288,15 @@
           <div style="display:flex; gap:8px; margin-top:12px;">
             <div style="flex:1;">
               <div style="font-size:11px; color:#2b6cb0; margin-bottom:4px;">A 队代表签名</div>
-              <div style="border:2px dashed #2b6cb0; border-radius:8px; height:56px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名</div>
+              <div style="position:relative; border:2px dashed #2b6cb0; border-radius:8px; height:56px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名<span title="放大签名" style="position:absolute; top:3px; right:3px; width:18px; height:18px; border:1px solid #cbd5e0; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#4a5568;">⤢</span></div>
             </div>
             <div style="flex:1;">
               <div style="font-size:11px; color:#805ad5; margin-bottom:4px;">B 队代表签名</div>
-              <div style="border:2px dashed #805ad5; border-radius:8px; height:56px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名</div>
+              <div style="position:relative; border:2px dashed #805ad5; border-radius:8px; height:56px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名<span title="放大签名" style="position:absolute; top:3px; right:3px; width:18px; height:18px; border:1px solid #cbd5e0; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#4a5568;">⤢</span></div>
             </div>
             <div style="flex:1;">
               <div style="font-size:11px; color:#4a5568; margin-bottom:4px;">裁判签名</div>
-              <div style="border:2px dashed #4a5568; border-radius:8px; height:56px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名</div>
+              <div style="position:relative; border:2px dashed #4a5568; border-radius:8px; height:56px; display:flex; align-items:center; justify-content:center; color:#a0aec0; font-size:12px;">✍ 手写签名<span title="放大签名" style="position:absolute; top:3px; right:3px; width:18px; height:18px; border:1px solid #cbd5e0; border-radius:4px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#4a5568;">⤢</span></div>
             </div>
           </div>
         </div>
@@ -2256,7 +2308,7 @@
       </div>
     </div>
   <div class="note">
-    <span class="num">1</span> <b>与 P3g 同款，只是"两栏 + 三方"</b>：单队是「一列汇总 + 两方签名」，双队对抗是「<b>A / B 两栏对比 + 三方签名</b>」（A 队代表 + B 队代表 + 裁判）。<b>B-2 已定：不要对手签名</b>——这里的 A / B 各自签自己的队，不是互签。<br>
+    <span class="num">1</span> <b>与 P3g 同款，只是"两栏 + 三方"</b>：单队是「一列汇总 + 两方签名」，双队对抗是「<b>A / B 两栏对比 + 三方签名</b>」（A 队代表 + B 队代表 + 裁判）。<b>B-2 已定：不要对手签名</b>——这里的 A / B 各自签自己的队，不是互签。<b>三个签名框右上角同样带放大按钮（⤢）</b>，语义与 P3g 一致：未签放大书写、已签放大查看。<br>
     <span class="num">2</span> <b>页底签名区已删</b>：P5.6 / P5.7 两页底部原来的「A 队代表 + B 队代表 + 裁判」三方签名卡片<b>已移除</b>，统一进本弹层（C-4）。<br>
     <span class="num">3</span> <b>左右两栏必须同时提交</b>：整场是一个单元——不能只提交 A 队。签齐三方 → 确认提交 → A / B 两队成绩同时写入、切下一<b>场次</b>（不是下一队）。<br>
     <span class="num">4</span> <b>签齐态</b>：与 P3h 同款（签名框变实线出笔迹、按钮变绿）——本弹层不再保留「签名齐全前不可点」提示条，置灰由按钮态自证；签齐态不单独出一页，避免同一套东西画两遍。<br>
@@ -2266,13 +2318,157 @@
 </div></div>
 
 <div class="page">
-  <div class="page-title">P5.7 · 双侧计分板（未来之城 V7.3 · <b>手动阶段态</b> · A vs B）</div>
-  <div class="page-desc">与 P5.6 是<b>同一页面的另一个 tab 状态</b>：A / B 两队分段控件同时切至「手动阶段」，展示各自该阶段的任务集；各队<b>手动小计</b>计入卡头「总分」（＝ 自动小计 ＋ 手动小计），底部按钮变为「提交成绩 →」</div>
+  <div class="page-title">P5.6i · 时间轴 · <b>初始（未标记）</b></div>
+  <div class="page-desc">发令后开局：两轨全灰、<b>构成串为 <code>-- + --</code></b>；等待裁判在每队每阶段落一个停表点。轨道底色就是「等待」——彩色段才计入净用时。</div>
   <div class="tablet">
     <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
     <div class="screen">
       <div class="main sheet">
         <div class="scroll-area">
+<div style="border:1px solid #cbd5e0;border-radius:8px;background:#fff;padding:8px 14px 4px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="font-size:12px;font-weight:bold;color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block;min-width:92px;text-align:center;border:1px solid #a0aec0;border-radius:6px;padding:2px 8px;font-size:22px;font-weight:bold;font-family:Consolas,monospace;color:#2b6cb0;background:#fff;">2:00</span><span style="font-size:12px;color:#718096;">全场 0:00 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><span class="btn-primary btn-sm" style="padding:4px 12px;">▶ 开始本场</span></div><div style="display:flex;margin-left:36px;margin-right:104px;height:14px;font-size:10px;line-height:14px;margin-bottom:5px;"><div style="width:40%;border-right:2px solid #2b6cb0;background:#ebf8ff;color:#2b6cb0;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">自动 2:00</div><div style="width:60%;background:#faf5ff;color:#805ad5;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">脑智控制 3:00</div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#2b6cb0;">A</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#2b6cb0;">-- + --</span></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#805ad5;">B</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#805ad5;">-- + --</span></div><div style="display:flex;justify-content:space-between;margin-left:36px;margin-right:104px;font-size:10px;color:#a0aec0;font-family:Consolas,monospace;padding-bottom:2px;"><span>0:00</span><span>1:00</span><span>2:00</span><span>3:00</span><span>4:00</span><span>5:00</span></div></div><div class="card" style="margin-bottom:8px;"><div class="t-name">① 原石搬运·完全进入 <span class="pts">每颗 +200</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">0</span><b>＋</b></span></div></div><div class="card" style="opacity:.5; margin-bottom:8px;"><div class="t-name">其余任务卡 <span class="pts">待发令</span></div><div style="font-size:12px; color:#a0aec0; margin-top:4px;">发令前任务卡可预览、不可录入</div></div><div style="border:1px dashed #cbd5e0; border-radius:8px; padding:6px 12px; margin-top:10px; background:#fcfcfd;"><div style="font-size:11px; color:#718096; margin-bottom:4px;">折叠态（滚动时收起，只留双轨与构成串 · 高 44px）</div><div style="display:flex; align-items:center; gap:8px; font-size:11px; font-family:Consolas,monospace;"><span style="width:20px; color:#2b6cb0; font-weight:bold;">A</span><div style="flex:1; height:8px; background:#edf2f7; border-radius:2px;"></div><span style="width:72px; text-align:right; color:#a0aec0;">-- + --</span></div><div style="display:flex; align-items:center; gap:8px; font-size:11px; font-family:Consolas,monospace; margin-top:4px;"><span style="width:20px; color:#805ad5; font-weight:bold;">B</span><div style="flex:1; height:8px; background:#edf2f7; border-radius:2px;"></div><span style="width:72px; text-align:right; color:#a0aec0;">-- + --</span></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>未标记 ≠ 0 秒</b>：未落点表示「该段尚未记录」，不是用时为零；阶段到点会按<b>满时自动补记</b>（见 P5.6m）。<br>
+    <span class="num">2</span> <b>轨道底色即等待灰</b>：<code>#edf2f7</code> 铺满整轨，色块盖在上面——所以「彩色＝有效、灰色＝等待」不需要额外图例。<br>
+    <span class="num">3</span> <b>折叠态只保留双轨 + 构成串</b>：新增时间轴占 ~104px，展开态会把任务卡挤到只露 2 张；滚动时自动收起为 44px。<br>
+    <span class="num">4</span> <b>总长取后台阶段时长之和</b>：本场 <code>2:00 + 3:00 = 5:00</code>，改成三段会自动重排刻度，不写死 5:00。<br>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">P5.6j · 时间轴 · <b>标记中（点位置 + 滚轮微调）</b></div>
+  <div class="page-desc">裁判点轨道任意位置 → 立即生成本队色虚影竖线，并弹出底部面板；<b>落点＝点击轨道 + 滚轮微调，不可拖拽</b>（本稿为零 JS 静态示意，真交互见可运行原型）。</div>
+  <div class="tablet" style="position:relative;">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+<div style="border:1px solid #cbd5e0;border-radius:8px;background:#fff;padding:8px 14px 4px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="font-size:12px;font-weight:bold;color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block;min-width:92px;text-align:center;border:1px solid #a0aec0;border-radius:6px;padding:2px 8px;font-size:22px;font-weight:bold;font-family:Consolas,monospace;color:#2b6cb0;background:#fff;">0:30</span><span style="font-size:12px;color:#718096;">全场 1:30 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div><div style="display:flex;margin-left:36px;margin-right:104px;height:14px;font-size:10px;line-height:14px;margin-bottom:5px;"><div style="width:40%;border-right:2px solid #2b6cb0;background:#ebf8ff;color:#2b6cb0;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">自动 2:00</div><div style="width:60%;background:#faf5ff;color:#805ad5;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">脑智控制 3:00</div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#2b6cb0;">A</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0;top:0;width:30%;height:20px;background:#2b6cb0;opacity:.25;border-radius:3px 0 0 3px;border:1px dashed #2b6cb0;box-sizing:border-box;"></div><div style="position:absolute;left:30%;top:-4px;bottom:-4px;width:0;border-left:2px dashed #2b6cb0;margin-left:-1px;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#c05621;">-- + --</span></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#805ad5;">B</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#805ad5;">-- + --</span></div><div style="display:flex;justify-content:space-between;margin-left:36px;margin-right:104px;font-size:10px;color:#a0aec0;font-family:Consolas,monospace;padding-bottom:2px;"><span>0:00</span><span>1:00</span><span>2:00</span><span>3:00</span><span>4:00</span><span>5:00</span></div></div><div class="card" style="margin-bottom:8px;"><div class="t-name">① 原石搬运·完全进入 <span class="pts">每颗 +200</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div class="card" style="margin-bottom:8px;"><div class="t-name">② 原石搬运·部分进入 <span class="pts">每颗 +100</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">1</span><b>＋</b></span></div></div><div class="card" style="margin-bottom:8px;"><div class="t-name">③ 自动阶段·火种运送入能源仓 <span class="pts">每颗 +100</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">3</span><b>＋</b></span></div></div><div class="card" style="opacity:.45; margin-bottom:8px;"><div class="t-name">④ 检录 <span class="pts">+20</span></div><div style="font-size:12px; color:#a0aec0; margin-top:4px;">标记停表点时任务卡暂停录入，确认后恢复</div></div><div style="height:190px;"></div>
+        </div>
+      </div>
+    </div>
+<div style="position:absolute; left:0; right:0; bottom:0; background:#fff; border-top:2px solid #2b6cb0; padding:10px 16px 12px; display:flex; gap:16px; align-items:center;">
+  <div style="width:246px; flex:none;">
+    <div style="font-size:13px; font-weight:bold; color:#2b6cb0;">A 队 · 自动阶段 · 停表点</div>
+    <div style="font-size:11px; color:#718096; margin-top:2px;">允许范围 00:01 – 02:00 · <b>上下滑动选分 / 秒</b></div>
+    <div style="font-size:11px; color:#a0aec0; margin-top:10px; line-height:1.6;">位置仅供粗定位，<b>以滚轮数值为准</b><br>确定后色块宽度按 01:30 反算</div>
+  </div>
+  <div style="flex:1; display:flex; align-items:center; justify-content:center; gap:0;">
+    <div style="position:relative; width:104px; height:152px;">
+        <div style="position:absolute; top:0; left:0; right:0; text-align:center; font-size:11px; color:#a0aec0; letter-spacing:2px;">分</div>
+        <div style="position:absolute; top:20px; left:0; right:0; bottom:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+          <div style="height:32px; line-height:32px; font-size:19px; color:#cbd5e0; font-family:Consolas,monospace;">00</div>
+          <div style="width:100%; height:56px; line-height:56px; text-align:center; background:#ebf8ff; border-top:1px solid #bee3f8; border-bottom:1px solid #bee3f8; font-size:34px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">01</div>
+          <div style="height:32px; line-height:32px; font-size:19px; color:#cbd5e0; font-family:Consolas,monospace;">02</div>
+        </div>
+        <div style="position:absolute; top:20px; left:0; right:0; height:24px; background:linear-gradient(#fff, rgba(255,255,255,0)); pointer-events:none;"></div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:24px; background:linear-gradient(rgba(255,255,255,0), #fff); pointer-events:none;"></div>
+      </div>
+    <div style="width:26px; height:56px; line-height:56px; text-align:center; background:#ebf8ff; border-top:1px solid #bee3f8; border-bottom:1px solid #bee3f8; font-size:28px; font-weight:bold; color:#a0aec0; font-family:Consolas,monospace;">:</div>
+    <div style="position:relative; width:104px; height:152px;">
+        <div style="position:absolute; top:0; left:0; right:0; text-align:center; font-size:11px; color:#a0aec0; letter-spacing:2px;">秒</div>
+        <div style="position:absolute; top:20px; left:0; right:0; bottom:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+          <div style="height:32px; line-height:32px; font-size:19px; color:#cbd5e0; font-family:Consolas,monospace;">29</div>
+          <div style="width:100%; height:56px; line-height:56px; text-align:center; background:#ebf8ff; border-top:1px solid #bee3f8; border-bottom:1px solid #bee3f8; font-size:34px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0;">30</div>
+          <div style="height:32px; line-height:32px; font-size:19px; color:#cbd5e0; font-family:Consolas,monospace;">31</div>
+        </div>
+        <div style="position:absolute; top:20px; left:0; right:0; height:24px; background:linear-gradient(#fff, rgba(255,255,255,0)); pointer-events:none;"></div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:24px; background:linear-gradient(rgba(255,255,255,0), #fff); pointer-events:none;"></div>
+      </div>
+  </div>
+  <div style="width:208px; flex:none; display:flex; flex-direction:column; gap:8px;">
+    <div style="display:flex; gap:6px;"><div style="flex:1; border:1px solid #cbd5e0; border-radius:6px; text-align:center; padding:9px 0; font-size:12px; color:#4a5568; background:#f7fafc;">−5s</div><div style="flex:1; border:1px solid #cbd5e0; border-radius:6px; text-align:center; padding:9px 0; font-size:12px; color:#4a5568; background:#f7fafc;">−1s</div><div style="flex:1; border:1px solid #cbd5e0; border-radius:6px; text-align:center; padding:9px 0; font-size:12px; color:#4a5568; background:#f7fafc;">＋1s</div></div>
+    <div style="border:1px solid #2b6cb0; border-radius:6px; text-align:center; padding:13px 0; font-size:16px; font-weight:bold; color:#fff; background:#2b6cb0;">确定</div>
+  </div>
+</div>
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>数字是唯一真相源，位置只是投影</b>：整轨约 798px / 300 秒 ≈ 2.66px/秒，点击精度只有 ±0.4 秒，必然出现 01:29 这种值——所以<b>以面板数字为准</b>，色块宽度按数字反算。<br>
+    <span class="num">2</span> <b>只能往一个方向同步</b>：改数字 → 虚影立刻跟着动；反向不成立。双向同步会在边界抖动，且出现「拖动改数字」这类需要 JS 才能做的交互。<br>
+    <span class="num">3</span> <b>暂停期间也能标</b>：规则「计时不停止」，暂停只冻结全场时钟（C-16），停表点仍按真实时间落。<br>
+    <span class="num">4</span> <b>撤销走留痕</b>：确认后误标，不直接删数字，而是留一条「A 自动 01:28→01:30 · 王建国 · 误触修正」并可撤销。<br>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">P5.6k · 时间轴 · <b>双队标完（分段求和）</b></div>
+  <div class="page-desc">四段全部落位：灰色段是「提前完成后到阶段结束」的等待，<b>不计入净用时</b>；右端构成串与队卡数字由同一组分段算出，不会出现两个数打架。</div>
+  <div class="tablet">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+<div style="border:1px solid #cbd5e0;border-radius:8px;background:#fff;padding:8px 14px 4px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="font-size:12px;font-weight:bold;color:#4a5568;">⏱ 阶段 2/2 · 脑智控制阶段</span><span style="display:inline-block;min-width:92px;text-align:center;border:1px solid #a0aec0;border-radius:6px;padding:2px 8px;font-size:22px;font-weight:bold;font-family:Consolas,monospace;color:#2b6cb0;background:#fff;">1:30</span><span style="font-size:12px;color:#718096;">全场 3:30 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div><div style="display:flex;margin-left:36px;margin-right:104px;height:14px;font-size:10px;line-height:14px;margin-bottom:5px;"><div style="width:40%;border-right:2px solid #2b6cb0;background:#ebf8ff;color:#2b6cb0;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">自动 2:00</div><div style="width:60%;background:#faf5ff;color:#805ad5;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">脑智控制 3:00</div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#2b6cb0;">A</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0%;top:0;width:34%;height:20px;background:#2b6cb0;border-radius:3px 0 0 3px;"></div><div style="position:absolute;left:40%;top:0;width:9.33%;height:20px;background:#2b6cb0;border-radius:0;"></div><div style="position:absolute;left:34%;top:-4px;bottom:-4px;width:2px;background:#2b6cb0;margin-left:-1px;"></div><div style="position:absolute;left:34%;top:-6px;width:8px;height:8px;border-radius:50%;background:#2b6cb0;border:1.5px solid #fff;margin-left:-4px;"></div><div style="position:absolute;left:49.33%;top:-4px;bottom:-4px;width:2px;background:#2b6cb0;margin-left:-1px;"></div><div style="position:absolute;left:49.33%;top:-6px;width:8px;height:8px;border-radius:50%;background:#2b6cb0;border:1.5px solid #fff;margin-left:-4px;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#2b6cb0;">01:42 + 00:28</span></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#805ad5;">B</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0%;top:0;width:38%;height:20px;background:#805ad5;border-radius:3px 0 0 3px;"></div><div style="position:absolute;left:40%;top:0;width:30%;height:20px;background:#805ad5;border-radius:0;"></div><div style="position:absolute;left:38%;top:-4px;bottom:-4px;width:2px;background:#805ad5;margin-left:-1px;"></div><div style="position:absolute;left:38%;top:-6px;width:8px;height:8px;border-radius:50%;background:#805ad5;border:1.5px solid #fff;margin-left:-4px;"></div><div style="position:absolute;left:70%;top:-4px;bottom:-4px;width:2px;background:#805ad5;margin-left:-1px;"></div><div style="position:absolute;left:70%;top:-6px;width:8px;height:8px;border-radius:50%;background:#805ad5;border:1.5px solid #fff;margin-left:-4px;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#805ad5;">01:54 + 01:30</span></div><div style="display:flex;justify-content:space-between;margin-left:36px;margin-right:104px;font-size:10px;color:#a0aec0;font-family:Consolas,monospace;padding-bottom:2px;"><span>0:00</span><span>1:00</span><span>2:00</span><span>3:00</span><span>4:00</span><span>5:00</span></div></div><div style="display:flex; gap:14px;"><div class="card" style="flex:1; border-color:#2b6cb0;"><div style="display:flex; justify-content:space-between; align-items:center;"><b style="font-size:14px; color:#2b6cb0;">A 队</b><span style="font-size:11px; color:#718096;">净用时</span></div><div style="font-size:26px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; margin-top:4px;">02:10</div><div style="font-size:11px; color:#a0aec0; font-family:Consolas,monospace;">01:42 + 00:28</div></div><div class="card" style="flex:1; border-color:#805ad5;"><div style="display:flex; justify-content:space-between; align-items:center;"><b style="font-size:14px; color:#805ad5;">B 队</b><span style="font-size:11px; color:#718096;">净用时</span></div><div style="font-size:26px; font-weight:bold; font-family:Consolas,monospace; color:#805ad5; margin-top:4px;">03:24</div><div style="font-size:11px; color:#a0aec0; font-family:Consolas,monospace;">01:54 + 01:30</div></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>净用时＝Σ 各段</b>：A = 01:42 + 00:28 = <b>02:10</b>；B = 01:54 + 01:30 = <b>03:24</b>。合计由分段求和，不单独采集。<br>
+    <span class="num">2</span> <b>灰段不是「扣时间」</b>：它是该队已经停手、但比赛还没结束的那段；规则允许提前结束，所以这段本就不该算进用时。<br>
+    <span class="num">3</span> <b>构成串只在右端显示一处</b>：队卡里也有一份，是为了让裁判在录入任务时不用回看时间轴——两处同源，不会矛盾。<br>
+    <span class="num">4</span> <b>段数＝阶段数</b>：本场两段是因为后台配了两个阶段；配三段就是三段，文案里的「自动 / 脑智控制」全部取自配置的 <code>phases[].name</code>。<br>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">P5.6l · 时间轴 · <b>越界拦截（校验失败）</b></div>
+  <div class="page-desc">落点必须落在<b>该阶段的时间窗内</b>：自动阶段 00:01 – 02:00。越界时色块转红、给出具体越界值与上限，<b>「确定」置灰</b>，不允许带着错数据往下走。</div>
+  <div class="tablet">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+<div style="border:1px solid #cbd5e0;border-radius:8px;background:#fff;padding:8px 14px 4px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="font-size:12px;font-weight:bold;color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block;min-width:92px;text-align:center;border:1px solid #a0aec0;border-radius:6px;padding:2px 8px;font-size:22px;font-weight:bold;font-family:Consolas,monospace;color:#2b6cb0;background:#fff;">0:12</span><span style="font-size:12px;color:#718096;">全场 1:48 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div><div style="display:flex;margin-left:36px;margin-right:104px;height:14px;font-size:10px;line-height:14px;margin-bottom:5px;"><div style="width:40%;border-right:2px solid #2b6cb0;background:#ebf8ff;color:#2b6cb0;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">自动 2:00</div><div style="width:60%;background:#faf5ff;color:#805ad5;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">脑智控制 3:00</div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#2b6cb0;">A</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0;top:0;width:46%;height:20px;background:#fed7d7;border:2px solid #c53030;border-radius:3px;box-sizing:border-box;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#2b6cb0;">-- + --</span></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#805ad5;">B</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#805ad5;">-- + --</span></div><div style="display:flex;justify-content:space-between;margin-left:36px;margin-right:104px;font-size:10px;color:#a0aec0;font-family:Consolas,monospace;padding-bottom:2px;"><span>0:00</span><span>1:00</span><span>2:00</span><span>3:00</span><span>4:00</span><span>5:00</span></div></div><div style="border:1px solid #feb2b2; background:#fff5f5; border-radius:8px; padding:8px 12px; margin-bottom:8px; font-size:12px; color:#c53030;">⚠ 停表点 <b>02:18</b> 超出「自动阶段」范围（≤ 02:00）——请改到本阶段内，或切到下一阶段再标。</div><div class="card" style="margin-bottom:8px; opacity:.5;"><div class="t-name">① 原石搬运·完全进入 <span class="pts">每颗 +200</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div class="card" style="margin-bottom:8px; opacity:.5;"><div class="t-name">② 原石搬运·部分进入 <span class="pts">每颗 +100</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">1</span><b>＋</b></span></div></div><div class="card" style="margin-bottom:8px; opacity:.5;"><div class="t-name">③ 自动阶段·火种运送入能源仓 <span class="pts">每颗 +100</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">3</span><b>＋</b></span></div></div><div style="font-size:11px; color:#c53030; margin-top:2px;">越界未确认期间，任务卡锁定不可录入</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>为什么要拦</b>：02:18 落进自动阶段，意味着把脑控阶段的 18 秒算进了自动段——净用时会被高估，同分排名直接受影响。<br>
+    <span class="num">2</span> <b>校验三条</b>：① 时长在 00:01 – 该阶段时长之间 ② 只能标当前阶段（禁止跳过）③ 提交前 Σ段 必须等于成绩里的用时。<br>
+    <span class="num">3</span> <b>越界不自动裁剪</b>：不会偷偷改成 02:00，而是拦住让裁判自己决定——静默修正等于改成绩。<br>
+    <span class="num">4</span> <b>阶段配置变了怎么办</b>：老成绩的停表点可能超出新时长，此时标「越界 · 需重标」并锁死提交，不做静默迁移。<br>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">P5.6m · 时间轴 · <b>满时补记（到点未落点）</b></div>
+  <div class="page-desc">裁判漏标时不能把队伍锁死：<b>阶段时钟一到点，该段按满时自动补记</b>，停表点画成空心虚线并标「满时 · 系统补记」，可留痕复核。</div>
+  <div class="tablet">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+<div style="border:1px solid #cbd5e0;border-radius:8px;background:#fff;padding:8px 14px 4px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="font-size:12px;font-weight:bold;color:#4a5568;">⏱ 阶段 2/2 · 脑智控制阶段</span><span style="display:inline-block;min-width:92px;text-align:center;border:1px solid #a0aec0;border-radius:6px;padding:2px 8px;font-size:22px;font-weight:bold;font-family:Consolas,monospace;color:#2b6cb0;background:#fff;">0:00</span><span style="font-size:12px;color:#718096;">全场 5:00 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div><div style="display:flex;margin-left:36px;margin-right:104px;height:14px;font-size:10px;line-height:14px;margin-bottom:5px;"><div style="width:40%;border-right:2px solid #2b6cb0;background:#ebf8ff;color:#2b6cb0;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">自动 2:00</div><div style="width:60%;background:#faf5ff;color:#805ad5;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">脑智控制 3:00</div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#2b6cb0;">A</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0%;top:0;width:34%;height:20px;background:#2b6cb0;border-radius:3px 0 0 3px;"></div><div style="position:absolute;left:40%;top:0;width:50%;height:20px;background:#2b6cb0;border-radius:0;"></div><div style="position:absolute;left:34%;top:-4px;bottom:-4px;width:2px;background:#2b6cb0;margin-left:-1px;"></div><div style="position:absolute;left:34%;top:-6px;width:8px;height:8px;border-radius:50%;background:#2b6cb0;border:1.5px solid #fff;margin-left:-4px;"></div><div style="position:absolute;left:90%;top:-4px;bottom:-4px;width:2px;background:#2b6cb0;margin-left:-1px;"></div><div style="position:absolute;left:90%;top:-6px;width:8px;height:8px;border-radius:50%;background:#2b6cb0;border:1.5px solid #fff;margin-left:-4px;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#2b6cb0;">01:42 + 02:30</span></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#805ad5;">B</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0%;top:0;width:40%;height:20px;background:#805ad5;border-radius:3px 0 0 3px;"></div><div style="position:absolute;left:40%;top:0;width:36%;height:20px;background:#805ad5;border-radius:0;"></div><div style="position:absolute;left:40%;top:-4px;bottom:-4px;width:2px;background:#805ad5;margin-left:-1px;"></div><div style="position:absolute;left:40%;top:-6px;width:8px;height:8px;border-radius:50%;background:#fff;border:1.5px dashed #a0aec0;margin-left:-4px;"></div><div style="position:absolute;left:76%;top:-4px;bottom:-4px;width:2px;background:#805ad5;margin-left:-1px;"></div><div style="position:absolute;left:76%;top:-6px;width:8px;height:8px;border-radius:50%;background:#805ad5;border:1.5px solid #fff;margin-left:-4px;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#805ad5;">02:00 + 01:48</span></div><div style="display:flex;justify-content:space-between;margin-left:36px;margin-right:104px;font-size:10px;color:#a0aec0;font-family:Consolas,monospace;padding-bottom:2px;"><span>0:00</span><span>1:00</span><span>2:00</span><span>3:00</span><span>4:00</span><span>5:00</span></div></div><div style="border:1px solid #fbd38d; background:#fffaf0; border-radius:8px; padding:8px 12px; margin-bottom:8px; font-size:12px; color:#c05621;">⏱ B 队在自动阶段<b>到点未落点</b>，系统已按<b>满时 02:00</b> 补记，停表点显示为空心虚线 · 可复核。</div><div class="card" style="margin-bottom:8px; opacity:.45;"><div class="t-name">① 投射火种入对方灯塔 <span class="pts">每颗 +200</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div class="card" style="margin-bottom:8px; opacity:.45;"><div class="t-name">② 投射火种入对方垂直投影 <span class="pts">每颗 +50</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div class="card" style="margin-bottom:8px; opacity:.45;"><div class="t-name">③ 投射能源球入对方能源塔 <span class="pts">每颗 +200</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div style="font-size:11px; color:#c05621; margin-top:2px;">阶段已到时任务卡锁定；补记只补时间，不改已录入的分数</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>为什么必须自动补</b>：既然「禁止跳过」，漏标就会让后面全卡住——自动补满时是让规则不阻断现场的唯一办法。<br>
+    <span class="num">2</span> <b>补记对队伍偏严</b>：满时是该阶段能用的最长时间，等于按最不利的值算。所以必须<b>显式标出来</b>，让裁判知道「这里是我漏了」，而不是当成正常记录。<br>
+    <span class="num">3</span> <b>空心 vs 实心</b>：实心圆点＝裁判亲手落点；空心虚线＝系统补记。一眼分辨这是人判的还是机器补的。<br>
+    <span class="num">4</span> <b>可复核</b>：补记可走留痕修正改成真实值，但会留下「满时→实际值」的变更记录，公示与申诉时能查到。<br>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">P5.7 · 双侧计分板（未来之城 V7.3 · <b>脑智控制阶段态</b> · A vs B）</div>
+  <div class="page-desc">与 P5.6 是<b>同一页面的另一个 tab 状态</b>：A / B 两队分段控件同时切至「脑智控制阶段」，展示各自该阶段的任务集；各队<b>脑智控制小计</b>计入卡头「总分」（＝ 自动小计 ＋ 脑智控制小计），底部按钮变为「提交成绩 →」</div>
+  <div class="tablet">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+        <div style="border:1px solid #cbd5e0;border-radius:8px;background:#fff;padding:8px 14px 4px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="font-size:12px;font-weight:bold;color:#4a5568;">⏱ 阶段 2/2 · 脑智控制阶段</span><span style="display:inline-block;min-width:92px;text-align:center;border:1px solid #a0aec0;border-radius:6px;padding:2px 8px;font-size:22px;font-weight:bold;font-family:Consolas,monospace;color:#2b6cb0;background:#fff;">1:30</span><span style="font-size:12px;color:#718096;">全场 3:30 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span><button class="btn btn-sm btn-gray">⏸ 暂停计时</button></div><div style="display:flex;margin-left:36px;margin-right:104px;height:14px;font-size:10px;line-height:14px;margin-bottom:5px;"><div style="width:40%;border-right:2px solid #2b6cb0;background:#ebf8ff;color:#2b6cb0;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">自动 2:00</div><div style="width:60%;background:#faf5ff;color:#805ad5;padding-left:5px;box-sizing:border-box;overflow:hidden;white-space:nowrap;">脑智控制 3:00</div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#2b6cb0;">A</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0%;top:0;width:34%;height:20px;background:#2b6cb0;border-radius:3px 0 0 3px;"></div><div style="position:absolute;left:40%;top:0;width:9.33%;height:20px;background:#2b6cb0;border-radius:0;"></div><div style="position:absolute;left:34%;top:-4px;bottom:-4px;width:2px;background:#2b6cb0;margin-left:-1px;"></div><div style="position:absolute;left:34%;top:-6px;width:8px;height:8px;border-radius:50%;background:#2b6cb0;border:1.5px solid #fff;margin-left:-4px;"></div><div style="position:absolute;left:49.33%;top:-4px;bottom:-4px;width:2px;background:#2b6cb0;margin-left:-1px;"></div><div style="position:absolute;left:49.33%;top:-6px;width:8px;height:8px;border-radius:50%;background:#2b6cb0;border:1.5px solid #fff;margin-left:-4px;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#2b6cb0;">01:42 + 00:28</span></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="width:28px;font-size:11px;font-weight:bold;color:#805ad5;">B</span><div style="position:relative;flex:1;height:20px;background:#edf2f7;border-radius:3px;"><div style="position:absolute;left:0%;top:0;width:38%;height:20px;background:#805ad5;border-radius:3px 0 0 3px;"></div><div style="position:absolute;left:40%;top:0;width:30%;height:20px;background:#805ad5;border-radius:0;"></div><div style="position:absolute;left:38%;top:-4px;bottom:-4px;width:2px;background:#805ad5;margin-left:-1px;"></div><div style="position:absolute;left:38%;top:-6px;width:8px;height:8px;border-radius:50%;background:#805ad5;border:1.5px solid #fff;margin-left:-4px;"></div><div style="position:absolute;left:70%;top:-4px;bottom:-4px;width:2px;background:#805ad5;margin-left:-1px;"></div><div style="position:absolute;left:70%;top:-6px;width:8px;height:8px;border-radius:50%;background:#805ad5;border:1.5px solid #fff;margin-left:-4px;"></div></div><span style="width:104px;text-align:right;font-size:12px;font-family:Consolas,monospace;color:#805ad5;">01:54 + 01:30</span></div><div style="display:flex;justify-content:space-between;margin-left:36px;margin-right:104px;font-size:10px;color:#a0aec0;font-family:Consolas,monospace;padding-bottom:2px;"><span>0:00</span><span>1:00</span><span>2:00</span><span>3:00</span><span>4:00</span><span>5:00</span></div></div>
         <div class="two-col">
           <div class="card" style="border-color:#2b6cb0; border-width:2px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -2282,16 +2478,10 @@
                 <span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">1920</span>
               </div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
-              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
-              <span style="display:inline-flex; align-items:center; gap:8px;">
-                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
-                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
-              </span>
-            </div>
-                      <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">手动阶段</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:3px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">净用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:76px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:10</span><span style="font-size:10px; color:#a0aec0; font-family:Consolas,monospace;">01:42 + 00:28</span><span class="tag-weak" style="margin-left:2px;background:#edf2f7; color:#4a5568;">已标记 02:28</span></span></div><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 4px;"><span style="font-size:11px; color:#a0aec0;">只计本队有效段（彩色），灰色为等待不计入</span><span style="font-size:11px; color:#4a5568; border:1px solid #cbd5e0; border-radius:5px; padding:1px 8px; background:#fff;">修改</span></div>
+                      <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">脑智控制阶段</span></div>
           <div style="border:1px solid #bee3f8; border-radius:8px; padding:8px; margin-bottom:8px; background:#f7fbff;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">手动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">1100</b></span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#2b6cb0;">脑智控制阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#2b6cb0;">1100</b></span></div>
               <div class="card" style="margin-bottom:8px;">
                 <div class="t-name">① 投射火种入对方灯塔 <span class="pts">每颗 +200</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div>
@@ -2336,16 +2526,10 @@
                 <span style="font-size:26px; font-weight:bold; color:#805ad5; line-height:1;">970</span>
               </div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;">
-              <span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span>
-              <span style="display:inline-flex; align-items:center; gap:8px;">
-                <span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span>
-                <span style="font-size:12px; color:#718096;"> / 总时间 03:45</span>
-              </span>
-            </div>
-                      <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">手动阶段</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:3px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">净用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:76px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">03:24</span><span style="font-size:10px; color:#a0aec0; font-family:Consolas,monospace;">01:54 + 01:30</span><span class="tag-weak" style="margin-left:2px;background:#edf2f7; color:#4a5568;">已标记 03:30</span></span></div><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 4px;"><span style="font-size:11px; color:#a0aec0;">只计本队有效段（彩色），灰色为等待不计入</span><span style="font-size:11px; color:#4a5568; border:1px solid #cbd5e0; border-radius:5px; padding:1px 8px; background:#fff;">修改</span></div>
+                      <div class="seg" style="margin-bottom:8px;"><span>自动阶段</span><span class="on">脑智控制阶段</span></div>
           <div style="border:1px solid #e9d8fd; border-radius:8px; padding:8px; margin-bottom:8px; background:#faf5ff;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#805ad5;">手动阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#805ad5;">350</b></span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><b style="font-size:13px; color:#805ad5;">脑智控制阶段</b><span style="font-size:12px;">阶段小计 <b style="color:#805ad5;">350</b></span></div>
               <div class="card" style="margin-bottom:8px;">
                 <div class="t-name">① 投射火种入对方灯塔 <span class="pts" style="color:#805ad5">每颗 +200</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="stepper"><b>－</b><span class="n">1</span><b>＋</b></span></div>
@@ -2396,10 +2580,11 @@
     </div>
   </div>
   <div class="note">
-    <span class="num">1</span> <b>这是 P5.6 的第二个 tab 状态</b>：A / B 两队的分段控件各自独立切换，本页展示两队<b>同时停在手动阶段</b>的形态；页面组件与后台配置均与 P5.6 相同。<br>
-    <span class="num">2</span> <b>手动小计计入卡头总分</b>：A 队 自动 820 ＋ 手动 1100 ＝ <b>1920</b>；B 队 自动 620 ＋ 手动 350 ＝ <b>970</b>，均直接体现在卡头「总分」上（已省略底部构成行，避免与卡头重复）；两个 tab 看到的总分一致，只是拆解方式不同。<br>
+    <span class="num">1</span> <b>这是 P5.6 的第二个 tab 状态</b>：A / B 两队的分段控件各自独立切换，本页展示两队<b>同时停在脑智控制阶段</b>的形态；页面组件与后台配置均与 P5.6 相同。<br>
+    <span class="num">2</span> <b>脑智控制小计计入卡头总分</b>：A 队 自动 820 ＋ 脑智控制 1100 ＝ <b>1920</b>；B 队 自动 620 ＋ 脑智控制 350 ＝ <b>970</b>，均直接体现在卡头「总分」上（已省略底部构成行，避免与卡头重复）；两个 tab 看到的总分一致，只是拆解方式不同。<br>
     <span class="num">3</span> <b>底部按钮变为末段语义</b>：按钮与 P5.6 一致，都是 <b>「提交成绩 →」</b>——单队 / 双队<b>共用同一套按钮文案</b>，不因队伍数量增删按钮状态；两侧均完成打分后方可提交（任一侧未完成时置灰），提交后即归档并切下一场。<br>
     <span class="num">4</span> <b>⚠ B 队能源球入塔 / 堆叠为 0</b>：属正常的“该项目未完成”状态（0 分照常计入阶段小计）——示例值，用于说明阶段小计可被单独项目拉低，并不代表数据缺失。
+    <span class="num">5</span> <b>分段净用时（C-17）</b>：A 队 01:42 + 00:28 = <b>02:10</b>，B 队 01:54 + 01:30 = <b>03:24</b>；切阶段时<b>计时不清零、只挪阶段边界</b>，上一段的停表点原样留在时间轴上，可回看。
   </div>
 </div>
 
@@ -2451,6 +2636,90 @@
   </div>
 
 <!-- ============ P5.10 争议 / 申诉上报（普通裁判 · 浮层） ============ -->
+<div class="page">
+  <div class="page-title">P5.9a · 计时器 · <b>待开始态</b>（发令前 · 05:00 满格）</div>
+  <div class="page-desc">开局态：<b>发令即开表</b>——点「▶ 开始本场」写入发令时刻 <b>t0</b>，或由 <b>P2h 开赛确认</b>自动触发；数字灰、全格静止，<b>不倒数、不跳动</b></div>
+  <div class="tablet">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+<div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:10px 14px; margin-bottom:10px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block; min-width:100px; text-align:center; border-radius:6px; padding:2px 8px; font-size:24px; font-weight:bold; font-family:Consolas,monospace; border:1px solid #a0aec0; color:#718096; background:#fff;">05:00</span><span style="font-size:12px; color:#718096;">全场 00:00 / 05:00</span><span style="flex:1;"></span><span class="btn-primary btn-sm">▶ 开始本场</span></div><span class="tag-weak">待开始 · 示例值</span><div class="card" style="margin-bottom:8px;"><div class="t-name">① 原石搬运·完全进入 <span class="pts">每颗 +200</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div class="card" style="margin-bottom:8px;"><div class="t-name">② 原石搬运·部分进入 <span class="pts">每颗 +100</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div class="card" style="opacity:.5; margin-bottom:8px;"><div class="t-name">其余任务卡 <span class="pts">待发令</span></div><div style="font-size:12px; color:#a0aec0; margin-top:4px;">发令前任务卡可预览、不可录入</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>发令即开表，裁判无需再按一次</b>：t0 由「开始本场」或 P2h 开赛确认写入，<b>漏按是现场最常见的时间事故</b>，所以把开表绑在开赛动作上。<br>
+    <span class="num">2</span> <b>待开始态任务卡只读预览</b>：可看任务与分值、不能录入——避免裁判抢跑录分后又被判定重来。<br>
+    <span class="num">3</span> <b>与准备阶段的关系</b>：规则里准备 2:00（抽任务/连设备/调投石器）<b>不进系统</b>，裁判在场地侧自行掌握；计时条从自动阶段才开始走。<br>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">P5.9b · 计时器 · <b>计时中态</b>（含<b>最后 10 秒</b>派生态 · 左右并列）</div>
+  <div class="page-desc">计时中为<b>蓝 #2b6cb0</b>递减；剩余 ≤ 10 秒派生<b>红色告警态</b>（数字转红加粗 + 「最后 10 秒」标签），<b>不是另一个状态，只是同一状态的视觉分级</b></div>
+  <div class="tablet">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+<div style="font-size:12px; font-weight:bold; color:#4a5568; margin-bottom:6px;">① 计时中（剩余 &gt; 10 秒）</div><div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:10px 14px; margin-bottom:10px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block; min-width:100px; text-align:center; border-radius:6px; padding:2px 8px; font-size:24px; font-weight:bold; font-family:Consolas,monospace; border:1px solid #a0aec0; color:#2b6cb0; background:#fff;">01:12</span><span style="font-size:12px; color:#718096;">全场 02:48 / 05:00</span><span style="flex:1;"></span><span class="tag-weak">示例值 · 非实时</span>&nbsp;<span class="btn-gray btn-sm">⏸ 暂停计时</span></div><div style="font-size:12px; font-weight:bold; color:#c53030; margin:14px 0 6px;">② 最后 10 秒（派生告警态）</div><div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:10px 14px; margin-bottom:10px;border-color:#c53030; background:#fff5f5;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block; min-width:100px; text-align:center; border-radius:6px; padding:2px 8px; font-size:24px; font-weight:bold; font-family:Consolas,monospace; border:1px solid #c53030; color:#c53030; background:#fff;">00:09</span><span style="font-size:12px; color:#718096;">全场 04:51 / 05:00</span><span style="flex:1;"></span><span class="tag-block" style="background:#fed7d7; color:#c53030;">最后 10 秒</span>&nbsp;<span class="btn-gray btn-sm">⏸ 暂停计时</span></div><div class="card" style="margin-bottom:8px;"><div class="t-name">① 原石搬运·完全进入 <span class="pts">每颗 +200</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>禁止每秒 -1</b>：剩余时间一律按 `boundary − (now − t0 − 累计暂停)` <b>每帧重算</b>；递减计数会漂移，跨赛台会差出十几秒——这是行业里已被验证的坑（Cheesy Arena 亦用时间戳边界法）。<br>
+    <span class="num">2</span> <b>t0 以服务端为准</b>，前端只做插值渲染；<b>禁用本机系统时间</b>，防止改表造假。<br>
+    <span class="num">3</span> <b>息屏回来立刻重算，不补帧</b>；平板需常亮（wakelock），否则裁判放下平板再拿起会看到时间跳变。<br>
+    <span class="num">4</span> <b>最后 10 秒与归零的提示音/震动由计时条自身承担</b>，不再回到已删除的设置层。<br>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">P5.9c · 计时器 · <b>暂停中态</b>（留痕暂停 · 不限次数）</div>
+  <div class="page-desc">规则 V7.3 原文要求「计时不停止、不暂停」，本设计<b>保留暂停能力但强制留痕</b>：限设备故障 / 安全隐患 / 争议中断，记<b>操作人 + 事由 + 起止 + 时长</b>，进审计</div>
+  <div class="tablet">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+<div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:10px 14px; margin-bottom:10px;border-color:#d69e2e; background:#fffbeb;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block; min-width:100px; text-align:center; border-radius:6px; padding:2px 8px; font-size:24px; font-weight:bold; font-family:Consolas,monospace; border:1px solid #d69e2e; color:#d69e2e; background:#fff;">01:12</span><span style="font-size:12px; color:#718096;">全场 02:48 / 05:00（已暂停 00:42）</span><span style="flex:1;"></span><span class="tag-weak">暂停中 00:42 · 王建国 · 设备重启</span>&nbsp;<span class="btn-primary btn-sm">▶ 继续计时</span></div><div class="card" style="background:#f7fafc; margin-bottom:8px;"><div style="font-size:12px; font-weight:bold; color:#4a5568; margin-bottom:6px;">本场暂停记录（可展开）</div><div class="qrow"><span>第 1 次 · 00:31</span><span style="font-size:12px; color:#718096;">王建国 · 赛道道具移位</span></div><div class="qrow" style="border-bottom:none;"><span>第 2 次 · 进行中 00:42</span><span style="font-size:12px; color:#718096;">王建国 · 设备重启</span></div></div><span class="tag-weak">本场已暂停 2 次 · 共 01:13</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>按钮文案带对象</b>：写「⏸ 暂停计时」，不用裸「暂停」二字点下去就停，<b>必须先弹确认</b>——标题明写「规则要求计时不暂停 —— 本次暂停将记录审计，仅限设备故障 / 安全隐患 / 争议中断」。<br>
+    <span class="num">2</span> <b>暂停中条内常驻可见</b>：`暂停中 00:42 · 操作人 · 事由`，毫秒级显示——裁判自己能看到被记了多久。<br>
+    <span class="num">3</span> <b>恢复后留一枚弱标签</b>：`本场已暂停 N 次 · 共 MM:SS`，可点开折叠列表，不用翻审计。<br>
+    <span class="num">4</span> <b>全场停、本队不停（C-16）</b>：暂停只冻结<b>全场时钟</b>（阶段边界原地不动），<b>两队净用时按真实经过时间继续累加</b>——所以暂停不能用来「白送时间」。暂停时长<b>单独留痕</b>并同行展示，提交前可见「本队用时 04:30（含暂停 3:00）」。<br>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">P5.9d · 计时器 · <b>阶段到时锁定态</b>（自动阶段结束 · 锁该阶段打分）</div>
+  <div class="page-desc">倒计时归零 → 强提示<b>「自动阶段结束」</b> → 该阶段任务卡<b>锁灰不可改</b>（opacity .5 + 🔒 + pointer-events:none），唯一解锁路径是<b>切到下一阶段</b></div>
+  <div class="tablet">
+    <div class="appbar" style="display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;"><span style="justify-self:start;">⛓ 赛台 A · 未来之城 · 小学组 · 第 1 轮</span><span style="justify-self:center; white-space:nowrap;font-size:12px;">裁判：王建国</span></div>
+    <div class="screen">
+      <div class="main sheet">
+        <div class="scroll-area">
+<div style="display:flex; align-items:center; gap:10px; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:10px 14px; margin-bottom:10px;background:#edf2f7;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">⏱ 阶段 1/2 · 自动阶段</span><span style="display:inline-block; min-width:100px; text-align:center; border-radius:6px; padding:2px 8px; font-size:24px; font-weight:bold; font-family:Consolas,monospace; border:1px solid #a0aec0; color:#a0aec0; background:#fff;">00:00</span><span style="font-size:12px; color:#718096;">全场 02:00 / 05:00</span><span style="flex:1;"></span><span class="tag-block" style="background:#e2e8f0; color:#4a5568;">🔒 自动阶段已结束</span>&nbsp;<span class="btn-primary btn-sm">进入脑智控制阶段 →</span></div><div class="card" style="opacity:.5; margin-bottom:8px;"><div class="t-name">① 原石搬运·完全进入<span style="margin-left:6px;">🔒</span> <span class="pts">每颗 +200</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div class="card" style="opacity:.5; margin-bottom:8px;"><div class="t-name">② 原石搬运·部分进入<span style="margin-left:6px;">🔒</span> <span class="pts">每颗 +100</span></div><div style="text-align:right; margin-top:6px;"><span class="stepper"><b>－</b><span class="n">2</span><b>＋</b></span></div></div><div class="card" style="border-color:#cbd5e0;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">阶段小计</span><span style="font-size:20px; font-weight:bold; color:#4a5568;">🔒 已锁 820</span></div><div style="font-size:12px; color:#c53030; margin-top:4px;">⚠ 有一项到时未录入 → 按 0 计，已写入提交前置检查（P5.6h）</div></div><div style="display:flex; gap:8px; margin-top:10px;"><span class="btn-ghost btn-sm">🚩 记红牌（不受阶段限制）</span><span class="btn-ghost btn-sm">提交成绩 →</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <span class="num">1</span> <b>锁什么</b>：该阶段全部任务卡（布尔开关 / 加减器 / 黄牌计数）置灰、不可点，seg <b>不可回切</b>——防止裁判在脑智控制阶段回头补自动阶段的分数。<br>
+    <span class="num">2</span> <b>不锁什么</b>：`🚩 记红牌`（判罚不受阶段限制）、`提交成绩`、`返回队列`——这三件事与阶段无关。<br>
+    <span class="num">3</span> <b>解锁唯一路径 = 切下一阶段</b>；确实录错了走 <b>P8/P9 改分审批</b>，与「提交即锁」同构，<b>不开当场后门</b>——否则锁定形同虚设。<br>
+    <span class="num">4</span> <b>到时未录入 → 按 0 计较显式</b>：`⚠` 标与徽标同时出现，并喂给 P5.6h 前置检查，避免「静默 0 分」被当成系统 bug 申诉。<br>
+    <span class="num">5</span> <b>锁定 ≠ 提交</b>：锁定只封阶段，签名与三方确认仍在 P5.6g。<b>加时阶段（V7.4）本期不做</b>，边界数组预留第 4 段 `[0,120,300,420]`。<br>
+  </div>
+</div>
+
 <div class="page">
   <div class="page-title">P5.10 · 争议 / 申诉上报（浮层 · 普通裁判点「⚠ 上报争议」唤起）</div>
   <div class="page-desc">普通裁判在打分页点「⚠ 上报争议」→ <b>当场浮出上报浮层</b>，不跳页、不中断当前比赛；提交后生成<b>争议工单</b>进入待裁定队列，由裁判长在 <b>P8 裁定台</b>裁定</div>
@@ -3421,7 +3690,7 @@
     <div style="background:#fefcbf; border-bottom:1px solid #f6e05e; color:#975a16; font-size:12px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; gap:10px;"><span>⚠ <b>当前离线</b> · 成绩与留底已暂存本机，联网后自动补传（待补传 <b>3</b> 条）</span><span style="white-space:nowrap;"><span class="btn-outline btn-sm" style="cursor:pointer;">重试连接</span></span></div>
     <div class="screen">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:00</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">04:12</span><span style="font-size:12px; color:#718096;"> / 总时间 05:00</span></span></div>
         <div class="card">
           <div class="t-name">① 成功放落能源仓 <span class="pts">达成 +100</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
@@ -3488,7 +3757,7 @@
     <div style="background:#ebf4ff; border-bottom:1px solid #bee3f8; color:#2b6cb0; font-size:12px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; gap:10px;"><span>↑ <b>正在补传 2 / 3 条…</b> （请勿关闭平板；补传期间可继续打分）</span></div>
     <div class="screen">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:00</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">04:12</span><span style="font-size:12px; color:#718096;"> / 总时间 05:00</span></span></div>
         <div class="card">
           <div class="t-name">① 成功放落能源仓 <span class="pts">达成 +100</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
@@ -3554,7 +3823,7 @@
     <div style="background:#c6f6d5; border-bottom:1px solid #9ae6b4; color:#22543d; font-size:12px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; gap:10px;"><span>✓ <b>已全部补传（3 条）</b> · 本机暂存与服务端一致</span></div>
     <div class="screen">
       <div class="main sheet">
-        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">02:58</span><span style="font-size:12px; color:#718096;"> / 总时间 03:00</span></span></div>
+        <div class="scroll-area"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div><b style="font-size:15px; color:#2b6cb0;">T013</b> <span style="font-size:13px; color:#4a5568;">火星探险小队</span></div><div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11px; color:#718096;">总分</span><span style="font-size:26px; font-weight:bold; color:#2b6cb0; line-height:1;">970</span></div></div><div style="display:flex; justify-content:space-between; align-items:center; background:#f7fafc; border:1px solid #cbd5e0; border-radius:8px; padding:6px 14px; margin-bottom:8px;"><span style="font-size:12px; font-weight:bold; color:#4a5568;">用时</span><span style="display:inline-flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:88px; text-align:center; border:1px solid #a0aec0; border-radius:6px; padding:2px 8px; font-size:20px; font-weight:bold; font-family:Consolas,monospace; color:#2b6cb0; background:#fff;">04:12</span><span style="font-size:12px; color:#718096;"> / 总时间 05:00</span></span></div>
         <div class="card">
           <div class="t-name">① 成功放落能源仓 <span class="pts">达成 +100</span></div>
 <div style="text-align:right; margin-top:6px;"><div><span class="toggle on"></span></div>
@@ -3655,7 +3924,7 @@
   </div>
 </div>
 
-<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.7.53 · 共 49 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b 裁定两态（详情）· P8x 取消资格（独立动议）· P8g / P8h 裁定原因填写前 / 后· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P8f 提交裁定确认弹窗（通用叠加态）/ P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / P5.8c 记红牌弹窗（红牌）/ P5.10 争议上报 / P2h 开赛确认 / P3g · P3h 签名与提交弹层（未齐 / 签齐）/ P5.6g 整场签名与提交弹层 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11 / P13 确认状态回流看板）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-10-28（V0.7.8 口径同步：公示表确认 → 成绩确认）· 2026-11-01（V0.7.9：P2g 设置 → 退出；V0.7.10：全册文案一致性修订 · 去后台术语 / 去时间奖励 / 数据对齐；V0.7.11：我的申请去单号 + 撤回确认页；V0.7.12：删 P2b-改时「修正用时」浮层（用时改为只读）· 选手名之间改用逗号 · 顶栏统一（左标题 / 裁判正中 / 右侧动作或成绩，去掉顶栏用时；用时输入移到任务区顶部，与 P5.6 侧板同款 · 修签名弹层未居中：遮罩容器被提前闭合、已签态签名框写成 border:#xxx 少了宽度不渲染 · 单队打分页（P3/P4/P5/P5.5 及叠加态 · V0.7.13：新增 <b>P2h2</b>（提交后自动跳转的核对）+ <b>P3i</b>（提交成功弹窗 · 3 秒自动切队），47→49 页；V0.7.14：删 P5.7b（黄牌记满即时弹窗）· 黄牌改为只累计、提交时按「每满 N 张折算 1 张红牌」一次折算，折算结果与规则写在 P5.6g / P3g / P3h 签名弹层，49→48 页；V0.7.15：新增 P5.6b（黄牌满 3 张 · 不阻断，计数器下方常驻「提交时折算 1 张红牌」），48→49 页）顶栏改为赛台 · 赛项 · 组别 · 轮次，队伍名与本队总分开到内容区首行 · 用时统一为「分:秒」（02:58 / 上限 03:45），覆盖 P3 / P4 / P5 / P5.5 / P5.6 / P5.7 / P12 三态 / 两个签名弹层）；V0.7.16：删 P5.6b（黄牌满 3 张页）· 打分页一律不再显示「满 3 张 → 折算 1 张红牌」，折算只在 P5.6g / P3g / P3h 签名确认弹层里体现，49→48 页；V0.7.17：P5.6g 两队卡内黄牌 / 红牌拆成两行（各占一行）· referee.html 折算口径同步；V0.7.18：P5.6g 按折算后显示——黄牌被消耗（3 → 0）、红牌增加（0 → 1），余数才留作黄牌；V0.7.19：P5.6g 黄框只留折算规则，删去「本场 A 队 3 张…成绩与名次照常」整段；V0.7.20：P5.6g 删「三方签名齐全前，确认整场提交不可点」提示条，置灰由按钮态自证；V0.7.21：按钮「确认整场提交」改名「确认提交」，与单队弹层同名；V0.7.22：用时旁「上限 03:45」改「总分 03:45」（全册 7 处）；V0.7.23：改为「总时间」（6 处）· P3 / P3g / P3h / P3i / P12 三态 / P4 的用时行补「/ 总时间」（03:00 / 04:00）；V0.7.24：卡头「本队总分」简化为「总分」（18 处）；V0.7.25：裁定台队列「状态」与「查看」拆成两列（含待裁定行改「待裁定」+「去裁定」）· P8d 成功条拆两行；V0.7.26：P8d 成功条改为与 P3i 同款居中白卡回执（绿勾标题 + 三行只读 + 绿框去向 + 进度条）；V0.7.27：证据缩略图「📷 提交留底」改「📷 裁判签名」（P8a/P8g/P8h/P8b/P8e 共 5 处）；V0.7.28：证据三件 + 申诉书照片合并为一行「证据留底」· P8e 顶部状态行改为「徽标 | 队伍 | 结论 | 时间 | 裁定人」分段；V0.7.29：P8e 徽标简化为「已裁定」（去 🔒 与「· 只读」）、删去「结论 维持原判」「13:26 裁定」两段；V0.7.30：P5.8c 删弹窗底部「本场已记 … 撤销」一行；V0.7.31：P5.8c 标题只留「记红牌」、事由标题去「（赛前配置）」；V0.7.32：事由标题去「· 红牌」，只留「判罚事由」；V0.7.33：新增 P3h2（单队签名弹层 · 黄牌满 3 张折算态，黄牌 3 → 0 / 红牌 0 → 1），48→49 页；V0.7.34：P3g / P3h 判罚行同步拆「黄牌 / 红牌」两行，黄框只留折算规则；V0.7.35：红牌为 0 时写「0」不写「无」（P3g / P3h / P5.6g 共 3 处）；V0.7.36：单队签名弹层三态删掉底部提示条（与 P5.6g 同口径，置灰/解锁由按钮态自证）；V0.7.37：P2b / P2c / P2d 顶栏改为「赛台 · 赛项 · 组别 · 轮次」（与打分表一致）· P2b 删「已生效成绩 · 修改需审批」提示卡、队伍与总分移到内容区首行；V0.7.38：P2b 底部「判罚记录」拆成「黄牌 / 红牌」两行、去掉行尾「记红牌 →」；V0.7.39：P2c「立即返回队列 →」改「返回队列」；V0.7.40：P2d 内容区首行补「队伍 + 总分」（与 P2b 同款）；V0.7.41：P2d 删底部「原成绩 / 待审批拟改值 / 已锁不可编辑」整块（全锁态与普通打分页一致）；V0.7.42：P2e 删「改分 →」按钮（改分入口只在 P2 队列行）；V0.7.43：P2e 证据区去掉「成绩单」缩略图、「提交留底」改「裁判签字」、说明只留「已同步」徽标；V0.7.44：P2e 删证据区下方整行说明；V0.7.45：P2e2 红卡收敛为一句（删裁定单号 / 全部成绩作废 / 冲突记录作废两段）、签名行只留「⛔ 已作废」；V0.7.46：P2e2 证据区与 P2e 同步（提交留底→裁判签字、只留「已同步」、删下方说明）；V0.7.47：P2f 删「未提交改动 1 项」与「（当前生效）」「（待授权）」括注；V0.7.48：P2h 删第二屏（退出核对后的队列态），规则保留在 note 3；V0.7.49：P5.6g 弹层背景补上 P5.7 双侧计分板（原先只有灰遮罩）；V0.7.50：P2f 弹层背景补上 P2b 改分页（原先灰条占位）；V0.7.51：打分页底部按钮统一为「提交成绩 →」（取消「保存并继续」）· 新增 P5.6h 前置检查（有阶段 0 项时二次确认），49→50 页；V0.7.52：P7 / P7c 待办表去掉工单号括注（R-008 / R-010 / D-003），事项只留一行结果）；V0.7.53：删 P5.10b「无照片通道」——申诉书照片为必填，不接受文字替代，50→49 页）</div>
+<div style="text-align:center; color:#a0aec0; font-size:12px; padding-bottom:40px;">BrainAI 赛事裁判打分系统 · Wireframe V0.10.1 · 共 59 页（含 P1.5 / P1.5b / P1.5c / P1.6 / P2b · P2c · P2d 改分模式三态（可编辑 / 已提交 / 拦截）/ P2e · P2e2 / P2f 返回拦截浮层 / P8 待裁定队列 · P8a / P8b 裁定两态（详情）· P8x 取消资格（独立动议）· P8g / P8h 裁定原因填写前 / 后· P8d 提交裁定成功条（叠加态）· P8e 已裁定只读态 / P8f 提交裁定确认弹窗（通用叠加态）/ P12 · P12b · P12c 离线与补传三态 / 未来之城四态 P5 · P5.5 · P5.6 · P5.7 / <b>时间轴五态</b> P5.6i 初始（含折叠态）· P5.6j 标记中（点位置 + 滚轮微调）· P5.6k 双队标完 · P5.6l 越界拦截 · P5.6m 满时补记 / 计时器四态 P5.9a 待开始 · P5.9b 计时中（含最后 10 秒）· P5.9c 暂停中（留痕）· P5.9d 阶段到时锁定 / P5.8c 记红牌弹窗（红牌）/ P5.10 争议上报 / P2h 开赛确认 / P3g · P3h 签名与提交弹层（未齐 / 签齐）· <b>P3j 用时修改弹层（点数字唤起 mm:ss 滚轮）</b> / P5.6g 整场签名与提交弹层 / P9b 改分审批已批准成功条（叠加态）/ P7c · P7b / P8–P11 / P13 确认状态回流看板）· 单屏适配：设备框固定 700px 高 + 框内滚动（参考 RoboCup GameController3 / VEX Scorekeeper / UltiStats）· 2026-10-28（V0.7.8 口径同步：公示表确认 → 成绩确认）· 2026-11-01（V0.7.9：P2g 设置 → 退出；V0.7.10：全册文案一致性修订 · 去后台术语 / 去时间奖励 / 数据对齐；V0.7.11：我的申请去单号 + 撤回确认页；V0.7.12：删 P2b-改时「修正用时」浮层（用时改为只读）· 选手名之间改用逗号 · 顶栏统一（左标题 / 裁判正中 / 右侧动作或成绩，去掉顶栏用时；用时输入移到任务区顶部，与 P5.6 侧板同款 · 修签名弹层未居中：遮罩容器被提前闭合、已签态签名框写成 border:#xxx 少了宽度不渲染 · 单队打分页（P3/P4/P5/P5.5 及叠加态 · V0.7.13：新增 <b>P2h2</b>（提交后自动跳转的核对）+ <b>P3i</b>（提交成功弹窗 · 3 秒自动切队），47→49 页；V0.7.14：删 P5.7b（黄牌记满即时弹窗）· 黄牌改为只累计、提交时按「每满 N 张折算 1 张红牌」一次折算，折算结果与规则写在 P5.6g / P3g / P3h 签名弹层，49→48 页；V0.7.15：新增 P5.6b（黄牌满 3 张 · 不阻断，计数器下方常驻「提交时折算 1 张红牌」），48→49 页）顶栏改为赛台 · 赛项 · 组别 · 轮次，队伍名与本队总分开到内容区首行 · 用时统一为「分:秒」（02:58 / 上限 03:45），覆盖 P3 / P4 / P5 / P5.5 / P5.6 / P5.7 / P12 三态 / 两个签名弹层）；V0.7.16：删 P5.6b（黄牌满 3 张页）· 打分页一律不再显示「满 3 张 → 折算 1 张红牌」，折算只在 P5.6g / P3g / P3h 签名确认弹层里体现，49→48 页；V0.7.17：P5.6g 两队卡内黄牌 / 红牌拆成两行（各占一行）· referee.html 折算口径同步；V0.7.18：P5.6g 按折算后显示——黄牌被消耗（3 → 0）、红牌增加（0 → 1），余数才留作黄牌；V0.7.19：P5.6g 黄框只留折算规则，删去「本场 A 队 3 张…成绩与名次照常」整段；V0.7.20：P5.6g 删「三方签名齐全前，确认整场提交不可点」提示条，置灰由按钮态自证；V0.7.21：按钮「确认整场提交」改名「确认提交」，与单队弹层同名；V0.7.22：用时旁「上限 03:45」改「总分 03:45」（全册 7 处）；V0.7.23：改为「总时间」（6 处）· P3 / P3g / P3h / P3i / P12 三态 / P4 的用时行补「/ 总时间」（03:00 / 04:00）；V0.7.24：卡头「本队总分」简化为「总分」（18 处）；V0.7.25：裁定台队列「状态」与「查看」拆成两列（含待裁定行改「待裁定」+「去裁定」）· P8d 成功条拆两行；V0.7.26：P8d 成功条改为与 P3i 同款居中白卡回执（绿勾标题 + 三行只读 + 绿框去向 + 进度条）；V0.7.27：证据缩略图「📷 提交留底」改「📷 裁判签名」（P8a/P8g/P8h/P8b/P8e 共 5 处）；V0.7.28：证据三件 + 申诉书照片合并为一行「证据留底」· P8e 顶部状态行改为「徽标 | 队伍 | 结论 | 时间 | 裁定人」分段；V0.7.29：P8e 徽标简化为「已裁定」（去 🔒 与「· 只读」）、删去「结论 维持原判」「13:26 裁定」两段；V0.7.30：P5.8c 删弹窗底部「本场已记 … 撤销」一行；V0.7.31：P5.8c 标题只留「记红牌」、事由标题去「（赛前配置）」；V0.7.32：事由标题去「· 红牌」，只留「判罚事由」；V0.7.33：新增 P3h2（单队签名弹层 · 黄牌满 3 张折算态，黄牌 3 → 0 / 红牌 0 → 1），48→49 页；V0.7.34：P3g / P3h 判罚行同步拆「黄牌 / 红牌」两行，黄框只留折算规则；V0.7.35：红牌为 0 时写「0」不写「无」（P3g / P3h / P5.6g 共 3 处）；V0.7.36：单队签名弹层三态删掉底部提示条（与 P5.6g 同口径，置灰/解锁由按钮态自证）；V0.7.37：P2b / P2c / P2d 顶栏改为「赛台 · 赛项 · 组别 · 轮次」（与打分表一致）· P2b 删「已生效成绩 · 修改需审批」提示卡、队伍与总分移到内容区首行；V0.7.38：P2b 底部「判罚记录」拆成「黄牌 / 红牌」两行、去掉行尾「记红牌 →」；V0.7.39：P2c「立即返回队列 →」改「返回队列」；V0.7.40：P2d 内容区首行补「队伍 + 总分」（与 P2b 同款）；V0.7.41：P2d 删底部「原成绩 / 待审批拟改值 / 已锁不可编辑」整块（全锁态与普通打分页一致）；V0.7.42：P2e 删「改分 →」按钮（改分入口只在 P2 队列行）；V0.7.43：P2e 证据区去掉「成绩单」缩略图、「提交留底」改「裁判签字」、说明只留「已同步」徽标；V0.7.44：P2e 删证据区下方整行说明；V0.7.45：P2e2 红卡收敛为一句（删裁定单号 / 全部成绩作废 / 冲突记录作废两段）、签名行只留「⛔ 已作废」；V0.7.46：P2e2 证据区与 P2e 同步（提交留底→裁判签字、只留「已同步」、删下方说明）；V0.7.47：P2f 删「未提交改动 1 项」与「（当前生效）」「（待授权）」括注；V0.7.48：P2h 删第二屏（退出核对后的队列态），规则保留在 note 3；V0.7.49：P5.6g 弹层背景补上 P5.7 双侧计分板（原先只有灰遮罩）；V0.7.50：P2f 弹层背景补上 P2b 改分页（原先灰条占位）；V0.7.51：打分页底部按钮统一为「提交成绩 →」（取消「保存并继续」）· 新增 P5.6h 前置检查（有阶段 0 项时二次确认），49→50 页；V0.7.52：P7 / P7c 待办表去掉工单号括注（R-008 / R-010 / D-003），事项只留一行结果）；V0.7.53：删 P5.10b「无照片通道」——申诉书照片为必填，不接受文字替代，50→49 页；V0.8.0：新增<b>场内计时</b>（C-14 取代 C-6：发令 t0 + 阶段边界数组、每帧重算、禁止每秒递减；用时自动写入、异常留痕修正）· 手动阶段→脑智控制阶段、阶段时长 01:45→03:00、全场 03:45→05:00 · 六张打分页（P3 / P4 / P5 / P5.5 / P5.6 / P5.7）植入计时条，双队共用一条阶段计时 + 各队本队用时只读 · 新增 P5.9a–d 计时器四态，49→53 页；V0.8.1：双队<b>分别计时</b>——新增「本队用时（净）」只读值与「本队完成」按钮（C-15：净用时＝各计分阶段内该队有效耗时之和，准备段／复核段／阶段间等待不计入，未按即按满时长，全场 05:00 强制收口；裁判代按，一按只定格该队）；暂停口径定为<b>全场停、本队不停</b>（C-16：只冻结全场时钟，净用时按真实时间继续累加）；P5.6 说明卡编号归位为 1→1.1→1.2→1.3→2…7；V0.9.0：双队计时改为<b>时间轴多段标记</b>——顶栏计时条换成整宽双轨时间轴（阶段带取自 <code>phases[]</code>，段块按队色 A 蓝 / B 紫、停表点＝2px 竖线 + 8px 圆点）；裁判<b>点轨道落点 + 滚轮微调 mm:ss</b>，<b>数字为准、位置由数字反算</b>；净用时改为 Σ 各段（C-17 取代 C-15），<b>段数＝阶段数</b>、<b>禁止跳过</b>、阶段到点<b>满时自动补记</b>；新增 P5.6i–m 五态，53→58 页；V0.9.1：<b>阶段命名术语收敛</b>——把残留的「手动」统一为「脑智控制」（手动小计→脑智控制小计 8 处、「自动 / 手动」tab 说明 2 处、「自动＋手动」「手动分」「自动在前、手动在后」「＋ 手动 1100 / 350」共 5 处），消除与页面标题「脑智控制阶段」的自相矛盾；通用词（手动搜索 / 手动切队 / 手动触发 / 手动补截等 16 处）与历史记录保留不动；V0.9.2：P2f「放弃本次修改」弹窗的改动明细行<b>去掉重复的增量</b>——「1 颗 → 2 颗（+150）」改为「1 颗 → 2 颗」，<b>+150 只在「改后成绩 620」出现一次</b>，同一笔增量不再出现两遍；V0.9.3：「原成绩 470 不变」去掉「不变」，只留数值——同一行里已有「→ 2 颗」表达变化，再写「不变」与它互相打架；V0.9.4：单队页用时改为<b>可点修改</b>（C-18）——顶栏数字改<b>虚线框 + 「可点修改」标签</b>，点开弹 mm:ss 键盘，确认即写入成绩并留痕「谁改的 / 原值 → 新值」；新增 <b>P3j</b> 一屏（58→59 页）；同时把 P3 / P4 与 P3g · P3h · P3i · P12 三态的示例用时<b>统一为 04:12 / 05:00</b>（原主页写 04:12、签名弹层写 02:58，同一场两个数）；并修正 P5.6g 签名弹层里两队用时<b>漏改</b>的 02:58 残留（应为 A 02:10 / B 03:24））；V0.9.5：暂停按钮<b>去掉「留痕」二字</b>（「⏸ 暂停计时（留痕）」→「⏸ 暂停计时」共 13 个按钮），留痕改由<b>确认弹层与审计承担</b>，按钮不再自述；同步 P5.9c 说明卡第 1 条（原写「不写裸暂停」，按钮改名后该表述失效）；V0.9.6：<b>P3g / P3h 两个签名框右上角各加「放大」图标（⤢）</b>——未签态点它把小框临时放大到整屏手写（64px 高的框里平板签名写不准），已签态点它是放大查看；V0.9.7：<b>P5.6g 双队三方签名框也加放大图标（⤢）</b>——A 队代表 / B 队代表 / 裁判三个框各一个，样式与 P3g 系列完全一致，至此全册签名输入框 9 个全部带放大按钮；V0.9.8：P3i 提交成功弹窗<b>删两处附加说明</b>——绿框「，先核对身份再开打」（保留「3 秒后自动跳到下一队 T014 极光队」）与底部「· 更正需走改分审批」（保留「提交后不可撤销」）；V0.9.9：P3i 绿框<b>删掉队名「T014 极光队」并改为居中</b>——只留「3 秒后自动跳到下一队」，队名交给随后的核对页（P2h2）显示，避免弹窗与核对页重复报同一队号；V0.10.0：P3j 用时修改弹层<b>输入方式换代</b>——九宫格键盘 + 大数字框换成<b>「分 / 秒」两列滚轮选择器</b>（三行可见 · 中间高亮 · 上下渐隐 · 范围自动夹取），保留 ±1s / ±5s 微调与确定；「时」列按 phases 总时长推导，本赛项 05:00 不出现；V0.10.1：<b>P5.6j 双队「标记中」也换成同款分 / 秒滚轮</b>——双队落点微调原为九宫格键盘，现与 P3j 形态统一（滚轮选中带 + 上下渐隐 + ±1s / ±5s 微调），「位置仅供粗定位、以滚轮数值为准」的口径不变；至此全册 mm:ss 输入只剩滚轮一种形态</div>
 
 </body>
 </html>
